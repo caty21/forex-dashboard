@@ -42,8 +42,17 @@ async function fetchFrankfurter() {
   try {
     const res = await fetch("https://api.frankfurter.app/latest?from=USD", { next: { revalidate: 86400 } });
     if (!res.ok) throw new Error(`Frankfurter ${res.status}`);
-    const data = await res.json();
-    return NextResponse.json({ rates: data.rates, dxy: null, base: "USD", source: "frankfurter", date: data.date });
+    const data  = await res.json();
+    const rates = data.rates as Record<string, number>;
+
+    // DXY approximé depuis les taux ECB (même formule que la branche AV)
+    // rates.X = "1 USD = X unités" — même convention que AV
+    const e = rates.EUR, g = rates.GBP, j = rates.JPY, c = rates.CAD, ch = rates.CHF;
+    const dxy = (e && g && j && c && ch)
+      ? parseFloat((50.14348112 * Math.pow(e,0.576) * Math.pow(1/j,0.136) * Math.pow(g,0.119) * Math.pow(1/c,0.091) * Math.pow(1/ch,0.036)).toFixed(2))
+      : null;
+
+    return NextResponse.json({ rates, dxy, base: "USD", source: "frankfurter", date: data.date });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 502 });
   }
