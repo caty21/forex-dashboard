@@ -29,11 +29,13 @@ async function fetchAV(apiKey: string) {
     } catch { /* skip on error */ }
   }
   if (Object.keys(rates).length < 4) return null; // too many failures → fall back
-  // Approximate DXY from fetched pairs (no extra AV call needed)
-  // DXY = 50.14 × EUR^0.576 × (1/JPY)^0.136 × GBP^0.119 × (1/CAD)^0.091 × (1/CHF)^0.036
+  // DXY = 50.14 × EURUSD^-0.576 × USDJPY^0.136 × GBPUSD^-0.119 × USDCAD^0.091 × USDCHF^0.036
+  // AV from_currency=USD → e=USD/EUR, j=JPY/USD, g=USD/GBP, c=CAD/USD, ch=CHF/USD
+  // ⟹ EURUSD=1/e → e^0.576 ; USDJPY=j → j^0.136 ; GBPUSD=1/g → g^0.119
+  //    USDCAD=c → c^0.091 ; USDCHF=ch → ch^0.036
   const e = rates.EUR, g = rates.GBP, j = rates.JPY, c = rates.CAD, ch = rates.CHF;
   const dxy = (e && g && j && c && ch)
-    ? parseFloat((50.14348112 * Math.pow(e,0.576) * Math.pow(1/j,0.136) * Math.pow(g,0.119) * Math.pow(1/c,0.091) * Math.pow(1/ch,0.036)).toFixed(3))
+    ? parseFloat((50.14348112 * Math.pow(e,0.576) * Math.pow(j,0.136) * Math.pow(g,0.119) * Math.pow(c,0.091) * Math.pow(ch,0.036)).toFixed(2))
     : null;
   return { rates, dxy, base: "USD", source: "alphavantage", timestamp: Date.now() };
 }
