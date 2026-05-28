@@ -47,14 +47,14 @@ export const FRED_SERIES: Record<Currency, {
   GBP: {
     policyRate:   null,                 // → BoE API dans /api/macro
     cpiCore:      "GBRCPIALLMINMEI",   // indice niveau → MoM%
-    gdp:          "CLVMNACSCAB1GQGB",  // indice niveau → QoQ%
+    gdp:          "NGDPRSAXDCGBQ",    // Real GDP UK (BEA/ONS) indice niveau → QoQ%
     retailSales:  "GBRSLRTTO01GPSAM", // déjà MoM%
     unemployment: "LRHUTTTTGBM156S",
     employment:   null,                 // pas de série mensuelle FRED pour GBP
   },
   JPY: {
     policyRate:   "IRSTCB01JPM156N",
-    cpiCore:      "JPNCPIALLMINMEI",   // indice niveau → MoM%
+    cpiCore:      null,                 // JPNCPIALLMINMEI stale depuis 2021 sur FRED
     gdp:          "JPNRGDPEXP",        // indice niveau → QoQ%
     retailSales:  "JPNSLRTTO01GPSAM", // déjà MoM%
     unemployment: "LRHUTTTTJPM156S",
@@ -63,15 +63,15 @@ export const FRED_SERIES: Record<Currency, {
   CHF: {
     policyRate:   "IRSTCB01CHM156N",
     cpiCore:      "CHECPICORMINMEI",   // indice niveau → MoM%
-    gdp:          "CHNGDPNQDSMEI",     // indice niveau → QoQ%
+    gdp:          "CHNGDPNQDSMEI",     // indice niveau → QoQ% (peut être stale)
     retailSales:  "CHESLRTTO01GPSAM", // déjà MoM%
-    unemployment: "LRHUTTTTCHM156S",
+    unemployment: "LRHUTTTTCHQ156S",  // trimestriel (LRHUTTTTCHM156S n'existe pas)
     employment:   null,                 // pas de série FRED pour CHF
   },
   CAD: {
     policyRate:   "IRSTCB01CAM156N",
     cpiCore:      "CANCPICORMINMEI",   // indice niveau → MoM%
-    gdp:          "CLVMNACSCAB1GQCA",  // indice niveau → QoQ%
+    gdp:          "NGDPRSAXDCCAQ",    // Real GDP Canada (BEA/StatCan) indice niveau → QoQ%
     retailSales:  "CANSLRTTO01GPSAM", // déjà MoM%
     unemployment: "LRHUTTTTCAM156S",
     employment:   "LFEMTTTTCAM647S",  // niveau mensuel → MoM%
@@ -79,7 +79,7 @@ export const FRED_SERIES: Record<Currency, {
   AUD: {
     policyRate:   "IRSTCB01AUM156N",
     cpiCore:      "AUSCPIALLMINMEI",   // trimestriel
-    gdp:          "CLVMNACSCAB1GQAU",  // indice niveau → QoQ%
+    gdp:          "NGDPRSAXDCAUQ",    // Real GDP Australia (ABS) indice niveau → QoQ%
     retailSales:  null,                 // pas de série mensuelle FRED pour AUD
     unemployment: "LRHUTTTTAUM156S",
     employment:   "LFEMTTTTAUM647S",  // niveau mensuel → MoM%
@@ -87,7 +87,7 @@ export const FRED_SERIES: Record<Currency, {
   NZD: {
     policyRate:   "IRSTCB01NZM156N",
     cpiCore:      "NZLCPIALLMINMEI",   // trimestriel
-    gdp:          "CLVMNACSCAB1GQNZ",  // indice niveau → QoQ%
+    gdp:          "NAEXKP01NZQ661S",  // indice niveau → QoQ% (stale ~2023, best available)
     retailSales:  null,                 // pas de série mensuelle FRED pour NZD
     unemployment: "LRUNTTTTNZQ156S",
     employment:   "LFEMTTTTNZQ647S",  // niveau trimestriel → QoQ% (proxy)
