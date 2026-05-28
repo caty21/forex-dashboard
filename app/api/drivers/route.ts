@@ -21,7 +21,7 @@ type FredResult = { value: number | null; delta: number | null; deltaPct: number
 async function fredObsDelta(series: string, apiKey: string): Promise<FredResult> {
   const empty: FredResult = { value: null, delta: null, deltaPct: null };
   try {
-    const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${series}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=2`;
+    const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${series}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=10`;
     const res  = await fetch(url, { next: { revalidate: 86400 } });
     if (!res.ok) return empty;
     const obs: number[] = ((await res.json())?.observations ?? [])
