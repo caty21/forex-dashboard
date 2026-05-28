@@ -100,13 +100,24 @@ export default function CurrencyCard({ currency, expectations, yields, onDiverge
       const json: MacroData = await res.json();
       if ("error" in json) throw new Error(String((json as Record<string,unknown>).error));
 
-      setData(json);
+      // PMI est scraped mensuellement → si le serveur renvoie null cette semaine
+      // (PMI pas encore publié), on conserve la valeur précédente du cache local.
+      const prevCache = loadCache<MacroData>(cacheKey);
+      const merged: MacroData = {
+        ...json,
+        indicators: {
+          ...json.indicators,
+          pmiMfg:      json.indicators.pmiMfg      ?? prevCache?.data.indicators.pmiMfg      ?? null,
+          pmiServices: json.indicators.pmiServices ?? prevCache?.data.indicators.pmiServices ?? null,
+        },
+      };
+      setData(merged);
       setFromCache(false);
       setCacheAge(null);
-      saveCache(cacheKey, json);
+      saveCache(cacheKey, merged);
 
       // Infer phase from policy rate trend
-      const rateInd = json.indicators.policyRate;
+      const rateInd = merged.indicators.policyRate;
       if (rateInd?.trend === "up")        setPhase("tightening");
       else if (rateInd?.trend === "down") setPhase("easing");
       else                                setPhase("hawkish_pause");

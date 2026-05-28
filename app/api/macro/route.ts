@@ -7,8 +7,6 @@ const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
 const REVALIDATE = 86400;
 
 // ── FRED ─────────────────────────────────────────────────────────────────────
-// Note: we use original index/level URLs (no units= param) so Next.js fetch cache
-// stays warm. MoM%/QoQ% are computed locally via toIndicatorPct.
 
 async function fredObs(seriesId: string, apiKey: string, limit = 5) {
   const url = `${FRED_BASE}?series_id=${seriesId}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=${limit}`;
@@ -22,11 +20,14 @@ async function fredObs(seriesId: string, apiKey: string, limit = 5) {
   } catch { return []; }
 }
 
-// ── Eurostat SDMX-JSON API ────────────────────────────────────────────────────
+// ── Eurostat SDMX-JSON API ─────────────────────────────────────────────────────
+// IMPORTANT: toutes les dimensions non-temporelles DOIVENT avoir une valeur unique
+// dans les paramètres (freq, unit, s_adj, coicop…) sinon la correspondance
+// position → indice temporel est fausse et on obtient des NaN.
 
 async function eurostatObs(datasetCode: string, params: Record<string, string>) {
   try {
-    const qs = new URLSearchParams({ ...params, format: "JSON" }).toString();
+    const qs  = new URLSearchParams({ ...params, format: "JSON" }).toString();
     const url = `https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/${datasetCode}?${qs}`;
     const res = await fetch(url, { next: { revalidate: REVALIDATE } });
     if (!res.ok) return [];
@@ -39,8 +40,16 @@ async function eurostatObs(datasetCode: string, params: Record<string, string>) 
   } catch { return []; }
 }
 
-async function eurostatObsSorted(datasetCode: string, params: Record<string, string>, limit = 5) {
-  const obs = await eurostatObs(datasetCode, params);
+async function eurostatSorted(
+  datasetCode: string,
+  params: Record<string, string>,
+  limit = 5,
+): Promise<{ date: string; value: number }[]> {
+  // Essaie d'abord les params fournis, puis fallback geo EA20→EA19
+  let obs = await eurostatObs(datasetCode, params);
+  if (!obs.length && params.geo === "EA20") {
+    obs = await eurostatObs(datasetCode, { ...params, geo: "EA19" });
+  }
   return obs.sort((a, b) => b.date.localeCompare(a.date)).slice(0, limit);
 }
 
@@ -48,13 +57,12 @@ async function eurostatObsSorted(datasetCode: string, params: Record<string, str
 
 async function boeRate() {
   try {
-    // URL dynamique : fenêtre glissante de 3 ans → évite la date hardcodée
-    const now = new Date();
+    const now    = new Date();
     const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     const td = now.getDate();
     const tm = MONTHS[now.getMonth()];
     const ty = now.getFullYear();
-    const fy = ty - 3; // 3 ans d'historique suffisent
+    const fy = ty - 3;
     const url = [
       "https://www.bankofengland.co.uk/boeapps/database/fromshowcolumns.asp",
       `?Travel=NIxIRx&FromSeries=1&ToSeries=50&DAT=RNG`,
@@ -62,28 +70,72 @@ async function boeRate() {
       `&TD=${td}&TM=${tm}&TY=${ty}`,
       `&VPD=Y&html.x=66&html.y=26&SeriesCodes=IUDBEDR&UnitId=GBP&CSVF=TT&csv.x=47&csv.y=26`,
     ].join("");
-    const res = await fetch(url, { next: { revalidate: REVALIDATE } });
+    const res = await fetch(url, {
+      next: { revalidate: REVALIDATE },
+      headers: {
+        // Sans User-Agent le BoE redirige vers une page HTML au lieu du CSV
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      },
+    });
     if (!res.ok) return [];
-    const text = await res.text();
-    // Le CSV BoE peut avoir des guillemets et des en-têtes variables — on filtre proprement
-    const lines = text.trim().split(/\r?\n/).filter((l) => l.trim() && !l.startsWith('"DATE"') && !l.startsWith('DATE'));
+    const text  = await res.text();
+    const lines = text.trim().split(/\r?\n/).filter(
+      (l) => l.trim() && !l.startsWith('"DATE"') && !l.startsWith("DATE")
+    );
     return lines
       .reverse()
       .slice(0, 5)
       .map((line) => {
         const cols = line.split(",").map((c) => c.replace(/"/g, "").trim());
-        const val = parseFloat(cols[1] ?? "NaN");
+        const val  = parseFloat(cols[1] ?? "NaN");
         return { date: cols[0] ?? "", value: val };
       })
       .filter((o) => o.date && !isNaN(o.value));
   } catch { return []; }
 }
 
-// ── Trading Economics PMI scraping ───────────────────────────────────────────
-// URL pattern: https://tradingeconomics.com/{country}/{indicator}
-// Source : balise <meta name="description"> dans le HTML
-// Ex: "Manufacturing PMI in the United States increased to 55.30 points in May
-//      from 54.50 points in April of 2026"
+// ── ForexFactory calendar (PMI source primaire) ───────────────────────────────
+// JSON structuré, pas de scraping, ~98 événements/semaine avec actual/previous/forecast.
+// Limité à la semaine courante — complété par le scraping TE si l'event n'est pas encore publié.
+
+async function fetchFFPMI(currency: string): Promise<{
+  mfg: { value: number; prev: number | null } | null;
+  svc: { value: number; prev: number | null } | null;
+}> {
+  const empty = { mfg: null, svc: null };
+  try {
+    const res = await fetch("https://nfs.faireconomy.media/ff_calendar_thisweek.json", {
+      next: { revalidate: 3600 },
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; ForexDashboard/1.0)" },
+    });
+    if (!res.ok) return empty;
+    const events = await res.json() as Array<{
+      title: string; country: string; actual: string; previous: string; forecast: string;
+    }>;
+
+    const forCcy = events.filter((e) => e.country === currency && e.actual);
+    const isMfg  = (t: string) => /manufacturing\s+pmi|mfg\s+pmi|s&p.*manufacturing/i.test(t);
+    const isSvc  = (t: string) => /services?\s+pmi|ism\s+non.manufactur|composite\s+pmi/i.test(t);
+
+    const mfgEv = forCcy.find((e) => isMfg(e.title));
+    const svcEv = forCcy.find((e) => isSvc(e.title));
+
+    const parse = (e: typeof mfgEv) => {
+      if (!e?.actual) return null;
+      const val  = parseFloat(e.actual);
+      const prev = parseFloat(e.previous ?? "");
+      if (isNaN(val)) return null;
+      return { value: val, prev: isNaN(prev) ? null : prev };
+    };
+
+    return { mfg: parse(mfgEv), svc: parse(svcEv) };
+  } catch { return empty; }
+}
+
+// ── Trading Economics PMI scraping (fallback) ─────────────────────────────────
+// Quand ForexFactory n'a pas l'event de la semaine courante, on scrape TE.
+// Extrait la valeur et le précédent depuis la balise <meta name="description">.
 
 const TE_COUNTRY: Record<string, string> = {
   USD: "united-states",
@@ -98,41 +150,40 @@ const TE_COUNTRY: Record<string, string> = {
 
 async function scrapePMI(
   currency: string,
-  indicator: "manufacturing-pmi" | "services-pmi"
+  indicator: "manufacturing-pmi" | "services-pmi",
 ): Promise<{ value: number | null; prev: number | null }> {
   const country = TE_COUNTRY[currency];
   if (!country) return { value: null, prev: null };
   try {
     const url = `https://tradingeconomics.com/${country}/${indicator}`;
-    const res  = await fetch(url, {
-      next: { revalidate: 3600 }, // cache 1h — données PMI mensuelles
+    const res = await fetch(url, {
+      next: { revalidate: 3600 },
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9",
+        "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Cache-Control":   "no-cache",
+        "Sec-Fetch-Dest":  "document",
+        "Sec-Fetch-Mode":  "navigate",
+        "Sec-Fetch-Site":  "none",
+        "Pragma":          "no-cache",
       },
     });
     if (!res.ok) return { value: null, prev: null };
     const html = await res.text();
-    // Cherche la balise meta description
-    const metaMatch = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i)
-                   ?? html.match(/<meta\s+content=["']([^"']+)["']\s+name=["']description["']/i);
+    // Meta description : "Manufacturing PMI in X increased to 55.30 points in May from 54.50 points in April"
+    const metaMatch =
+      html.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i) ??
+      html.match(/<meta\s+content=["']([^"']+)["']\s+name=["']description["']/i);
     if (!metaMatch) return { value: null, prev: null };
-    const desc = metaMatch[1];
-    // Extraction : "...to XX.XX points in ... from YY.YY points..."
-    const numRe = /(?:increased|decreased|declined|rose|fell|unchanged)\s+to\s+([\d.]+)\s+points?.+?from\s+([\d.]+)\s+points?/i;
-    const m = desc.match(numRe);
-    if (!m) {
-      // Fallback : premier et deuxième nombre dans la description
-      const nums = desc.match(/\b(\d{1,3}\.\d{1,2})\b/g);
-      if (nums && nums.length >= 1) {
-        return {
-          value: parseFloat(nums[0]),
-          prev:  nums[1] ? parseFloat(nums[1]) : null,
-        };
-      }
-      return { value: null, prev: null };
-    }
-    return { value: parseFloat(m[1]), prev: parseFloat(m[2]) };
+    const desc  = metaMatch[1];
+    const numRe = /(?:increased|decreased|declined|rose|fell|eased|stood)\s+(?:at\s+)?to?\s*([\d.]+)\s+points?.+?from\s+([\d.]+)\s+points?/i;
+    const m     = desc.match(numRe);
+    if (m) return { value: parseFloat(m[1]), prev: parseFloat(m[2]) };
+    // Fallback numérique : deux premiers décimaux dans la description
+    const nums = desc.match(/\b(\d{1,3}\.\d{1,2})\b/g);
+    if (nums?.length) return { value: parseFloat(nums[0]), prev: nums[1] ? parseFloat(nums[1]) : null };
+    return { value: null, prev: null };
   } catch { return { value: null, prev: null }; }
 }
 
@@ -140,7 +191,6 @@ async function scrapePMI(
 
 type Obs = { date: string; value: number };
 
-/** Direct levels/rates (already in %) */
 function toIndicator(obs: Obs[]) {
   if (!obs.length) return null;
   const value = obs[0].value;
@@ -154,11 +204,6 @@ function toIndicator(obs: Obs[]) {
   };
 }
 
-/**
- * Converts raw level/index observations → period-over-period % change.
- * MoM% for monthly series, QoQ% for quarterly.
- * Requires ≥2 observations (newest first).
- */
 function toIndicatorPct(obs: Obs[]) {
   if (obs.length < 2) return null;
   const pctObs: Obs[] = obs.slice(0, -1).map((cur, i) => ({
@@ -166,6 +211,18 @@ function toIndicatorPct(obs: Obs[]) {
     value: parseFloat(((cur.value / obs[i + 1].value - 1) * 100).toFixed(3)),
   }));
   return toIndicator(pctObs);
+}
+
+function toPmiIndicator(raw: { value: number | null; prev: number | null }) {
+  if (raw.value === null) return null;
+  const surprise = raw.prev !== null ? parseFloat((raw.value - raw.prev).toFixed(2)) : null;
+  return {
+    value:       raw.value,
+    prev:        raw.prev,
+    surprise,
+    trend:       surprise !== null ? (surprise > 0 ? "up" : surprise < 0 ? "down" : "flat") as "up"|"down"|"flat" : null,
+    lastUpdated: null as string | null,
+  };
 }
 
 // ── Server-side cache ─────────────────────────────────────────────────────────
@@ -177,19 +234,15 @@ export async function GET(req: NextRequest) {
   const series   = FRED_SERIES[currency];
   if (!series) return NextResponse.json({ error: "Unknown currency" }, { status: 400 });
 
-  const cached = _cache.get(currency);
-  // Sert le cache pendant 24h sans re-fetcher
-  if (cached && Date.now() - cached.ts < 86_400_000) return NextResponse.json(cached.data);
-  // Garde une référence au cache précédent pour fallback stale-if-error
+  const cached     = _cache.get(currency);
   const staleCache = cached ?? null;
+  if (cached && Date.now() - cached.ts < 86_400_000) return NextResponse.json(cached.data);
 
   const key = process.env.FRED_API_KEY;
   if (!key) return NextResponse.json({ error: "FRED_API_KEY missing" }, { status: 500 });
 
-  // Fields and which need period-over-period % conversion
-  // policyRate / unemployment / retailSales → already in % → toIndicator
-  //   (retailSales uses *SLRTTO01GPSAM series which report MoM% directly)
-  // cpiCore / gdp / employment → index/level → toIndicatorPct (MoM% or QoQ%)
+  // policyRate / unemployment / retailSales → already % → toIndicator
+  // cpiCore / gdp / employment → index/level → toIndicatorPct
   const PCT_FIELDS = new Set(["cpiCore", "gdp", "employment"]);
 
   const fieldMap: Record<string, string | null> = {
@@ -212,32 +265,36 @@ export async function GET(req: NextRequest) {
   });
 
   // ── EUR alternative sources ────────────────────────────────────────────────
-
   if (currency === "EUR") {
-    // CPI: Eurostat HICP monthly rate of change (MoM%) — CP00 = all items
+    // CPI: Eurostat HICP MoM% (RCH_MOM = rate of change month-on-month, déjà en %)
+    // freq=M et unit=RCH_MOM garantissent que chaque dimension ≤ 1 valeur
+    // → position dans value[] = indice temporel, pas de décalage multi-dim.
     if (!indicators.cpiCore) {
-      const hicp = await eurostatObsSorted("prc_hicp_mmr", { geo: "EA20", coicop: "CP00" });
+      const hicp = await eurostatSorted("prc_hicp_mmr", {
+        geo: "EA20", coicop: "CP00", unit: "RCH_MOM", freq: "M",
+      });
       indicators.cpiCore = toIndicator(hicp);
     }
 
-    // GDP: Eurostat chained volumes → compute QoQ%
+    // GDP: Eurostat QoQ% directement (CLV_PCH_PRE = % variation vs période précédente)
+    // → toIndicator suffit, pas besoin de toIndicatorPct
     if (!indicators.gdp) {
-      const gdpRaw = await eurostatObsSorted("namq_10_gdp", { geo: "EA20", unit: "CLV10_MEUR", s_adj: "SCA", na_item: "B1GQ" }, 6);
-      indicators.gdp = toIndicatorPct(gdpRaw);
+      const gdpObs = await eurostatSorted("namq_10_gdp", {
+        geo: "EA20", unit: "CLV_PCH_PRE", s_adj: "SCA", na_item: "B1GQ", freq: "Q",
+      }, 6);
+      indicators.gdp = toIndicator(gdpObs);
     }
 
     // Unemployment: Eurostat monthly SA rate
     if (!indicators.unemployment) {
-      const unObs = await eurostatObsSorted("une_rt_m", { geo: "EA20", s_adj: "SA", age: "TOTAL", sex: "T", unit: "PC_ACT" });
+      const unObs = await eurostatSorted("une_rt_m", {
+        geo: "EA20", s_adj: "SA", age: "TOTAL", sex: "T", unit: "PC_ACT", freq: "M",
+      });
       indicators.unemployment = toIndicator(unObs);
     }
-
-    // Retail sales for EUR: FRED uses German proxy index → apply MoM% if available
-    // (already handled above via toIndicatorPct if FRED returned data)
   }
 
   // ── GBP alternative sources ───────────────────────────────────────────────
-
   if (currency === "GBP" && !indicators.policyRate) {
     const boe = await boeRate();
     indicators.policyRate = toIndicator(boe);
@@ -247,29 +304,18 @@ export async function GET(req: NextRequest) {
   for (const field of Object.keys(fieldMap)) {
     if (!(field in indicators)) indicators[field] = null;
   }
-  // ── PMI scraping (Trading Economics) ──────────────────────────────────────
-  const [pmiMfgRaw, pmiSvcRaw] = await Promise.all([
+
+  // ── PMI : ForexFactory (semaine courante) + fallback TE scraping ───────────
+  const [ffPMI, pmiMfgRaw, pmiSvcRaw] = await Promise.all([
+    fetchFFPMI(currency),
     scrapePMI(currency, "manufacturing-pmi"),
     scrapePMI(currency, "services-pmi"),
   ]);
 
-  // Convertit le résultat { value, prev } en format Indicator (surprise = diff)
-  const toPmiIndicator = (raw: { value: number | null; prev: number | null }) => {
-    if (raw.value === null) return null;
-    const surprise = raw.prev !== null ? parseFloat((raw.value - raw.prev).toFixed(2)) : null;
-    return {
-      value:       raw.value,
-      prev:        raw.prev,
-      surprise,
-      trend:       surprise !== null ? (surprise > 0 ? "up" : surprise < 0 ? "down" : "flat") as "up"|"down"|"flat" : null,
-      lastUpdated: null,
-    };
-  };
-  indicators.pmiMfg      = toPmiIndicator(pmiMfgRaw);
-  indicators.pmiServices = toPmiIndicator(pmiSvcRaw);
+  indicators.pmiMfg      = ffPMI.mfg  ? toPmiIndicator(ffPMI.mfg)  : toPmiIndicator(pmiMfgRaw);
+  indicators.pmiServices = ffPMI.svc  ? toPmiIndicator(ffPMI.svc)  : toPmiIndicator(pmiSvcRaw);
 
-  // Stale-if-error : si tous les indicateurs sont null (API en panne),
-  // on renvoie le cache précédent plutôt que des tirets vides.
+  // Stale-if-error : si tous les indicateurs sont null (panne API), renvoie le cache précédent
   const hasAnyValue = Object.values(indicators).some((v) => v !== null);
   if (!hasAnyValue && staleCache) {
     return NextResponse.json({ ...staleCache.data, stale: true });
