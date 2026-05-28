@@ -105,12 +105,16 @@ export async function GET() {
 
   // 1. Marchés indices — FRED (données fin de journée, cache 24h)
   //    VIXCLS = VIX clôture CBOE | SP500 = S&P 500
-  //    DCOILBRENTEU = Brent | DCOILWTICO = WTI
-  const [vixQ, sp500Q, brentQ, wtiQ] = await Promise.all([
-    fredObsDelta("VIXCLS",       fredKey),
-    fredObsDelta("SP500",        fredKey),
-    fredObsDelta("DCOILBRENTEU", fredKey),
-    fredObsDelta("DCOILWTICO",   fredKey),
+  const [vixQ, sp500Q] = await Promise.all([
+    fredObsDelta("VIXCLS", fredKey),
+    fredObsDelta("SP500",  fredKey),
+  ]);
+
+  // Pétrole — Stooq futures (quasi temps réel, cache 5 min, sans clé API)
+  //   cl.f = WTI NYMEX | cb.f = Brent ICE  → delta = variation intraday vs ouverture
+  const [brentQ, wtiQ] = await Promise.all([
+    stooqMetal("cb.f"),
+    stooqMetal("cl.f"),
   ]);
 
   // 2. Métaux précieux — Stooq (quasi temps réel, cache 5 min, sans clé API)

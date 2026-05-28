@@ -79,6 +79,63 @@ async function boeRate() {
   } catch { return []; }
 }
 
+// ── Trading Economics PMI scraping ───────────────────────────────────────────
+// URL pattern: https://tradingeconomics.com/{country}/{indicator}
+// Source : balise <meta name="description"> dans le HTML
+// Ex: "Manufacturing PMI in the United States increased to 55.30 points in May
+//      from 54.50 points in April of 2026"
+
+const TE_COUNTRY: Record<string, string> = {
+  USD: "united-states",
+  EUR: "euro-area",
+  GBP: "united-kingdom",
+  JPY: "japan",
+  CHF: "switzerland",
+  CAD: "canada",
+  AUD: "australia",
+  NZD: "new-zealand",
+};
+
+async function scrapePMI(
+  currency: string,
+  indicator: "manufacturing-pmi" | "services-pmi"
+): Promise<{ value: number | null; prev: number | null }> {
+  const country = TE_COUNTRY[currency];
+  if (!country) return { value: null, prev: null };
+  try {
+    const url = `https://tradingeconomics.com/${country}/${indicator}`;
+    const res  = await fetch(url, {
+      next: { revalidate: 3600 }, // cache 1h — données PMI mensuelles
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+    });
+    if (!res.ok) return { value: null, prev: null };
+    const html = await res.text();
+    // Cherche la balise meta description
+    const metaMatch = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i)
+                   ?? html.match(/<meta\s+content=["']([^"']+)["']\s+name=["']description["']/i);
+    if (!metaMatch) return { value: null, prev: null };
+    const desc = metaMatch[1];
+    // Extraction : "...to XX.XX points in ... from YY.YY points..."
+    const numRe = /(?:increased|decreased|declined|rose|fell|unchanged)\s+to\s+([\d.]+)\s+points?.+?from\s+([\d.]+)\s+points?/i;
+    const m = desc.match(numRe);
+    if (!m) {
+      // Fallback : premier et deuxième nombre dans la description
+      const nums = desc.match(/\b(\d{1,3}\.\d{1,2})\b/g);
+      if (nums && nums.length >= 1) {
+        return {
+          value: parseFloat(nums[0]),
+          prev:  nums[1] ? parseFloat(nums[1]) : null,
+        };
+      }
+      return { value: null, prev: null };
+    }
+    return { value: parseFloat(m[1]), prev: parseFloat(m[2]) };
+  } catch { return { value: null, prev: null }; }
+}
+
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
 type Obs = { date: string; value: number };
@@ -187,8 +244,26 @@ export async function GET(req: NextRequest) {
   for (const field of Object.keys(fieldMap)) {
     if (!(field in indicators)) indicators[field] = null;
   }
-  indicators.pmiMfg      = null;
-  indicators.pmiServices = null;
+  // ── PMI scraping (Trading Economics) ──────────────────────────────────────
+  const [pmiMfgRaw, pmiSvcRaw] = await Promise.all([
+    scrapePMI(currency, "manufacturing-pmi"),
+    scrapePMI(currency, "services-pmi"),
+  ]);
+
+  // Convertit le résultat { value, prev } en format Indicator (surprise = diff)
+  const toPmiIndicator = (raw: { value: number | null; prev: number | null }) => {
+    if (raw.value === null) return null;
+    const surprise = raw.prev !== null ? parseFloat((raw.value - raw.prev).toFixed(2)) : null;
+    return {
+      value:       raw.value,
+      prev:        raw.prev,
+      surprise,
+      trend:       surprise !== null ? (surprise > 0 ? "up" : surprise < 0 ? "down" : "flat") as "up"|"down"|"flat" : null,
+      lastUpdated: null,
+    };
+  };
+  indicators.pmiMfg      = toPmiIndicator(pmiMfgRaw);
+  indicators.pmiServices = toPmiIndicator(pmiSvcRaw);
 
   const data = { currency, indicators, fetchedAt: new Date().toISOString() };
   _cache.set(currency, { data, ts: Date.now() });

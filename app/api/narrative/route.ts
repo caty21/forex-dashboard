@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 
-// Bytez uses an OpenAI-compatible API
-const bytez = new OpenAI({
-  apiKey: process.env.BYTEZ_API_KEY ?? "",
-  baseURL: "https://api.bytez.com/models/openai",
+// Groq — API OpenAI-compatible, niveau gratuit, modèles Llama
+const groq = new OpenAI({
+  apiKey: process.env.GROQ_API_KEY ?? "",
+  baseURL: "https://api.groq.com/openai/v1",
 });
 
 const SYSTEM_PROMPT = `Tu es un analyste macro Forex senior. Tu analyses les données macroéconomiques de 8 devises majeures (USD, EUR, GBP, JPY, CHF, CAD, AUD, NZD) et tu fournis des synthèses concises et actionnables pour un trader particulier.
@@ -19,9 +19,9 @@ Tes analyses sont :
 Format de réponse : texte court, 80-120 mots maximum par devise.`;
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.BYTEZ_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
-    return NextResponse.json({ error: "BYTEZ_API_KEY not configured" }, { status: 503 });
+    return NextResponse.json({ error: "GROQ_API_KEY not configured" }, { status: 503 });
   }
 
   let body: {
@@ -81,8 +81,8 @@ Résumé en 3 points : situation actuelle, signal directionnel, risque principal
   }
 
   try {
-    const completion = await bytez.chat.completions.create({
-      model: "meta-llama/Llama-3.1-8B-Instruct",
+    const completion = await groq.chat.completions.create({
+      model: "llama-3.1-8b-instant",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userMessage },
@@ -95,6 +95,6 @@ Résumé en 3 points : situation actuelle, signal directionnel, risque principal
     return NextResponse.json({ analysis: text, model: completion.model, mode });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: `Bytez error: ${message}` }, { status: 502 });
+    return NextResponse.json({ error: `Groq error: ${message}` }, { status: 502 });
   }
 }

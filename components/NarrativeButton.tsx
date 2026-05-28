@@ -53,7 +53,7 @@ export default function NarrativeButton({ currency, indicators, macroScore }: Pr
 
       {error && (
         <span className="text-[10px] text-red-500 truncate max-w-[140px]" title={error}>
-          Erreur Bytez
+          Erreur IA
         </span>
       )}
 
@@ -66,7 +66,7 @@ export default function NarrativeButton({ currency, indicators, macroScore }: Pr
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Sparkles size={15} className="text-indigo-500" />
-                <span className="font-medium text-sm">Analyse {currency} — Bytez AI</span>
+                <span className="font-medium text-sm">Analyse {currency} — Groq AI</span>
               </div>
               <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-700">
                 <X size={15} />
@@ -74,7 +74,7 @@ export default function NarrativeButton({ currency, indicators, macroScore }: Pr
             </div>
             <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{analysis}</p>
             <div className="mt-3 text-[10px] text-gray-400 text-right">
-              Powered by Bytez · Llama 3.1 8B
+              Powered by Groq · Llama 3.1 8B
             </div>
           </div>
         </div>
