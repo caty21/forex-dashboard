@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { RefreshCw, TrendingUp, AlertTriangle, Zap } from "lucide-react";
+import { RefreshCw, TrendingUp, AlertTriangle, Zap, Database } from "lucide-react";
 import { CURRENCIES, CURRENCY_META } from "@/lib/constants";
 import type { Currency, DriverData } from "@/lib/types";
+import { saveCache, loadCache, formatCacheDate } from "@/lib/localCache";
 import CurrencyCard from "@/components/CurrencyCard";
 import DriversBar from "@/components/DriversBar";
 
@@ -16,6 +17,8 @@ export default function Dashboard() {
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [loading, setLoading] = useState(true);
   const [activeDivergences, setActiveDivergences] = useState<{ currency: Currency; score: number }[]>([]);
+  const [driversFromCache, setDriversFromCache] = useState(false);
+  const [driversCacheAge, setDriversCacheAge]   = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -27,16 +30,44 @@ export default function Dashboard() {
         fetch("/api/fx").then((r) => r.json()),
       ]);
 
-      if (driversRes.status === "fulfilled") {
-        const driversData = driversRes.value;
-        // Merge DXY from /api/fx into drivers
+      // ── Drivers (marchés globaux) ──────────────────────────────────────────
+      if (driversRes.status === "fulfilled" && !driversRes.value?.error) {
+        const driversData = driversRes.value as DriverData;
         if (fxRes.status === "fulfilled" && fxRes.value?.dxy != null) {
           driversData.dxy = fxRes.value.dxy;
         }
         setDrivers(driversData);
+        setDriversFromCache(false);
+        setDriversCacheAge(null);
+        saveCache("drivers", driversData);
+      } else {
+        // Fallback localStorage
+        const cached = loadCache<DriverData>("drivers");
+        if (cached) {
+          setDrivers(cached.data);
+          setDriversFromCache(true);
+          setDriversCacheAge(formatCacheDate(cached.savedAt));
+        }
       }
-      if (expectRes.status === "fulfilled") setExpectations(expectRes.value);
-      if (yieldsRes.status === "fulfilled") setYields(yieldsRes.value);
+
+      // ── Attentes de taux ──────────────────────────────────────────────────
+      if (expectRes.status === "fulfilled" && !expectRes.value?.error) {
+        setExpectations(expectRes.value);
+        saveCache("expectations", expectRes.value);
+      } else {
+        const cached = loadCache<Record<string, unknown>>("expectations");
+        if (cached) setExpectations(cached.data);
+      }
+
+      // ── Rendements obligataires ───────────────────────────────────────────
+      if (yieldsRes.status === "fulfilled" && !yieldsRes.value?.error) {
+        setYields(yieldsRes.value);
+        saveCache("yields", yieldsRes.value);
+      } else {
+        const cached = loadCache<typeof yields>("yields");
+        if (cached && cached.data) setYields(cached.data);
+      }
+
       setLastRefresh(new Date());
     } finally {
       setLoading(false);
@@ -82,7 +113,13 @@ export default function Dashboard() {
             </div>
           )}
 
-          <div className="text-xs text-gray-400">
+          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+            {driversFromCache && driversCacheAge && (
+              <span className="flex items-center gap-0.5 text-amber-500" title="Marchés affichés depuis le cache local — API indisponible">
+                <Database size={11} />
+                <span>cache {driversCacheAge}</span>
+              </span>
+            )}
             {lastRefresh.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
           </div>
 
@@ -140,7 +177,7 @@ export default function Dashboard() {
           Sources: FRED · ECB · BoE · BoC · CFTC · Frankfurter · OANDA · investinglive.com
         </p>
         <p>
-          LLM: Bytez (Llama 3.1) · Données à titre informatif uniquement — pas de conseil financier
+          LLM: Groq (Llama 3.1) · Données à titre informatif uniquement — pas de conseil financier
         </p>
       </footer>
     </div>

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, Loader2, Database } from "lucide-react";
 import { CURRENCY_META } from "@/lib/constants";
 import { biasLabel, biasColor, calcMacroScore } from "@/lib/scoring";
+import { saveCache, loadCache, formatCacheDate } from "@/lib/localCache";
 import type { Currency, BiasPhase, RateExpectation } from "@/lib/types";
 import NarrativeButton from "./NarrativeButton";
 
@@ -81,26 +82,46 @@ function Row({ label, ind, unit = "", invertSurprise = false, warn = false, cons
 
 export default function CurrencyCard({ currency, expectations, yields, onDivergenceUpdate }: Props) {
   const meta   = CURRENCY_META[currency];
-  const [data, setData]     = useState<MacroData | null>(null);
-  const [phase, setPhase]   = useState<BiasPhase>("hawkish_pause");
-  const [loading, setLoading] = useState(true);
+  const [data, setData]         = useState<MacroData | null>(null);
+  const [phase, setPhase]       = useState<BiasPhase>("hawkish_pause");
+  const [loading, setLoading]   = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [rateExp, setRateExp]   = useState<RateExpectation | null>(null);
+  const [fromCache, setFromCache] = useState(false);
+  const [cacheAge, setCacheAge]   = useState<string | null>(null);
 
   // Single fetch — server batches all FRED calls
   const load = useCallback(async () => {
     setLoading(true);
+    const cacheKey = `macro_${currency}`;
     try {
       const res = await fetch(`/api/macro?currency=${currency}`);
-      if (!res.ok) return;
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json: MacroData = await res.json();
+      if ("error" in json) throw new Error(String((json as Record<string,unknown>).error));
+
       setData(json);
+      setFromCache(false);
+      setCacheAge(null);
+      saveCache(cacheKey, json);
 
       // Infer phase from policy rate trend
       const rateInd = json.indicators.policyRate;
-      if (rateInd?.trend === "up")   setPhase("tightening");
+      if (rateInd?.trend === "up")        setPhase("tightening");
       else if (rateInd?.trend === "down") setPhase("easing");
-      else setPhase("hawkish_pause");
+      else                                setPhase("hawkish_pause");
+    } catch {
+      // API indisponible → on utilise le cache localStorage si disponible
+      const cached = loadCache<MacroData>(cacheKey);
+      if (cached) {
+        setData(cached.data);
+        setFromCache(true);
+        setCacheAge(formatCacheDate(cached.savedAt));
+        const rateInd = cached.data.indicators.policyRate;
+        if (rateInd?.trend === "up")        setPhase("tightening");
+        else if (rateInd?.trend === "down") setPhase("easing");
+        else                                setPhase("hawkish_pause");
+      }
     } finally {
       setLoading(false);
     }
@@ -163,7 +184,15 @@ export default function CurrencyCard({ currency, expectations, yields, onDiverge
             }
           </div>
         </div>
-        <div className={`text-[10px] font-medium ${phaseInfo.color}`}>{phaseInfo.label}</div>
+        <div className="flex items-center justify-between">
+          <div className={`text-[10px] font-medium ${phaseInfo.color}`}>{phaseInfo.label}</div>
+          {fromCache && cacheAge && (
+            <div className="flex items-center gap-0.5 text-[9px] text-amber-500" title="Données issues du cache local — API indisponible lors du dernier chargement">
+              <Database size={9} />
+              <span>cache {cacheAge}</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Rate expectation pill */}

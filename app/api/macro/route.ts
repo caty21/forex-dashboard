@@ -178,7 +178,10 @@ export async function GET(req: NextRequest) {
   if (!series) return NextResponse.json({ error: "Unknown currency" }, { status: 400 });
 
   const cached = _cache.get(currency);
+  // Sert le cache pendant 24h sans re-fetcher
   if (cached && Date.now() - cached.ts < 86_400_000) return NextResponse.json(cached.data);
+  // Garde une référence au cache précédent pour fallback stale-if-error
+  const staleCache = cached ?? null;
 
   const key = process.env.FRED_API_KEY;
   if (!key) return NextResponse.json({ error: "FRED_API_KEY missing" }, { status: 500 });
@@ -264,6 +267,13 @@ export async function GET(req: NextRequest) {
   };
   indicators.pmiMfg      = toPmiIndicator(pmiMfgRaw);
   indicators.pmiServices = toPmiIndicator(pmiSvcRaw);
+
+  // Stale-if-error : si tous les indicateurs sont null (API en panne),
+  // on renvoie le cache précédent plutôt que des tirets vides.
+  const hasAnyValue = Object.values(indicators).some((v) => v !== null);
+  if (!hasAnyValue && staleCache) {
+    return NextResponse.json({ ...staleCache.data, stale: true });
+  }
 
   const data = { currency, indicators, fetchedAt: new Date().toISOString() };
   _cache.set(currency, { data, ts: Date.now() });
