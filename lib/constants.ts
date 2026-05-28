@@ -53,7 +53,7 @@ export const FRED_SERIES: Record<Currency, {
     employment:   null,                 // pas de série mensuelle FRED pour GBP
   },
   JPY: {
-    policyRate:   "IRSTCB01JPM156N",
+    policyRate:   "IR3TIB01JPM156N",   // 3M interbank (IRSTCB01JPM156N stale 2023)
     cpiCore:      null,                 // JPNCPIALLMINMEI stale depuis 2021 sur FRED
     gdp:          "JPNRGDPEXP",        // indice niveau → QoQ%
     retailSales:  "JPNSLRTTO01GPSAM", // déjà MoM%
@@ -61,7 +61,7 @@ export const FRED_SERIES: Record<Currency, {
     employment:   "LFEMTTTTJPM647S",  // niveau mensuel → MoM%
   },
   CHF: {
-    policyRate:   "IRSTCB01CHM156N",
+    policyRate:   "IR3TIB01CHM156N",   // 3M interbank — IRSTCB01CHM156N n'existe pas
     cpiCore:      "CHECPICORMINMEI",   // indice niveau → MoM%
     gdp:          "CHNGDPNQDSMEI",     // indice niveau → QoQ% (peut être stale)
     retailSales:  "CHESLRTTO01GPSAM", // déjà MoM%
@@ -69,7 +69,7 @@ export const FRED_SERIES: Record<Currency, {
     employment:   null,                 // pas de série FRED pour CHF
   },
   CAD: {
-    policyRate:   "IRSTCB01CAM156N",
+    policyRate:   "IR3TIB01CAM156N",   // 3M interbank (IRSTCB01CAM156N stale 2023)
     cpiCore:      "CANCPICORMINMEI",   // indice niveau → MoM%
     gdp:          "NGDPRSAXDCCAQ",    // Real GDP Canada (BEA/StatCan) indice niveau → QoQ%
     retailSales:  "CANSLRTTO01GPSAM", // déjà MoM%
@@ -77,7 +77,7 @@ export const FRED_SERIES: Record<Currency, {
     employment:   "LFEMTTTTCAM647S",  // niveau mensuel → MoM%
   },
   AUD: {
-    policyRate:   "IRSTCB01AUM156N",
+    policyRate:   "IR3TIB01AUM156N",   // 3M interbank — IRSTCB01AUM156N n'existe pas
     cpiCore:      "AUSCPIALLMINMEI",   // trimestriel
     gdp:          "NGDPRSAXDCAUQ",    // Real GDP Australia (ABS) indice niveau → QoQ%
     retailSales:  null,                 // pas de série mensuelle FRED pour AUD
@@ -85,7 +85,7 @@ export const FRED_SERIES: Record<Currency, {
     employment:   "LFEMTTTTAUM647S",  // niveau mensuel → MoM%
   },
   NZD: {
-    policyRate:   "IRSTCB01NZM156N",
+    policyRate:   "IR3TIB01NZM156N",   // 3M interbank — IRSTCB01NZM156N n'existe pas
     cpiCore:      "NZLCPIALLMINMEI",   // trimestriel
     gdp:          "NAEXKP01NZQ661S",  // indice niveau → QoQ% (stale ~2023, best available)
     retailSales:  null,                 // pas de série mensuelle FRED pour NZD
