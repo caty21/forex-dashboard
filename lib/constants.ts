@@ -13,8 +13,13 @@ export const CURRENCY_META: Record<Currency, { name: string; flag: string; cb: s
   NZD: { name: "Nouvelle-Zélande", flag: "🇳🇿", cb: "Reserve Bank of New Zealand", cbShort: "RBNZ" },
 };
 
-// FRED series IDs — corrections audit 2026-05-26
-// null = série inexistante ou stale sur FRED → source alternative dans /api/macro
+// FRED series IDs — corrections audit 2026-05-28
+// null = série inexistante sur FRED → source alternative dans /api/macro
+//
+// Retail Sales : séries GPSAM (déjà en MoM%, ne pas convertir)
+//   Format : {PAYS3}SLRTTO01GPSAM (OECD monthly retail trade, % growth prev. period, SA)
+//   EUR utilise l'Allemagne comme proxy (plus grande économie, données mensuelles récentes)
+// Employment : séries LFEMTTTT*647S (niveaux en milliers → MoM% calculé localement)
 export const FRED_SERIES: Record<Currency, {
   policyRate:   string | null;
   cpiCore:      string | null;
@@ -25,67 +30,67 @@ export const FRED_SERIES: Record<Currency, {
 }> = {
   USD: {
     policyRate:   "FEDFUNDS",
-    cpiCore:      "CPILFESL",
-    gdp:          "GDPC1",
-    retailSales:  "MARTSSM44W72USS",   // correction : ex-RSXFS (discontinuée)
+    cpiCore:      "CPILFESL",          // indice niveau → MoM%
+    gdp:          "GDPC1",             // indice niveau → QoQ%
+    retailSales:  "USASLRTTO01GPSAM", // déjà MoM% — ex-MARTSSM44W72USS (niveau)
     unemployment: "UNRATE",
-    employment:   "PAYEMS",
+    employment:   "PAYEMS",            // niveau → MoM%
   },
   EUR: {
-    policyRate:   "ECBDFR",            // ECB deposit rate — disponible sur FRED
-    cpiCore:      null,                 // CP0000EZ20M086NEST n'existe pas sur FRED → ECB API
-    gdp:          null,                 // CLVMNACSCAB1GQEA20 n'existe pas sur FRED → Eurostat
-    retailSales:  "SLRTTO01DEM189S",   // proxy Allemagne — OK sur FRED
-    unemployment: null,                 // LRHUTTTTEZM156S arrêtée 2023 → Eurostat
+    policyRate:   "ECBDFR",            // taux dépôt BCE
+    cpiCore:      null,                 // → Eurostat dans /api/macro
+    gdp:          null,                 // → Eurostat dans /api/macro
+    retailSales:  "DEUSLRTTO01GPSAM", // proxy Allemagne, déjà MoM%
+    unemployment: null,                 // → Eurostat dans /api/macro
     employment:   null,
   },
   GBP: {
-    policyRate:   null,                 // BoE API (IUDBEDR) — séries OECD FRED stale
-    cpiCore:      "GBRCPIALLMINMEI",   // OK — mars 2025
-    gdp:          "CLVMNACSCAB1GQGB",
-    retailSales:  "SLRTTO01GBM189S",
+    policyRate:   null,                 // → BoE API dans /api/macro
+    cpiCore:      "GBRCPIALLMINMEI",   // indice niveau → MoM%
+    gdp:          "CLVMNACSCAB1GQGB",  // indice niveau → QoQ%
+    retailSales:  "GBRSLRTTO01GPSAM", // déjà MoM%
     unemployment: "LRHUTTTTGBM156S",
-    employment:   "LNEMNACSCAB1GQGB",
+    employment:   null,                 // pas de série mensuelle FRED pour GBP
   },
   JPY: {
     policyRate:   "IRSTCB01JPM156N",
-    cpiCore:      "JPNCPIALLMINMEI",   // correction : JPNCPICORMINMEI arrêtée 2021 → All Items
-    gdp:          "JPNRGDPEXP",
-    retailSales:  null,                  // METI Japan CSV — pas sur FRED
+    cpiCore:      "JPNCPIALLMINMEI",   // indice niveau → MoM%
+    gdp:          "JPNRGDPEXP",        // indice niveau → QoQ%
+    retailSales:  "JPNSLRTTO01GPSAM", // déjà MoM%
     unemployment: "LRHUTTTTJPM156S",
-    employment:   null,
+    employment:   "LFEMTTTTJPM647S",  // niveau mensuel → MoM%
   },
   CHF: {
     policyRate:   "IRSTCB01CHM156N",
-    cpiCore:      "CHECPICORMINMEI",   // OK — avr 2025
-    gdp:          "CHNGDPNQDSMEI",
-    retailSales:  null,                  // OFS Suisse CSV
+    cpiCore:      "CHECPICORMINMEI",   // indice niveau → MoM%
+    gdp:          "CHNGDPNQDSMEI",     // indice niveau → QoQ%
+    retailSales:  "CHESLRTTO01GPSAM", // déjà MoM%
     unemployment: "LRHUTTTTCHM156S",
-    employment:   null,
+    employment:   null,                 // pas de série FRED pour CHF
   },
   CAD: {
     policyRate:   "IRSTCB01CAM156N",
-    cpiCore:      "CANCPICORMINMEI",   // OK — mars 2025
-    gdp:          "CLVMNACSCAB1GQCA",
-    retailSales:  "SLRTTO01CAM189S",
+    cpiCore:      "CANCPICORMINMEI",   // indice niveau → MoM%
+    gdp:          "CLVMNACSCAB1GQCA",  // indice niveau → QoQ%
+    retailSales:  "CANSLRTTO01GPSAM", // déjà MoM%
     unemployment: "LRHUTTTTCAM156S",
-    employment:   null,
+    employment:   "LFEMTTTTCAM647S",  // niveau mensuel → MoM%
   },
   AUD: {
     policyRate:   "IRSTCB01AUM156N",
-    cpiCore:      "AUSCPIALLMINMEI",   // trimestriel — pas d'alternative mensuelle FRED
-    gdp:          "CLVMNACSCAB1GQAU",
-    retailSales:  "SLRTTO01AUM189S",
+    cpiCore:      "AUSCPIALLMINMEI",   // trimestriel
+    gdp:          "CLVMNACSCAB1GQAU",  // indice niveau → QoQ%
+    retailSales:  null,                 // pas de série mensuelle FRED pour AUD
     unemployment: "LRHUTTTTAUM156S",
-    employment:   "LNEMNACSCAB1GQAU",
+    employment:   "LFEMTTTTAUM647S",  // niveau mensuel → MoM%
   },
   NZD: {
     policyRate:   "IRSTCB01NZM156N",
     cpiCore:      "NZLCPIALLMINMEI",   // trimestriel
-    gdp:          "CLVMNACSCAB1GQNZ",
-    retailSales:  null,                  // Stats NZ API trimestriel
-    unemployment: "LRUNTTTTNZQ156S",   // correction : ex-LRHUTTTTNZM156S (inexistante)
-    employment:   null,
+    gdp:          "CLVMNACSCAB1GQNZ",  // indice niveau → QoQ%
+    retailSales:  null,                 // pas de série mensuelle FRED pour NZD
+    unemployment: "LRUNTTTTNZQ156S",
+    employment:   "LFEMTTTTNZQ647S",  // niveau trimestriel → QoQ% (proxy)
   },
 };
 

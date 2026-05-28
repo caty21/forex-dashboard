@@ -127,9 +127,10 @@ export async function GET(req: NextRequest) {
   if (!key) return NextResponse.json({ error: "FRED_API_KEY missing" }, { status: 500 });
 
   // Fields and which need period-over-period % conversion
-  // policyRate / unemployment → already in % → toIndicator
-  // cpiCore / gdp / retailSales / employment → index/level → toIndicatorPct (MoM% or QoQ%)
-  const PCT_FIELDS = new Set(["cpiCore", "gdp", "retailSales", "employment"]);
+  // policyRate / unemployment / retailSales → already in % → toIndicator
+  //   (retailSales uses *SLRTTO01GPSAM series which report MoM% directly)
+  // cpiCore / gdp / employment → index/level → toIndicatorPct (MoM% or QoQ%)
+  const PCT_FIELDS = new Set(["cpiCore", "gdp", "employment"]);
 
   const fieldMap: Record<string, string | null> = {
     policyRate:   series.policyRate,
