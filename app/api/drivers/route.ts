@@ -43,7 +43,10 @@ async function stooqMetal(symbol: string): Promise<FredResult> {
   const empty: FredResult = { value: null, delta: null, deltaPct: null };
   try {
     const url = `https://stooq.com/q/l/?s=${symbol}&f=sd2t2ohlcv&h&e=csv`;
-    const res  = await fetch(url, { next: { revalidate: 300 } }); // cache 5 min
+    const res  = await fetch(url, {
+      next: { revalidate: 300 }, // cache 5 min
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; ForexDashboard/1.0)" },
+    });
     if (!res.ok) return empty;
     const text  = await res.text();
     const lines = text.trim().split("\n");
