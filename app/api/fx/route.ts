@@ -48,8 +48,12 @@ async function fetchFrankfurter() {
     // DXY approximé depuis les taux ECB (même formule que la branche AV)
     // rates.X = "1 USD = X unités" — même convention que AV
     const e = rates.EUR, g = rates.GBP, j = rates.JPY, c = rates.CAD, ch = rates.CHF;
+    // DXY = 50.14 × EURUSD^-0.576 × USDJPY^0.136 × GBPUSD^-0.119 × USDCAD^0.091 × USDCHF^0.036
+    // Frankfurter from=USD → e=USD/EUR, j=JPY/USD, g=USD/GBP, c=CAD/USD, ch=CHF/USD
+    // ⟹ EURUSD=1/e → e^0.576 ; USDJPY=j → j^0.136 ; GBPUSD=1/g → g^0.119
+    //   USDCAD=c → c^0.091 ; USDCHF=ch → ch^0.036
     const dxy = (e && g && j && c && ch)
-      ? parseFloat((50.14348112 * Math.pow(e,0.576) * Math.pow(1/j,0.136) * Math.pow(g,0.119) * Math.pow(1/c,0.091) * Math.pow(1/ch,0.036)).toFixed(2))
+      ? parseFloat((50.14348112 * Math.pow(e,0.576) * Math.pow(j,0.136) * Math.pow(g,0.119) * Math.pow(c,0.091) * Math.pow(ch,0.036)).toFixed(2))
       : null;
 
     return NextResponse.json({ rates, dxy, base: "USD", source: "frankfurter", date: data.date });

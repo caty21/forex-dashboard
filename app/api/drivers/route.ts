@@ -1,86 +1,7 @@
 import { NextResponse } from "next/server";
 
-// ── Cache mémoire serveur ──────────────────────────────────────────────────────
-// Évite de retaper AV à chaque requête page. Ne cache les succès que (jamais null).
-const _cache = new Map<string, { v: unknown; ts: number }>();
-const TTL_24H = 86_400_000;
-const TTL_1H  =  3_600_000;
-
-// ── Alpha Vantage GLOBAL_QUOTE ────────────────────────────────────────────────
-// Clé existante. 25 req/jour gratuit.
-// Symboles utilisés : ^VIX, ^GSPC, GC=F, SI=F, BZ=F, CL=F → 6 req/jour.
-// Séquentiels pour respecter 5 req/min.
-
-type AVQ = { value: number | null; delta: number | null; deltaPct: number | null };
-
-async function avQuote(symbol: string, avKey: string): Promise<AVQ> {
-  const cacheKey = `av_${symbol}`;
-  const hit = _cache.get(cacheKey);
-  if (hit && Date.now() - hit.ts < TTL_24H) return hit.v as AVQ;
-
-  const empty: AVQ = { value: null, delta: null, deltaPct: null };
-  try {
-    const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(symbol)}&apikey=${avKey}`;
-    const res  = await fetch(url, { next: { revalidate: 86400 } });
-    if (!res.ok) return empty;
-    const json = await res.json();
-    const q    = json?.["Global Quote"];
-    // AV rate-limit renvoie {"Note":"..."} avec un "Global Quote" vide
-    if (!q || !q["05. price"]) return empty;
-
-    const value    = parseFloat(q["05. price"]);
-    const delta    = parseFloat(q["09. change"]);
-    const deltaPct = parseFloat((q["10. change percent"] ?? "0%").replace("%", ""));
-    const result: AVQ = {
-      value:    isNaN(value)    ? null : parseFloat(value.toFixed(2)),
-      delta:    isNaN(delta)    ? null : parseFloat(delta.toFixed(2)),
-      deltaPct: isNaN(deltaPct) ? null : parseFloat(deltaPct.toFixed(2)),
-    };
-    _cache.set(cacheKey, { v: result, ts: Date.now() }); // cache uniquement si succès
-    return result;
-  } catch { return empty; }
-}
-
-// ── Binance (Bitcoin — gratuit, sans clé, temps réel) ────────────────────────
-
-async function binanceBTC(): Promise<{ value: number | null; change24h: number | null }> {
-  const k   = "binance_btc";
-  const hit = _cache.get(k);
-  if (hit && Date.now() - hit.ts < TTL_1H) return hit.v as { value: number | null; change24h: number | null };
-
-  try {
-    const res    = await fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT", { cache: "no-store" });
-    if (!res.ok) return { value: null, change24h: null };
-    const d      = await res.json();
-    const price  = parseFloat(d.lastPrice);
-    const pctChg = parseFloat(d.priceChangePercent);
-    const result = {
-      value:     isNaN(price)  ? null : Math.round(price),
-      change24h: isNaN(pctChg) ? null : parseFloat(pctChg.toFixed(2)),
-    };
-    _cache.set(k, { v: result, ts: Date.now() });
-    return result;
-  } catch { return { value: null, change24h: null }; }
-}
-
-// ── CoinGecko (Bitcoin — fallback si Binance échoue) ─────────────────────────
-
-async function coingeckoBTC(): Promise<{ value: number | null; change24h: number | null }> {
-  try {
-    const res = await fetch(
-      "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true",
-      { cache: "no-store" }
-    );
-    if (!res.ok) return { value: null, change24h: null };
-    const d = await res.json();
-    return {
-      value:     d?.bitcoin?.usd           ?? null,
-      change24h: d?.bitcoin?.usd_24h_change ?? null,
-    };
-  } catch { return { value: null, change24h: null }; }
-}
-
-// ── FRED (spreads crédit + taux — 24h cache) ──────────────────────────────────
+// ── FRED (toutes données marché + macro) ──────────────────────────────────────
+// limit=1 → valeur seule. limit=2 → valeur + précédente (pour calculer le delta).
 
 async function fredObs(series: string, apiKey: string): Promise<number | null> {
   try {
@@ -94,24 +15,79 @@ async function fredObs(series: string, apiKey: string): Promise<number | null> {
   } catch { return null; }
 }
 
+type FredResult = { value: number | null; delta: number | null; deltaPct: number | null };
+
+/** Fetche les 2 dernières obs pour calculer valeur + delta vs session précédente */
+async function fredObsDelta(series: string, apiKey: string): Promise<FredResult> {
+  const empty: FredResult = { value: null, delta: null, deltaPct: null };
+  try {
+    const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${series}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=2`;
+    const res  = await fetch(url, { next: { revalidate: 86400 } });
+    if (!res.ok) return empty;
+    const obs: number[] = ((await res.json())?.observations ?? [])
+      .filter((o: { value: string }) => o.value !== ".")
+      .map((o: { value: string }) => parseFloat(o.value));
+    if (!obs.length) return empty;
+    const value    = obs[0];
+    const prev     = obs[1] ?? null;
+    const delta    = prev !== null ? parseFloat((value - prev).toFixed(2)) : null;
+    const deltaPct = prev !== null ? parseFloat(((value - prev) / prev * 100).toFixed(2)) : null;
+    return { value, delta, deltaPct };
+  } catch { return empty; }
+}
+
+// ── Binance (Bitcoin — gratuit, sans clé, temps réel) ────────────────────────
+
+async function binanceBTC(): Promise<{ value: number | null; change24h: number | null }> {
+  try {
+    const res    = await fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT", { cache: "no-store" });
+    if (!res.ok) return { value: null, change24h: null };
+    const d      = await res.json();
+    const price  = parseFloat(d.lastPrice);
+    const pctChg = parseFloat(d.priceChangePercent);
+    return {
+      value:     isNaN(price)  ? null : Math.round(price),
+      change24h: isNaN(pctChg) ? null : parseFloat(pctChg.toFixed(2)),
+    };
+  } catch { return { value: null, change24h: null }; }
+}
+
+// ── CoinGecko (Bitcoin fallback) ──────────────────────────────────────────────
+
+async function coingeckoBTC(): Promise<{ value: number | null; change24h: number | null }> {
+  try {
+    const res = await fetch(
+      "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true",
+      { cache: "no-store" }
+    );
+    if (!res.ok) return { value: null, change24h: null };
+    const d = await res.json();
+    return {
+      value:     d?.bitcoin?.usd             ?? null,
+      change24h: d?.bitcoin?.usd_24h_change  ?? null,
+    };
+  } catch { return { value: null, change24h: null }; }
+}
+
 // ── GET ───────────────────────────────────────────────────────────────────────
 
 export async function GET() {
   const fredKey = process.env.FRED_API_KEY;
-  const avKey   = process.env.ALPHA_VANTAGE_KEY;
   if (!fredKey) return NextResponse.json({ error: "FRED_API_KEY missing" }, { status: 500 });
-  if (!avKey)   return NextResponse.json({ error: "ALPHA_VANTAGE_KEY missing" }, { status: 500 });
 
-  // 1. Indices + commodités — Alpha Vantage GLOBAL_QUOTE (cache 24h mémoire)
-  //    Appels séquentiels → respect limite 5 req/min AV
-  const vixQ    = await avQuote("^VIX",  avKey);
-  const sp500Q  = await avQuote("^GSPC", avKey);
-  const goldQ   = await avQuote("GC=F",  avKey);
-  const silverQ = await avQuote("SI=F",  avKey);
-  const brentQ  = await avQuote("BZ=F",  avKey);
-  const wtiQ    = await avQuote("CL=F",  avKey);
+  // 1. Marchés — FRED (données fin de journée, cache 24h)
+  //    VIXCLS = VIX clôture CBOE | SP500 = S&P 500 | GOLDPMGBD228NLBM = Or LBMA
+  //    SLVPRUSD = Argent LBMA | DCOILBRENTEU = Brent | DCOILWTICO = WTI
+  const [vixQ, sp500Q, goldQ, silverQ, brentQ, wtiQ] = await Promise.all([
+    fredObsDelta("VIXCLS",           fredKey),
+    fredObsDelta("SP500",            fredKey),
+    fredObsDelta("GOLDPMGBD228NLBM", fredKey),
+    fredObsDelta("SLVPRUSD",         fredKey),
+    fredObsDelta("DCOILBRENTEU",     fredKey),
+    fredObsDelta("DCOILWTICO",       fredKey),
+  ]);
 
-  // 2. Bitcoin — Binance (temps réel, sans clé), fallback CoinGecko
+  // 2. Bitcoin — Binance (temps réel), fallback CoinGecko
   const btcBin = await binanceBTC();
   const btcCg  = btcBin.value === null ? await coingeckoBTC() : { value: null, change24h: null };
 
@@ -126,7 +102,7 @@ export async function GET() {
   return NextResponse.json({
     // Sentiment / Risk-On
     vix:            vixQ.value,
-    vixDelta:       vixQ.delta,
+    vixDelta:       vixQ.delta,                           // pts vs clôture j-1
     sp500:          sp500Q.value,
     sp500Change:    sp500Q.delta,
     sp500ChangePct: sp500Q.deltaPct,
@@ -139,7 +115,7 @@ export async function GET() {
     us10y,
     us2y,
     curveSlope: us10y !== null && us2y !== null ? Math.round((us10y - us2y) * 100) : null,
-    // Commodités — delta = variation vs clôture veille
+    // Commodités — delta = variation vs clôture j-1
     gold:        goldQ.value,
     goldDelta:   goldQ.delta,
     silver:      silverQ.value,
