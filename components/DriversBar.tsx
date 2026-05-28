@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import type { DriverData } from "@/lib/types";
 
 interface Props { drivers: DriverData }
@@ -24,6 +26,58 @@ function DeltaTag({ delta, pct = false, dec = 2 }: { delta: number | null; pct?:
   );
 }
 
+// ── Tooltip via portal (évite le clipping de overflow-x-auto) ─────────────────
+
+interface TooltipState { x: number; y: number }
+
+function TooltipLabel({ label, tooltip }: { label: string; tooltip: string }) {
+  const [tip, setTip] = useState<TooltipState | null>(null);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  const show = useCallback(() => {
+    if (!ref.current) return;
+    const r = ref.current.getBoundingClientRect();
+    setTip({ x: r.left + r.width / 2, y: r.top });
+  }, []);
+
+  const hide = useCallback(() => setTip(null), []);
+
+  return (
+    <>
+      <span
+        ref={ref}
+        onMouseEnter={show}
+        onMouseLeave={hide}
+        className="flex items-center gap-0.5 cursor-help whitespace-nowrap"
+      >
+        <span className="text-[9px] text-gray-400 leading-tight">{label}</span>
+        <span className="w-3 h-3 flex-shrink-0 rounded-full border border-gray-300 text-gray-400 text-[8px] flex items-center justify-center leading-none select-none">
+          i
+        </span>
+      </span>
+
+      {tip && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed z-[9999] bg-gray-800 text-white text-[10px] rounded px-2.5 py-2 w-60 leading-snug shadow-xl pointer-events-none text-left"
+          style={{
+            left:      tip.x,
+            top:       tip.y - 8,
+            transform: "translate(-50%, -100%)",
+          }}
+        >
+          {tooltip}
+          {/* Flèche en bas */}
+          <span
+            className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"
+            style={{ marginTop: 0 }}
+          />
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+}
+
 /** Un indicateur : label · valeur · delta — hauteur fixe garantie */
 function M({
   label, value, dec = 2, unit = "", delta, deltaPct, deltaDec, tooltip,
@@ -37,23 +91,15 @@ function M({
   deltaDec?: number;
   tooltip?:  string;
 }) {
-  const labelNode = tooltip ? (
-    <span className="relative group inline-block">
-      <span className="text-[9px] text-gray-400 border-b border-dotted border-gray-300 cursor-help whitespace-nowrap leading-tight">
-        {label}
-      </span>
-      <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-800 text-white text-[10px] rounded px-2 py-1.5 w-56 z-50 leading-snug shadow-lg whitespace-normal text-left">
-        {tooltip}
-      </span>
-    </span>
-  ) : (
-    <span className="text-[9px] text-gray-400 whitespace-nowrap leading-tight">{label}</span>
-  );
-
   return (
     <div className="flex flex-col items-center text-center flex-shrink-0">
       {/* Ligne 1 — label */}
-      <div className="h-4 flex items-center justify-center">{labelNode}</div>
+      <div className="h-4 flex items-center justify-center">
+        {tooltip
+          ? <TooltipLabel label={label} tooltip={tooltip} />
+          : <span className="text-[9px] text-gray-400 whitespace-nowrap leading-tight">{label}</span>
+        }
+      </div>
       {/* Ligne 2 — valeur */}
       <div className="h-5 flex items-center justify-center">
         <span className={`text-sm font-semibold tabular-nums ${value === null ? "text-gray-300" : "text-gray-800"}`}>
