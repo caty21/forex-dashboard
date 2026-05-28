@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
-// ── FRED (toutes données marché + macro) ──────────────────────────────────────
-// limit=1 → valeur seule. limit=2 → valeur + précédente (pour calculer le delta).
+// ── FRED (macro + taux + spread) ──────────────────────────────────────────────
+// limit=1 → valeur seule. limit=10 → filtre les "." pour trouver la dernière valeur valide.
 
 async function fredObs(series: string, apiKey: string): Promise<number | null> {
   try {
@@ -17,7 +17,7 @@ async function fredObs(series: string, apiKey: string): Promise<number | null> {
 
 type FredResult = { value: number | null; delta: number | null; deltaPct: number | null };
 
-/** Fetche les 2 dernières obs pour calculer valeur + delta vs session précédente */
+/** Fetche les 10 dernières obs pour calculer valeur + delta vs session précédente */
 async function fredObsDelta(series: string, apiKey: string): Promise<FredResult> {
   const empty: FredResult = { value: null, delta: null, deltaPct: null };
   try {
@@ -33,6 +33,31 @@ async function fredObsDelta(series: string, apiKey: string): Promise<FredResult>
     const delta    = prev !== null ? parseFloat((value - prev).toFixed(2)) : null;
     const deltaPct = prev !== null ? parseFloat(((value - prev) / prev * 100).toFixed(2)) : null;
     return { value, delta, deltaPct };
+  } catch { return empty; }
+}
+
+// ── Stooq (Or XAU/USD, Argent XAG/USD — gratuit, sans clé, quasi temps réel) ─
+// delta = Close - Open = variation intraday vs ouverture de session
+
+async function stooqMetal(symbol: string): Promise<FredResult> {
+  const empty: FredResult = { value: null, delta: null, deltaPct: null };
+  try {
+    const url = `https://stooq.com/q/l/?s=${symbol}&f=sd2t2ohlcv&h&e=csv`;
+    const res  = await fetch(url, { next: { revalidate: 300 } }); // cache 5 min
+    if (!res.ok) return empty;
+    const text  = await res.text();
+    const lines = text.trim().split("\n");
+    if (lines.length < 2) return empty;
+    const cols = lines[1].split(",");
+    // CSV header: Symbol,Date,Time,Open,High,Low,Close,Volume
+    const open  = parseFloat(cols[3]);
+    const close = parseFloat(cols[6]);
+    if (isNaN(close)) return empty;
+    const delta    = !isNaN(open) ? parseFloat((close - open).toFixed(2)) : null;
+    const deltaPct = (!isNaN(open) && open > 0)
+      ? parseFloat(((close - open) / open * 100).toFixed(2))
+      : null;
+    return { value: parseFloat(close.toFixed(2)), delta, deltaPct };
   } catch { return empty; }
 }
 
@@ -75,23 +100,28 @@ export async function GET() {
   const fredKey = process.env.FRED_API_KEY;
   if (!fredKey) return NextResponse.json({ error: "FRED_API_KEY missing" }, { status: 500 });
 
-  // 1. Marchés — FRED (données fin de journée, cache 24h)
-  //    VIXCLS = VIX clôture CBOE | SP500 = S&P 500 | GOLDPMGBD228NLBM = Or LBMA
-  //    SLVPRUSD = Argent LBMA | DCOILBRENTEU = Brent | DCOILWTICO = WTI
-  const [vixQ, sp500Q, goldQ, silverQ, brentQ, wtiQ] = await Promise.all([
-    fredObsDelta("VIXCLS",           fredKey),
-    fredObsDelta("SP500",            fredKey),
-    fredObsDelta("GOLDPMGBD228NLBM", fredKey),
-    fredObsDelta("SLVPRUSD",         fredKey),
-    fredObsDelta("DCOILBRENTEU",     fredKey),
-    fredObsDelta("DCOILWTICO",       fredKey),
+  // 1. Marchés indices — FRED (données fin de journée, cache 24h)
+  //    VIXCLS = VIX clôture CBOE | SP500 = S&P 500
+  //    DCOILBRENTEU = Brent | DCOILWTICO = WTI
+  const [vixQ, sp500Q, brentQ, wtiQ] = await Promise.all([
+    fredObsDelta("VIXCLS",       fredKey),
+    fredObsDelta("SP500",        fredKey),
+    fredObsDelta("DCOILBRENTEU", fredKey),
+    fredObsDelta("DCOILWTICO",   fredKey),
   ]);
 
-  // 2. Bitcoin — Binance (temps réel), fallback CoinGecko
+  // 2. Métaux précieux — Stooq (quasi temps réel, cache 5 min, sans clé API)
+  //    delta = variation intraday vs ouverture de session
+  const [goldQ, silverQ] = await Promise.all([
+    stooqMetal("xauusd"),
+    stooqMetal("xagusd"),
+  ]);
+
+  // 3. Bitcoin — Binance (temps réel), fallback CoinGecko
   const btcBin = await binanceBTC();
   const btcCg  = btcBin.value === null ? await coingeckoBTC() : { value: null, change24h: null };
 
-  // 3. FRED — spreads crédit + taux directeurs (cache 24h)
+  // 4. FRED — spreads crédit + taux directeurs (cache 24h)
   const [hyRaw, igRaw, us10y, us2y] = await Promise.all([
     fredObs("BAMLH0A0HYM2", fredKey),
     fredObs("BAMLC0A0CM",   fredKey),
@@ -102,7 +132,7 @@ export async function GET() {
   return NextResponse.json({
     // Sentiment / Risk-On
     vix:            vixQ.value,
-    vixDelta:       vixQ.delta,                           // pts vs clôture j-1
+    vixDelta:       vixQ.delta,
     sp500:          sp500Q.value,
     sp500Change:    sp500Q.delta,
     sp500ChangePct: sp500Q.deltaPct,
@@ -115,7 +145,7 @@ export async function GET() {
     us10y,
     us2y,
     curveSlope: us10y !== null && us2y !== null ? Math.round((us10y - us2y) * 100) : null,
-    // Commodités — delta = variation vs clôture j-1
+    // Commodités — Or/Argent intraday (Stooq), Pétrole j-1 (FRED)
     gold:        goldQ.value,
     goldDelta:   goldQ.delta,
     silver:      silverQ.value,
