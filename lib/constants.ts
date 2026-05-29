@@ -38,10 +38,10 @@ export const FRED_SERIES: Record<Currency, {
   },
   EUR: {
     policyRate:   "ECBDFR",            // taux dépôt BCE
-    cpiCore:      null,                 // → Eurostat dans /api/macro
+    cpiCore:      "CP0000EZCCM086NEST", // HICP total EA composition variable → Index 2025=100 → MoM%
     gdp:          null,                 // → Eurostat dans /api/macro
     retailSales:  "DEUSLRTTO01GPSAM", // proxy Allemagne, déjà MoM%
-    unemployment: null,                 // → Eurostat dans /api/macro
+    unemployment: null,                 // → Eurostat EA21 dans /api/macro
     employment:   null,
   },
   GBP: {
@@ -78,7 +78,7 @@ export const FRED_SERIES: Record<Currency, {
   },
   AUD: {
     policyRate:   "IR3TIB01AUM156N",   // 3M interbank — IRSTCB01AUM156N n'existe pas
-    cpiCore:      "AUSCPIALLMINMEI",   // trimestriel
+    cpiCore:      "AUSCPIALLQINMEI",   // trimestriel (Q = quarterly, ex-AUSCPIALLMINMEI inexistant)
     gdp:          "NGDPRSAXDCAUQ",    // Real GDP Australia (ABS) indice niveau → QoQ%
     retailSales:  null,                 // pas de série mensuelle FRED pour AUD
     unemployment: "LRHUTTTTAUM156S",
@@ -86,7 +86,7 @@ export const FRED_SERIES: Record<Currency, {
   },
   NZD: {
     policyRate:   "IR3TIB01NZM156N",   // 3M interbank — IRSTCB01NZM156N n'existe pas
-    cpiCore:      "NZLCPIALLMINMEI",   // trimestriel
+    cpiCore:      "NZLCPIALLQINMEI",   // trimestriel (Q = quarterly, ex-NZLCPIALLMINMEI inexistant)
     gdp:          "NAEXKP01NZQ661S",  // indice niveau → QoQ% (stale ~2023, best available)
     retailSales:  null,                 // pas de série mensuelle FRED pour NZD
     unemployment: "LRUNTTTTNZQ156S",

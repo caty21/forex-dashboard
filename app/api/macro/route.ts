@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FRED_SERIES } from "@/lib/constants";
 import type { Currency } from "@/lib/types";
+import cpiOverridesRaw from "@/data/cpi_overrides.json";
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
-// Macro data changes monthly/quarterly — cache 24h
-const REVALIDATE = 86400;
+const REVALIDATE = 86400; // cache 24h
 
 // ── FRED ─────────────────────────────────────────────────────────────────────
 
@@ -20,10 +20,39 @@ async function fredObs(seriesId: string, apiKey: string, limit = 5) {
   } catch { return []; }
 }
 
+/**
+ * Récupère deux séries FRED en parallèle et retourne celle avec la date la plus récente.
+ * Utilisé pour choisir la meilleure source disponible (ex: IRSTCB01 vs IR3TIB01).
+ */
+async function fredObsFreshest(s1: string, s2: string, apiKey: string, limit = 5): Promise<Obs[]> {
+  const [a, b] = await Promise.all([fredObs(s1, apiKey, limit), fredObs(s2, apiKey, limit)]);
+  if (!a.length) return b;
+  if (!b.length) return a;
+  return a[0].date >= b[0].date ? a : b;
+}
+
+// ── Banque du Canada — Valet API ──────────────────────────────────────────────
+// V80691311 = Taux d'intérêt directeur de la Banque du Canada (quotidien officiel)
+// Source fiable, gratuite, sans clé, JSON structuré.
+
+async function bocRate(): Promise<Obs[]> {
+  try {
+    const url = "https://www.bankofcanada.ca/valet/observations/V80691311/json?recent=10";
+    const res  = await fetch(url, { next: { revalidate: REVALIDATE } });
+    if (!res.ok) return [];
+    const json = await res.json();
+    type BoCObs = Record<string, unknown> & { d?: unknown; V80691311?: { v: string } };
+    return ((json?.observations ?? []) as BoCObs[])
+      .filter((o) => typeof o.V80691311?.v === "string")
+      .map((o)    => ({ date: String(o.d ?? ""), value: parseFloat(o.V80691311!.v) }))
+      .filter((o) => o.date && !isNaN(o.value))
+      .sort((a, b) => b.date.localeCompare(a.date)); // newest first
+  } catch { return []; }
+}
+
 // ── Eurostat SDMX-JSON API ─────────────────────────────────────────────────────
-// IMPORTANT: toutes les dimensions non-temporelles DOIVENT avoir une valeur unique
-// dans les paramètres (freq, unit, s_adj, coicop…) sinon la correspondance
-// position → indice temporel est fausse et on obtient des NaN.
+// IMPORTANT : toutes les dimensions non-temporelles DOIVENT avoir une valeur
+// unique dans les params (freq, unit, s_adj…) → position value[]=timeIndex correct.
 
 async function eurostatObs(datasetCode: string, params: Record<string, string>) {
   try {
@@ -44,9 +73,9 @@ async function eurostatSorted(
   datasetCode: string,
   params: Record<string, string>,
   limit = 5,
-): Promise<{ date: string; value: number }[]> {
-  // Essaie d'abord les params fournis, puis fallback geo EA20→EA19
+): Promise<Obs[]> {
   let obs = await eurostatObs(datasetCode, params);
+  // Fallback automatique EA20 → EA19 pour les agrégats zone euro
   if (!obs.length && params.geo === "EA20") {
     obs = await eurostatObs(datasetCode, { ...params, geo: "EA19" });
   }
@@ -55,7 +84,7 @@ async function eurostatSorted(
 
 // ── BoE API (GBP policy rate) ─────────────────────────────────────────────────
 
-async function boeRate() {
+async function boeRate(): Promise<Obs[]> {
   try {
     const now    = new Date();
     const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -73,9 +102,8 @@ async function boeRate() {
     const res = await fetch(url, {
       next: { revalidate: REVALIDATE },
       headers: {
-        // Sans User-Agent le BoE redirige vers une page HTML au lieu du CSV
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept":     "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
     });
     if (!res.ok) return [];
@@ -88,16 +116,38 @@ async function boeRate() {
       .slice(0, 5)
       .map((line) => {
         const cols = line.split(",").map((c) => c.replace(/"/g, "").trim());
-        const val  = parseFloat(cols[1] ?? "NaN");
-        return { date: cols[0] ?? "", value: val };
+        return { date: cols[0] ?? "", value: parseFloat(cols[1] ?? "NaN") };
       })
       .filter((o) => o.date && !isNaN(o.value));
   } catch { return []; }
 }
 
-// ── ForexFactory calendar (PMI source primaire) ───────────────────────────────
-// JSON structuré, pas de scraping, ~98 événements/semaine avec actual/previous/forecast.
-// Limité à la semaine courante — complété par le scraping TE si l'event n'est pas encore publié.
+// ── DBnomics API (agrégateur IMF/IFS, BIS, OECD…) ────────────────────────────
+// Format : https://api.db.nomics.world/v22/series/{provider}/{dataset}/{code}?observations=1
+// Utilisé pour les séries absentes de FRED : JPY CPI, AUD/NZD CPI fallback
+// Réponse : series.docs[0].period[] + series.docs[0].value[]
+
+async function dbnomicsObs(provider: string, dataset: string, seriesCode: string, limit = 8): Promise<Obs[]> {
+  try {
+    const url = `https://api.db.nomics.world/v22/series/${provider}/${dataset}/${seriesCode}?observations=1`;
+    const res = await fetch(url, { next: { revalidate: REVALIDATE } });
+    if (!res.ok) return [];
+    const json = await res.json();
+    const s = json?.series?.docs?.[0] as { period?: string[]; value?: (number | null)[] } | undefined;
+    const periods = s?.period ?? [];
+    const values  = s?.value  ?? [];
+    const obs: Obs[] = [];
+    for (let i = periods.length - 1; i >= 0 && obs.length < limit; i--) {
+      const v = values[i];
+      if (v !== null && v !== undefined && !isNaN(Number(v))) {
+        obs.push({ date: periods[i], value: Number(v) });
+      }
+    }
+    return obs;
+  } catch { return []; }
+}
+
+// ── ForexFactory calendar (PMI primaire) ──────────────────────────────────────
 
 async function fetchFFPMI(currency: string): Promise<{
   mfg: { value: number; prev: number | null } | null;
@@ -111,41 +161,26 @@ async function fetchFFPMI(currency: string): Promise<{
     });
     if (!res.ok) return empty;
     const events = await res.json() as Array<{
-      title: string; country: string; actual: string; previous: string; forecast: string;
+      title: string; country: string; actual: string; previous: string;
     }>;
-
     const forCcy = events.filter((e) => e.country === currency && e.actual);
-    const isMfg  = (t: string) => /manufacturing\s+pmi|mfg\s+pmi|s&p.*manufacturing/i.test(t);
+    const isMfg  = (t: string) => /manufacturing\s+pmi|mfg\s+pmi/i.test(t);
     const isSvc  = (t: string) => /services?\s+pmi|ism\s+non.manufactur|composite\s+pmi/i.test(t);
-
-    const mfgEv = forCcy.find((e) => isMfg(e.title));
-    const svcEv = forCcy.find((e) => isSvc(e.title));
-
-    const parse = (e: typeof mfgEv) => {
+    const parse  = (e: typeof forCcy[0] | undefined) => {
       if (!e?.actual) return null;
       const val  = parseFloat(e.actual);
       const prev = parseFloat(e.previous ?? "");
-      if (isNaN(val)) return null;
-      return { value: val, prev: isNaN(prev) ? null : prev };
+      return isNaN(val) ? null : { value: val, prev: isNaN(prev) ? null : prev };
     };
-
-    return { mfg: parse(mfgEv), svc: parse(svcEv) };
+    return { mfg: parse(forCcy.find((e) => isMfg(e.title))), svc: parse(forCcy.find((e) => isSvc(e.title))) };
   } catch { return empty; }
 }
 
 // ── Trading Economics PMI scraping (fallback) ─────────────────────────────────
-// Quand ForexFactory n'a pas l'event de la semaine courante, on scrape TE.
-// Extrait la valeur et le précédent depuis la balise <meta name="description">.
 
 const TE_COUNTRY: Record<string, string> = {
-  USD: "united-states",
-  EUR: "euro-area",
-  GBP: "united-kingdom",
-  JPY: "japan",
-  CHF: "switzerland",
-  CAD: "canada",
-  AUD: "australia",
-  NZD: "new-zealand",
+  USD: "united-states", EUR: "euro-area", GBP: "united-kingdom",
+  JPY: "japan", CHF: "switzerland", CAD: "canada", AUD: "australia", NZD: "new-zealand",
 };
 
 async function scrapePMI(
@@ -155,8 +190,7 @@ async function scrapePMI(
   const country = TE_COUNTRY[currency];
   if (!country) return { value: null, prev: null };
   try {
-    const url = `https://tradingeconomics.com/${country}/${indicator}`;
-    const res = await fetch(url, {
+    const res = await fetch(`https://tradingeconomics.com/${country}/${indicator}`, {
       next: { revalidate: 3600 },
       headers: {
         "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -170,17 +204,15 @@ async function scrapePMI(
       },
     });
     if (!res.ok) return { value: null, prev: null };
-    const html = await res.text();
-    // Meta description : "Manufacturing PMI in X increased to 55.30 points in May from 54.50 points in April"
+    const html     = await res.text();
     const metaMatch =
       html.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i) ??
       html.match(/<meta\s+content=["']([^"']+)["']\s+name=["']description["']/i);
     if (!metaMatch) return { value: null, prev: null };
     const desc  = metaMatch[1];
-    const numRe = /(?:increased|decreased|declined|rose|fell|eased|stood)\s+(?:at\s+)?to?\s*([\d.]+)\s+points?.+?from\s+([\d.]+)\s+points?/i;
+    const numRe = /(?:increased|decreased|declined|rose|fell|eased)\s+to\s*([\d.]+)\s+points?.+?from\s+([\d.]+)\s+points?/i;
     const m     = desc.match(numRe);
     if (m) return { value: parseFloat(m[1]), prev: parseFloat(m[2]) };
-    // Fallback numérique : deux premiers décimaux dans la description
     const nums = desc.match(/\b(\d{1,3}\.\d{1,2})\b/g);
     if (nums?.length) return { value: parseFloat(nums[0]), prev: nums[1] ? parseFloat(nums[1]) : null };
     return { value: null, prev: null };
@@ -191,10 +223,19 @@ async function scrapePMI(
 
 type Obs = { date: string; value: number };
 
-function toIndicator(obs: Obs[]) {
+// Type commun pour tous les indicateurs (toIndicator, toPmiIndicator, overrides)
+type IndicatorResult = {
+  value: number;
+  prev: number | null;
+  surprise: number | null;
+  trend: "up" | "down" | "flat" | null;
+  lastUpdated: string | null;
+} | null;
+
+function toIndicator(obs: Obs[]): IndicatorResult {
   if (!obs.length) return null;
   const value = obs[0].value;
-  const prev  = obs[1]?.value ?? null;
+  const prev  = (obs[1]?.value ?? null) as number | null;
   return {
     value,
     prev,
@@ -202,6 +243,20 @@ function toIndicator(obs: Obs[]) {
     trend:       prev !== null ? (value > prev ? "up" : value < prev ? "down" : "flat") : null,
     lastUpdated: obs[0].date,
   };
+}
+
+/**
+ * Pour les séries quotidiennes de taux directeurs (DFEDTARU, ECBDFR…),
+ * supprime les doublons consécutifs pour n'avoir que les dates de décision.
+ * prev = taux avant la dernière décision (pas hier).
+ */
+function toIndicatorDeduped(obs: Obs[]) {
+  const deduped: Obs[] = [];
+  let last = NaN;
+  for (const o of obs) {
+    if (o.value !== last) { deduped.push(o); last = o.value; }
+  }
+  return toIndicator(deduped);
 }
 
 function toIndicatorPct(obs: Obs[]) {
@@ -213,15 +268,15 @@ function toIndicatorPct(obs: Obs[]) {
   return toIndicator(pctObs);
 }
 
-function toPmiIndicator(raw: { value: number | null; prev: number | null }) {
+function toPmiIndicator(raw: { value: number | null; prev: number | null }): IndicatorResult {
   if (raw.value === null) return null;
   const surprise = raw.prev !== null ? parseFloat((raw.value - raw.prev).toFixed(2)) : null;
   return {
     value:       raw.value,
     prev:        raw.prev,
     surprise,
-    trend:       surprise !== null ? (surprise > 0 ? "up" : surprise < 0 ? "down" : "flat") as "up"|"down"|"flat" : null,
-    lastUpdated: null as string | null,
+    trend:       surprise !== null ? (surprise > 0 ? "up" : surprise < 0 ? "down" : "flat") : null,
+    lastUpdated: null,
   };
 }
 
@@ -256,7 +311,7 @@ export async function GET(req: NextRequest) {
 
   const fredFields  = Object.entries(fieldMap).filter(([, id]) => id !== null) as [string, string][];
   const fredResults = await Promise.all(fredFields.map(([, id]) => fredObs(id, key)));
-  const indicators: Record<string, ReturnType<typeof toIndicator>> = {};
+  const indicators: Record<string, IndicatorResult> = {};
 
   fredFields.forEach(([field], i) => {
     indicators[field] = PCT_FIELDS.has(field)
@@ -266,35 +321,60 @@ export async function GET(req: NextRequest) {
 
   // ── EUR alternative sources ────────────────────────────────────────────────
   if (currency === "EUR") {
-    // CPI: Eurostat HICP MoM% (RCH_MOM = rate of change month-on-month, déjà en %)
-    // freq=M et unit=RCH_MOM garantissent que chaque dimension ≤ 1 valeur
-    // → position dans value[] = indice temporel, pas de décalage multi-dim.
     if (!indicators.cpiCore) {
-      const hicp = await eurostatSorted("prc_hicp_mmr", {
-        geo: "EA20", coicop: "CP00", unit: "RCH_MOM", freq: "M",
-      });
-      indicators.cpiCore = toIndicator(hicp);
+      // CP0000EZCCM086NEST indisponible → fallback Eurostat prc_hicp_midx (I15 index → MoM%)
+      // prc_hicp_mmr (404 depuis 2025) remplacé par prc_hicp_midx + toIndicatorPct
+      const hicp = await eurostatSorted("prc_hicp_midx", {
+        geo: "EA", coicop: "CP00", unit: "I15", freq: "M",
+      }, 6);
+      indicators.cpiCore = toIndicatorPct(hicp);
     }
-
-    // GDP: Eurostat QoQ% directement (CLV_PCH_PRE = % variation vs période précédente)
-    // → toIndicator suffit, pas besoin de toIndicatorPct
     if (!indicators.gdp) {
+      // Essayer EA20 d'abord (données 2023-2025), puis EA19 (fallback automatique via eurostatSorted)
       const gdpObs = await eurostatSorted("namq_10_gdp", {
         geo: "EA20", unit: "CLV_PCH_PRE", s_adj: "SCA", na_item: "B1GQ", freq: "Q",
       }, 6);
       indicators.gdp = toIndicator(gdpObs);
     }
-
-    // Unemployment: Eurostat monthly SA rate
     if (!indicators.unemployment) {
-      const unObs = await eurostatSorted("une_rt_m", {
-        geo: "EA20", s_adj: "SA", age: "TOTAL", sex: "T", unit: "PC_ACT", freq: "M",
+      // EA21 = code actuel Eurostat pour Zone Euro 21 pays (depuis 2026)
+      // Fallback EA20 si EA21 vide (transition de nomenclature)
+      let unObs = await eurostatSorted("une_rt_m", {
+        geo: "EA21", s_adj: "SA", age: "TOTAL", sex: "T", unit: "PC_ACT", freq: "M",
       });
+      if (!unObs.length) {
+        unObs = await eurostatSorted("une_rt_m", {
+          geo: "EA20", s_adj: "SA", age: "TOTAL", sex: "T", unit: "PC_ACT", freq: "M",
+        });
+      }
       indicators.unemployment = toIndicator(unObs);
     }
   }
 
-  // ── GBP alternative sources ───────────────────────────────────────────────
+  // ── JPY CPI — IMF/IFS (DBnomics) ─────────────────────────────────────────
+  // FRED n'a pas de série JPY CPI mensuelle récente.
+  // M.JP.PCPI_PC_PP_PT = CPI All Items, % change previous period (MoM%), mensuel.
+  // Dernière donnée disponible : 2025-06 (délai ~2 mois vs publication MIC).
+  // La série est DÉJÀ en % → toIndicator (pas toIndicatorPct).
+  if (currency === "JPY" && !indicators.cpiCore) {
+    const obs = await dbnomicsObs("IMF", "IFS", "M.JP.PCPI_PC_PP_PT");
+    if (obs.length) indicators.cpiCore = toIndicator(obs);
+  }
+
+  // ── AUD/NZD CPI fallback — IMF/IFS (DBnomics) ────────────────────────────
+  // FRED AUSCPIALLQINMEI / NZLCPIALLQINMEI = trimestriels index.
+  // Si FRED échoue ou est absent, IMF/IFS fournit les données trimestrielles
+  // via Q.AU.PCPI_IX / Q.NZ.PCPI_IX (index → QoQ% via toIndicatorPct).
+  if (currency === "AUD" && !indicators.cpiCore) {
+    const obs = await dbnomicsObs("IMF", "IFS", "Q.AU.PCPI_IX");
+    if (obs.length) indicators.cpiCore = toIndicatorPct(obs);
+  }
+  if (currency === "NZD" && !indicators.cpiCore) {
+    const obs = await dbnomicsObs("IMF", "IFS", "Q.NZ.PCPI_IX");
+    if (obs.length) indicators.cpiCore = toIndicatorPct(obs);
+  }
+
+  // ── GBP BoE policy rate ───────────────────────────────────────────────────
   if (currency === "GBP" && !indicators.policyRate) {
     const boe = await boeRate();
     indicators.policyRate = toIndicator(boe);
@@ -305,20 +385,124 @@ export async function GET(req: NextRequest) {
     if (!(field in indicators)) indicators[field] = null;
   }
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // ── TAUX DIRECTEURS : sources corrigées ───────────────────────────────────
+  //
+  // Problème : les séries mensuelles (FEDFUNDS) ont un lag d'1 mois,
+  //            les séries IR3TIB01 sont des taux interbancaires 3M (≠ taux CB).
+  //
+  // Solution  :
+  //   • Séries quotidiennes (DFEDTARU, ECBDFR, IRSTCB01GBM156N)
+  //     → toIndicatorDeduped : prev = avant-dernière décision, pas hier
+  //   • IRSTCB01 (OCDE) : taux CB officiel, plus fiable que IR3TIB01
+  //   • Banque du Canada Valet API : taux annoncé exact (V80691311)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // USD — DFEDTARU = borne haute de la cible Fed (quotidien, annonce FOMC)
+  if (currency === "USD") {
+    const obs = await fredObs("DFEDTARU", key, 90);
+    if (obs.length) indicators.policyRate = toIndicatorDeduped(obs);
+  }
+
+  // EUR — ECBDFR déjà utilisé mais mensuel → re-fetch 90j + dédupliqué
+  if (currency === "EUR") {
+    const obs = await fredObs("ECBDFR", key, 90);
+    if (obs.length) indicators.policyRate = toIndicatorDeduped(obs);
+  }
+
+  // JPY — IRSTCB01JPM156N (taux BoJ officiel, mis à jour depuis hausses 2024)
+  //       fallback IR3TIB01JPM156N (TIBOR 3M, trop élevé vs taux BoJ réel)
+  if (currency === "JPY") {
+    const obs = await fredObsFreshest("IRSTCB01JPM156N", "IR3TIB01JPM156N", key);
+    if (obs.length) indicators.policyRate = toIndicator(obs);
+  }
+
+  // CAD — API Banque du Canada (Valet, gratuit, officiel, JSON)
+  //       V80691311 = Taux directeur annoncé (pas le marché)
+  if (currency === "CAD") {
+    const boc = await bocRate();
+    if (boc.length) indicators.policyRate = toIndicatorDeduped(boc);
+  }
+
+  // NZD — IRSTCB01NZM156N (OCR RBNZ officiel) si plus récent que IR3TIB01
+  if (currency === "NZD") {
+    const obs = await fredObsFreshest("IRSTCB01NZM156N", "IR3TIB01NZM156N", key);
+    if (obs.length) indicators.policyRate = toIndicator(obs);
+  }
+
+  // GBP — fallback FRED si BoE API a échoué ci-dessus
+  // IRSTCB01GBM156N n'existe pas sur FRED → IR3TIB01GBM156N (3M interbank mensuel, actif)
+  if (currency === "GBP" && !indicators.policyRate) {
+    const obs = await fredObs("IR3TIB01GBM156N", key, 6);
+    if (obs.length) indicators.policyRate = toIndicator(obs);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // ── CHÔMAGE : sources corrigées ───────────────────────────────────────────
+  //
+  // CHF — LRHUTTTTCHQ156S = taux OCDE harmonisé ILO (~5%) ≠ taux SECO (~2.3%)
+  //       On tente la série CHEUNP01CHQ661S (taux national CH sur FRED)
+  //       puis Eurostat geo=CH (Suisse incluse dans les datasets statistiques)
+  //
+  // GBP — On tente Eurostat geo=UK (UK inclus dans datasets Eurostat post-Brexit
+  //       pour comparabilité statistique) avant LRHUTTTTGBM156S
+  // ══════════════════════════════════════════════════════════════════════════
+
+  if (currency === "CHF") {
+    const national = await fredObs("CHEUNP01CHQ661S", key);
+    if (national.length) {
+      indicators.unemployment = toIndicator(national);
+    } else {
+      // Eurostat geo=CH : taux ILO mensuel (plus récent que FRED trimestriel)
+      const eurostatCH = await eurostatSorted("une_rt_m", {
+        geo: "CH", s_adj: "SA", age: "TOTAL", sex: "T", unit: "PC_ACT", freq: "M",
+      });
+      if (eurostatCH.length) indicators.unemployment = toIndicator(eurostatCH);
+      // Else: on garde LRHUTTTTCHQ156S (harmonisé OCDE) déjà calculé ci-dessus
+    }
+  }
+
+  // GBP unemployment: Eurostat UK retiré — données stoppées en sept. 2020 (Brexit).
+  // On conserve LRHUTTTTGBM156S (FRED, ILO harmonisé, mis à jour mensuellement).
+
   // ── PMI : ForexFactory (semaine courante) + fallback TE scraping ───────────
   const [ffPMI, pmiMfgRaw, pmiSvcRaw] = await Promise.all([
     fetchFFPMI(currency),
     scrapePMI(currency, "manufacturing-pmi"),
     scrapePMI(currency, "services-pmi"),
   ]);
+  indicators.pmiMfg      = ffPMI.mfg ? toPmiIndicator(ffPMI.mfg) : toPmiIndicator(pmiMfgRaw);
+  indicators.pmiServices = ffPMI.svc ? toPmiIndicator(ffPMI.svc) : toPmiIndicator(pmiSvcRaw);
 
-  indicators.pmiMfg      = ffPMI.mfg  ? toPmiIndicator(ffPMI.mfg)  : toPmiIndicator(pmiMfgRaw);
-  indicators.pmiServices = ffPMI.svc  ? toPmiIndicator(ffPMI.svc)  : toPmiIndicator(pmiSvcRaw);
+  // ── Overrides manuels CPI (investing.com) ─────────────────────────────────
+  // Appliqués quand la source automatique (FRED/DBnomics) est en retard.
+  // Règle : l'override est retenu ssi sa date > lastUpdated de la source auto.
+  // Mettre à jour data/cpi_overrides.json après chaque publication trimestrielle.
+  {
+    type OvrField = { value: number; prev: number | null; surprise: number | null; trend: string | null; lastUpdated: string; source?: string };
+    type OvrMap  = Record<string, Record<string, OvrField>>;
+    const entry     = (cpiOverridesRaw as unknown as [{ overrides: OvrMap }])[0];
+    const ovrFields = entry?.overrides?.[currency];
+    if (ovrFields) {
+      for (const [field, ovr] of Object.entries(ovrFields)) {
+        const auto = indicators[field];
+        const autoDate = auto?.lastUpdated ?? "";
+        if (!auto || autoDate < ovr.lastUpdated) {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { source: _src, ...rest } = ovr;
+          indicators[field] = {
+            ...rest,
+            trend: rest.trend as "up" | "down" | "flat" | null,
+          };
+        }
+      }
+    }
+  }
 
-  // Stale-if-error : si tous les indicateurs sont null (panne API), renvoie le cache précédent
+  // Stale-if-error
   const hasAnyValue = Object.values(indicators).some((v) => v !== null);
   if (!hasAnyValue && staleCache) {
-    return NextResponse.json({ ...staleCache.data, stale: true });
+    return NextResponse.json({ ...(staleCache.data as object), stale: true });
   }
 
   const data = { currency, indicators, fetchedAt: new Date().toISOString() };

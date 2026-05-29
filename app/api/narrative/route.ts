@@ -21,7 +21,7 @@ Format de réponse : texte court, 80-120 mots maximum par devise.`;
 export async function POST(req: NextRequest) {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
-    return NextResponse.json({ error: "GROQ_API_KEY not configured" }, { status: 503 });
+    return NextResponse.json({ error: "GROQ_API_KEY manquant — ajouter dans Vercel → Settings → Environment Variables" }, { status: 503 });
   }
 
   let body: {

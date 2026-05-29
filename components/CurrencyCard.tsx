@@ -213,7 +213,7 @@ export default function CurrencyCard({ currency, expectations, yields, onDiverge
           <span className="relative group inline-flex items-center ml-0.5 cursor-help align-middle">
             <span className="text-[9px] text-gray-400 border border-gray-300 rounded-full w-3 h-3 flex items-center justify-center leading-none select-none">i</span>
             <span className="pointer-events-none absolute bottom-full left-0 mb-1.5 hidden group-hover:block bg-gray-800 text-white text-[10px] rounded px-2 py-1.5 w-56 z-50 leading-snug shadow-lg whitespace-normal">
-              Variation cumulée attendue sur les ~12 prochains mois selon les marchés (OIS / futures de taux). Distinct de la probabilité à la prochaine réunion ci-dessous.
+              1 bp (basis point) = 0,01% de taux. Variation cumulée attendue d&apos;ici fin d&apos;année selon les marchés (OIS / futures de taux). Distinct de la probabilité à la prochaine réunion ci-dessous.
             </span>
           </span>
           <span className="text-gray-500"> · {rateExp.prob_pct}% prob. </span>

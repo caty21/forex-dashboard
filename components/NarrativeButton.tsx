@@ -52,8 +52,8 @@ export default function NarrativeButton({ currency, indicators, macroScore }: Pr
       </button>
 
       {error && (
-        <span className="text-[10px] text-red-500 truncate max-w-[140px]" title={error}>
-          Erreur IA
+        <span className="text-[10px] text-red-500 truncate max-w-[160px]" title={error}>
+          ⚠ {error.replace(/^Error:\s*/i, "").slice(0, 40)}
         </span>
       )}
 

@@ -1,0 +1,38 @@
+[
+  {
+    "updated_at": "2026-05-29",
+    "note": "Valeurs manuelles depuis investing.com — utilisées quand FRED/DBnomics sont en retard. L'override est appliqué uniquement si sa date est plus récente que la source automatique.",
+    "overrides": {
+      "JPY": {
+        "cpiCore": {
+          "value": 0.1,
+          "prev": 0.4,
+          "surprise": -0.3,
+          "trend": "down",
+          "lastUpdated": "2026-05-22",
+          "source": "investing.com — IPC Japon MoM% (avr. 2026, publié 22/05/2026)"
+        }
+      },
+      "AUD": {
+        "cpiCore": {
+          "value": 1.4,
+          "prev": 0.6,
+          "surprise": 0.8,
+          "trend": "up",
+          "lastUpdated": "2026-04-29",
+          "source": "investing.com — IPC Australie QoQ% (T1 2026, publié 29/04/2026)"
+        }
+      },
+      "NZD": {
+        "cpiCore": {
+          "value": 0.9,
+          "prev": 0.6,
+          "surprise": 0.3,
+          "trend": "up",
+          "lastUpdated": "2026-04-21",
+          "source": "investing.com — IPC Nouvelle-Zélande QoQ% (T1 2026, publié 21/04/2026)"
+        }
+      }
+    }
+  }
+]
