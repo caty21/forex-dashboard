@@ -116,6 +116,7 @@ export interface DriverData {
   igSpread: number | null;
   // Taux & FX
   dxy:        number | null;
+  dxyDelta:   number | null;   // pts vs clôture précédente (Yahoo Finance DX=F)
   us10y:      number | null;
   us2y:       number | null;
   curveSlope: number | null;
@@ -135,4 +136,18 @@ export interface DriverData {
 export interface FXRates {
   [pair: string]: number;
   timestamp: number;
+}
+
+export interface SentimentEntry {
+  longPct:  number;
+  shortPct: number;
+  pair:     string;
+}
+
+export interface CotEntry {
+  net:      number;
+  longPct:  number;
+  shortPct: number;
+  totalLev: number;
+  weekDate: string;
 }

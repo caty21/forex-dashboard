@@ -8,6 +8,14 @@ function signalFromSurprise(surprise: number | null): number {
   return 0;
 }
 
+// Employment change est en milliers (Δk) → seuil 10k pour signal
+function signalFromDeltaK(deltaK: number | null): number {
+  if (deltaK === null) return 0;
+  if (deltaK > 10)  return 1;
+  if (deltaK < -10) return -1;
+  return 0;
+}
+
 // §4 macro score: -16 to +16
 export function calcMacroScore(
   indicators: CurrencyIndicators,
@@ -23,7 +31,7 @@ export function calcMacroScore(
     { key: "gdp",          signal: signalFromSurprise(indicators.gdp.surprise) },
     { key: "retailSales",  signal: signalFromSurprise(indicators.retailSales.surprise) },
     { key: "unemployment", signal: signalFromSurprise(indicators.unemployment.surprise) * -1 }, // inversion : chômage bas = haussier
-    { key: "employment",   signal: signalFromSurprise(indicators.employment.surprise) },
+    { key: "employment",   signal: signalFromDeltaK(indicators.employment.surprise) },
   ];
 
   let total = 0;

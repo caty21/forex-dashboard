@@ -21,76 +21,138 @@ export const CURRENCY_META: Record<Currency, { name: string; flag: string; cb: s
 //   EUR utilise l'Allemagne comme proxy (plus grande économie, données mensuelles récentes)
 // Employment : séries LFEMTTTT*647S (niveaux en milliers → MoM% calculé localement)
 export const FRED_SERIES: Record<Currency, {
-  policyRate:   string | null;
-  cpiCore:      string | null;
-  gdp:          string | null;
-  retailSales:  string | null;
-  unemployment: string | null;
-  employment:   string | null;
+  policyRate:    string | null;
+  cpiCore:       string | null;  // CPI core (hors alim+énergie si dispo) → YoY
+  cpiHeadline:   string | null;  // CPI headline (tous articles) → MoM (série différente de cpiCore !)
+  gdp:           string | null;
+  retailSales:   string | null;
+  unemployment:  string | null;
+  employment:    string | null;
 }> = {
   USD: {
     policyRate:   "FEDFUNDS",
-    cpiCore:      "CPILFESL",          // indice niveau → MoM%
-    gdp:          "GDPC1",             // indice niveau → QoQ%
-    retailSales:  "USASLRTTO01GPSAM", // déjà MoM% — ex-MARTSSM44W72USS (niveau)
+    cpiCore:      "CPILFESL",          // Core CPI (less food+energy) → YoY%
+    cpiHeadline:  "CPIAUCSL",          // Headline CPI All Items SA → MoM% (série différente !)
+    gdp:          "GDPC1",
+    retailSales:  "USASLRTTO01GPSAM",
     unemployment: "UNRATE",
-    employment:   "PAYEMS",            // niveau → MoM%
+    employment:   "PAYEMS",
   },
   EUR: {
-    policyRate:   "ECBDFR",            // taux dépôt BCE
-    cpiCore:      "CP0000EZCCM086NEST", // HICP total EA composition variable → Index 2025=100 → MoM%
-    gdp:          null,                 // → Eurostat dans /api/macro
-    retailSales:  "DEUSLRTTO01GPSAM", // proxy Allemagne, déjà MoM%
-    unemployment: null,                 // → Eurostat EA21 dans /api/macro
+    policyRate:   "ECBDFR",
+    cpiCore:      "CP0000EZCCM086NEST", // HICP total → YoY%
+    cpiHeadline:  null,                  // → Eurostat HICP (mêmes obs, MoM calculé)
+    gdp:          null,
+    retailSales:  "DEUSLRTTO01GPSAM",
+    unemployment: null,
     employment:   null,
   },
   GBP: {
-    policyRate:   null,                 // → BoE API dans /api/macro
-    cpiCore:      "GBRCPIALLMINMEI",   // indice niveau → MoM%
-    gdp:          "NGDPRSAXDCGBQ",    // Real GDP UK (BEA/ONS) indice niveau → QoQ%
-    retailSales:  "GBRSLRTTO01GPSAM", // déjà MoM%
+    policyRate:   null,
+    cpiCore:      "GBRCPIALLMINMEI",   // Headline All Items → YoY (pas de série core mensuelle)
+    cpiHeadline:  "GBRCPIALLMINMEI",   // Même série : headline → MoM depuis mêmes obs
+    gdp:          "NGDPRSAXDCGBQ",
+    retailSales:  "GBRSLRTTO01GPSAM",
     unemployment: "LRHUTTTTGBM156S",
-    employment:   null,                 // pas de série mensuelle FRED pour GBP
+    employment:   null,
   },
   JPY: {
-    policyRate:   "IR3TIB01JPM156N",   // 3M interbank (IRSTCB01JPM156N stale 2023)
-    cpiCore:      null,                 // JPNCPIALLMINMEI stale depuis 2021 sur FRED
-    gdp:          "JPNRGDPEXP",        // indice niveau → QoQ%
-    retailSales:  "JPNSLRTTO01GPSAM", // déjà MoM%
+    policyRate:   "IR3TIB01JPM156N",
+    cpiCore:      null,                  // DBnomics M.JP.PCPI_IX → YoY
+    cpiHeadline:  null,                  // DBnomics M.JP.PCPI_IX → MoM (mêmes obs)
+    gdp:          "JPNRGDPEXP",
+    retailSales:  "JPNSLRTTO01GPSAM",
     unemployment: "LRHUTTTTJPM156S",
-    employment:   "LFEMTTTTJPM647S",  // niveau mensuel → MoM%
+    employment:   "LFEMTTTTJPM647S",
   },
   CHF: {
-    policyRate:   "IR3TIB01CHM156N",   // 3M interbank — IRSTCB01CHM156N n'existe pas
-    cpiCore:      "CHECPICORMINMEI",   // indice niveau → MoM%
-    gdp:          "CHNGDPNQDSMEI",     // indice niveau → QoQ% (peut être stale)
-    retailSales:  "CHESLRTTO01GPSAM", // déjà MoM%
-    unemployment: "LRHUTTTTCHQ156S",  // trimestriel (LRHUTTTTCHM156S n'existe pas)
-    employment:   null,                 // pas de série FRED pour CHF
+    policyRate:   "IR3TIB01CHM156N",
+    cpiCore:      "CHECPICORMINMEI",   // Core CPI → YoY
+    cpiHeadline:  "CHECPIALLMINMEI",   // Headline CPI → MoM (si absent sur FRED → fallback core MoM)
+    gdp:          "CHNGDPNQDSMEI",
+    retailSales:  "CHESLRTTO01GPSAM",
+    unemployment: "LRHUTTTTCHQ156S",
+    employment:   null,
   },
   CAD: {
-    policyRate:   "IR3TIB01CAM156N",   // 3M interbank (IRSTCB01CAM156N stale 2023)
-    cpiCore:      "CANCPICORMINMEI",   // indice niveau → MoM%
-    gdp:          "NGDPRSAXDCCAQ",    // Real GDP Canada (BEA/StatCan) indice niveau → QoQ%
-    retailSales:  "CANSLRTTO01GPSAM", // déjà MoM%
+    policyRate:   "IR3TIB01CAM156N",
+    cpiCore:      "CANCPICORMINMEI",   // Core CPI → YoY
+    cpiHeadline:  "CANCPIALLMINMEI",   // Headline CPI → MoM (si absent → fallback core MoM)
+    gdp:          "NGDPRSAXDCCAQ",
+    retailSales:  "CANSLRTTO01GPSAM",
     unemployment: "LRHUTTTTCAM156S",
-    employment:   "LFEMTTTTCAM647S",  // niveau mensuel → MoM%
+    employment:   "LFEMTTTTCAM647S",
   },
   AUD: {
-    policyRate:   "IR3TIB01AUM156N",   // 3M interbank — IRSTCB01AUM156N n'existe pas
-    cpiCore:      "AUSCPIALLQINMEI",   // trimestriel (Q = quarterly, ex-AUSCPIALLMINMEI inexistant)
-    gdp:          "NGDPRSAXDCAUQ",    // Real GDP Australia (ABS) indice niveau → QoQ%
-    retailSales:  null,                 // pas de série mensuelle FRED pour AUD
+    policyRate:   "IR3TIB01AUM156N",
+    cpiCore:      "AUSCPIALLQINMEI",   // trimestriel → YoY
+    cpiHeadline:  "AUSCPIALLQINMEI",   // même série trimestrielle → QoQ (pas de MoM mensuel AUS)
+    gdp:          "NGDPRSAXDCAUQ",
+    retailSales:  null,
     unemployment: "LRHUTTTTAUM156S",
-    employment:   "LFEMTTTTAUM647S",  // niveau mensuel → MoM%
+    employment:   "LFEMTTTTAUM647S",
   },
   NZD: {
-    policyRate:   "IR3TIB01NZM156N",   // 3M interbank — IRSTCB01NZM156N n'existe pas
-    cpiCore:      "NZLCPIALLQINMEI",   // trimestriel (Q = quarterly, ex-NZLCPIALLMINMEI inexistant)
-    gdp:          "NAEXKP01NZQ661S",  // indice niveau → QoQ% (stale ~2023, best available)
-    retailSales:  null,                 // pas de série mensuelle FRED pour NZD
+    policyRate:   "IR3TIB01NZM156N",
+    cpiCore:      "NZLCPIALLQINMEI",   // trimestriel → YoY
+    cpiHeadline:  "NZLCPIALLQINMEI",   // même série trimestrielle → QoQ
+    gdp:          "NAEXKP01NZQ657S",
+    retailSales:  null,
     unemployment: "LRUNTTTTNZQ156S",
-    employment:   "LFEMTTTTNZQ647S",  // niveau trimestriel → QoQ% (proxy)
+    employment:   "LFEMTTTTNZQ647S",
+  },
+};
+
+// ── Profils pays : énergie et matières premières ──────────────────────────────
+// Données structurelles stables (mise à jour ~annuelle)
+// energy: position nette pétrole/gaz du pays vis-à-vis du monde
+// commodities: principales exportations de matières premières (impact forex notable)
+export interface CountryProfile {
+  energy:          "exporter" | "importer" | "neutral";
+  energyNote:      string;   // description courte (tooltip)
+  commodities:     string[]; // matières clés en cas de choc prix
+}
+
+export const COUNTRY_PROFILES: Record<Currency, CountryProfile> = {
+  USD: {
+    energy:      "exporter",
+    energyNote:  "1er producteur mondial pétrole + gaz (EIA). Exportateur net depuis 2019.",
+    commodities: ["Pétrole", "GNL", "Blé", "Soja", "Maïs"],
+  },
+  EUR: {
+    energy:      "importer",
+    energyNote:  "Import ~55% énergie (MENA, Russie réduit). Très sensible aux chocs pétrole.",
+    commodities: ["Blé (FR, DE)", "Machines industrielles"],
+  },
+  GBP: {
+    energy:      "neutral",
+    energyNote:  "Mer du Nord en déclin. Production ≈ consommation (~neutre).",
+    commodities: ["Services financiers"],
+  },
+  JPY: {
+    energy:      "importer",
+    energyNote:  "Import ~90% énergie. 3ème importateur GNL mondial. Très sensible Détroit d'Hormuz.",
+    commodities: [],
+  },
+  CHF: {
+    energy:      "importer",
+    energyNote:  "Import ~75% énergie (gaz naturel Europe, pétrole OPEP).",
+    commodities: [],
+  },
+  CAD: {
+    energy:      "exporter",
+    energyNote:  "3ème réserves mondiales pétrole (sables bitumineux Alberta). Export ~4 Mb/j.",
+    commodities: ["Pétrole", "Gaz naturel", "Blé", "Potasse", "Bois d'œuvre"],
+  },
+  AUD: {
+    energy:      "exporter",
+    energyNote:  "2ème exportateur GNL mondial. Export charbon thermique + métallurgique.",
+    commodities: ["Minerai de fer", "GNL", "Charbon", "Or", "Blé", "Cuivre"],
+  },
+  NZD: {
+    energy:      "importer",
+    energyNote:  "Import pétrole. Renouvelables ~85% électricité (hydro), indépendant localement.",
+    commodities: ["Lait / Produits laitiers", "Viande bovine", "Bois", "Laine"],
   },
 };
 

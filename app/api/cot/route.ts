@@ -1,89 +1,122 @@
 import { NextResponse } from "next/server";
 import { COT_CODES } from "@/lib/constants";
-import type { Currency } from "@/lib/types";
+import type { Currency, CotEntry } from "@/lib/types";
 
-// CFTC CSV URL — updated weekly on Fridays
-const CFTC_URL =
-  "https://www.cftc.gov/files/dea/history/fut_fin_txt_2024.zip";
-// Current year CSV (plain text, no zip)
-const CFTC_CURRENT =
-  "https://www.cftc.gov/sites/default/files/files/dea/cotarchives/2024/futures/FinFutWk062824.txt";
+// ── CFTC Traders in Financial Futures (TFF) — format legacy CSV sans header ──
+// URL : https://www.cftc.gov/dea/newcot/FinFutWk.txt (mis à jour chaque vendredi)
+//
+// Colonnes (0-based, séparées par virgule) :
+//   0  Market_and_Exchange_Names
+//   1  As_of_Date_In_Form_YYMMDD
+//   2  Report_Date_as_YYYY-MM-DD
+//   3  CFTC_Contract_Market_Code
+//   4  CFTC_Market_Code
+//   5  CFTC_Region_Code
+//   6  CFTC_Commodity_Code
+//   7  Open_Interest_All
+//   8  Dealer_Positions_Long_All
+//   9  Dealer_Positions_Short_All
+//  10  Dealer_Positions_Spreading_All
+//  11  Asset_Mgr_Positions_Long_All
+//  12  Asset_Mgr_Positions_Short_All
+//  13  Asset_Mgr_Positions_Spreading_All
+//  14  Lev_Money_Positions_Long_All   ← hedge funds (positions spéculatives)
+//  15  Lev_Money_Positions_Short_All
+//  16  Lev_Money_Positions_Spreading_All
+//  ...
 
-// In-memory cache (server lifetime)
-let cotCache: { data: Record<string, unknown>; ts: number } | null = null;
-const TTL = 7 * 24 * 3600_000; // 1 week
+const CFTC_URL = "https://www.cftc.gov/dea/newcot/FinFutWk.txt";
+const IDX_CODE     = 3;
+const IDX_LEV_LONG  = 14;
+const IDX_LEV_SHORT = 15;
+const IDX_DATE     = 2;
+
+// In-memory cache (1 semaine)
+let _cache: { data: Record<string, unknown>; ts: number } | null = null;
+const TTL = 7 * 24 * 3600_000;
+
+export type { CotEntry } from "@/lib/types";
 
 export async function GET() {
-  if (cotCache && Date.now() - cotCache.ts < TTL) {
-    return NextResponse.json(cotCache.data);
+  if (_cache && Date.now() - _cache.ts < TTL) {
+    return NextResponse.json(_cache.data);
   }
 
   try {
-    // Fetch latest COT "Disaggregated" or "Financial" futures CSV
-    // The public URL pattern for the most recent weekly file:
-    const now = new Date();
-    const year = now.getFullYear();
-    const csvUrl = `https://www.cftc.gov/files/dea/history/fut_fin_txt_${year}.zip`;
-
-    // Simpler approach: use the non-compressed annual file (available for current year)
-    const res = await fetch(
-      `https://www.cftc.gov/dea/newcot/FinFutWk.txt`,
-      { next: { revalidate: 86400 * 7 } }
-    );
-
+    const res = await fetch(CFTC_URL, {
+      next: { revalidate: 86400 * 7 },
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; ForexDashboard/1.0)" },
+    });
     if (!res.ok) {
-      return NextResponse.json(
-        { error: `CFTC fetch failed: ${res.status}`, note: "COT data may be unavailable temporarily." },
-        { status: 502 }
-      );
+      return NextResponse.json({ error: `CFTC fetch failed: ${res.status}` }, { status: 502 });
     }
 
-    const text = await res.text();
+    const text   = await res.text();
     const result = parseCOT(text);
-    cotCache = { data: result, ts: Date.now() };
+
+    _cache = { data: result, ts: Date.now() };
     return NextResponse.json(result);
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 502 });
   }
 }
 
-function parseCOT(csv: string): Record<string, unknown> {
-  const lines = csv.split("\n");
-  if (lines.length < 2) return {};
-
-  const header = lines[0].split(",").map((h) => h.replace(/"/g, "").trim());
-  const result: Record<string, { net: number; longPct: number; shortPct: number }> = {};
-
+function parseCOT(csv: string): Record<string, CotEntry> {
+  const lines    = csv.split("\n");
   const targetCodes = new Set(Object.values(COT_CODES));
+  const result: Record<string, CotEntry> = {};
 
-  for (let i = 1; i < lines.length; i++) {
-    const row = lines[i].split(",").map((v) => v.replace(/"/g, "").trim());
-    if (row.length < 10) continue;
+  for (const line of lines) {
+    if (!line.trim()) continue;
 
-    const codeIdx = header.indexOf("CFTC_Contract_Market_Code");
-    const longIdx = header.indexOf("NonComm_Positions_Long_All");
-    const shortIdx = header.indexOf("NonComm_Positions_Short_All");
+    // Split respectant les guillemets
+    const cols = splitCsvLine(line);
+    if (cols.length < 16) continue;
 
-    if (codeIdx < 0 || longIdx < 0 || shortIdx < 0) continue;
-    const code = row[codeIdx];
-    if (!targetCodes.has(code)) continue;
+    const code = cols[IDX_CODE]?.trim();
+    if (!code || !targetCodes.has(code)) continue;
 
-    const longs = parseInt(row[longIdx] ?? "0", 10);
-    const shorts = parseInt(row[shortIdx] ?? "0", 10);
-    const total = longs + shorts;
-    const net = longs - shorts;
+    const longs  = parseInt(cols[IDX_LEV_LONG]?.trim()  ?? "0", 10);
+    const shorts = parseInt(cols[IDX_LEV_SHORT]?.trim() ?? "0", 10);
+    if (isNaN(longs) || isNaN(shorts)) continue;
 
-    const currency = (Object.entries(COT_CODES) as [Currency, string][]).find(
-      ([, c]) => c === code
-    )?.[0];
+    const total   = longs + shorts;
+    const net     = longs - shorts;
+    const weekDate = cols[IDX_DATE]?.trim() ?? "";
+
+    const currency = (Object.entries(COT_CODES) as [Currency, string][])
+      .find(([, c]) => c === code)?.[0];
     if (!currency) continue;
 
     result[currency] = {
       net,
-      longPct: total > 0 ? Math.round((longs / total) * 100) : 50,
+      longPct:  total > 0 ? Math.round((longs  / total) * 100) : 50,
       shortPct: total > 0 ? Math.round((shorts / total) * 100) : 50,
+      totalLev: total,
+      weekDate,
     };
   }
 
+  return result;
+}
+
+/** Gère les champs entourés de guillemets doubles dans un CSV */
+function splitCsvLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      inQuotes = !inQuotes;
+    } else if (ch === "," && !inQuotes) {
+      result.push(current);
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current);
   return result;
 }
