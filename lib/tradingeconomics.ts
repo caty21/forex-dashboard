@@ -215,6 +215,46 @@ function parseCalendarHTML(html: string): TECalendarEvent[] {
   return events;
 }
 
+// ── Forecasts CPI depuis le calendrier TE ────────────────────────────────────
+// Lit les events inflation futurs du calendrier TE et retourne les forecasts
+// par devise pour cpiCore YoY, cpiMoM et cpiHeadline YoY.
+// Utilisé par la macro route pour remplir forecasts.cpiCore / forecasts.cpiMoM.
+
+export interface TEInflationForecasts {
+  cpiYoY:  string | null;
+  cpiCore: string | null;
+  cpiMoM:  string | null;
+}
+
+export async function fetchTEInflationForecasts(
+  fromDate?: string,
+  toDate?:   string,
+): Promise<Partial<Record<Currency, TEInflationForecasts>>> {
+  const events = await fetchTECalendarHTML(fromDate, toDate);
+  const result: Partial<Record<Currency, TEInflationForecasts>> = {};
+  const now = fromDate ? new Date(fromDate + "T00:00:00Z") : new Date();
+
+  for (const ev of events) {
+    if (ev.category !== "inflation") continue;
+    if (new Date(ev.date) <= now) continue;
+    if (!ev.forecast) continue;
+
+    const ccy   = ev.currency;
+    const title = ev.title.toLowerCase();
+    if (!result[ccy]) result[ccy] = { cpiYoY: null, cpiCore: null, cpiMoM: null };
+
+    const r = result[ccy]!;
+    if (!r.cpiCore && /core.*inflation.*yoy|core.*cpi.*yoy|core.*rate.*yoy/i.test(title)) {
+      r.cpiCore = ev.forecast;
+    } else if (!r.cpiMoM && /inflation.*mom|cpi.*mom|rate.*mom/i.test(title)) {
+      r.cpiMoM = ev.forecast;
+    } else if (!r.cpiYoY && /inflation.*yoy|cpi.*yoy|inflation\s+rate.*yoy/i.test(title)) {
+      r.cpiYoY = ev.forecast;
+    }
+  }
+  return result;
+}
+
 // ── Paid API (when TRADING_ECONOMICS_API_KEY is set) ─────────────────────────
 
 export async function fetchTECalendar(

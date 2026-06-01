@@ -6,6 +6,7 @@ import rateDecisionsRaw  from "@/data/rate_decisions.json";
 import { fetchFFThisWeek, fetchFFEvents } from "@/lib/forexfactory";
 import type { FFEvent } from "@/lib/forexfactory";
 import { fetchTECoreInflation, fetchTEMoMInflation } from "@/lib/tecpi";
+import { fetchTEInflationForecasts } from "@/lib/tradingeconomics";
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
 const REVALIDATE = 86400; // cache 24h
@@ -605,6 +606,13 @@ function toPmiIndicator(raw: { value: number | null; prev: number | null }): Ind
   };
 }
 
+// ── Parser forecast string TE ("2.8%" ou "0.4") → number ─────────────────────
+function parseTeF(s: string | null | undefined): number | null {
+  if (!s) return null;
+  const n = parseFloat(s.replace("%", "").trim());
+  return isNaN(n) ? null : n;
+}
+
 // ── Server-side cache ─────────────────────────────────────────────────────────
 
 const _cache = new Map<string, { data: unknown; ts: number }>();
@@ -948,13 +956,20 @@ export async function GET(req: NextRequest) {
   }
 
   // ── PMI (Mfg + Services + Composite) + consensus FF ──────────────────────────
-  const [ffPMI, pmiMfgRaw, pmiSvcRaw, pmiCompositeRaw, ffForecasts] = await Promise.all([
+  const toDateObj = new Date();
+  toDateObj.setDate(toDateObj.getDate() + 21);
+  const toDate = toDateObj.toISOString().slice(0, 10);
+
+  const [ffPMI, pmiMfgRaw, pmiSvcRaw, pmiCompositeRaw, ffForecasts, teForecastMap] = await Promise.all([
     fetchFFPMI(currency),
     scrapePMI(currency, "manufacturing-pmi"),
     scrapePMI(currency, "services-pmi"),
     scrapePMI(currency, "composite-pmi"),
     fetchFFForecasts(currency),
+    fetchTEInflationForecasts(today, toDate),
   ]);
+
+  const teCpiForecast = teForecastMap[currency];
   // FF en priorité (forecast + actual) ; TE en fallback
   indicators.pmiMfg       = ffPMI.mfg       ? toPmiIndicator(ffPMI.mfg)       : toPmiIndicator(pmiMfgRaw);
   indicators.pmiServices  = ffPMI.svc       ? toPmiIndicator(ffPMI.svc)       : toPmiIndicator(pmiSvcRaw);
@@ -1047,7 +1062,11 @@ export async function GET(req: NextRequest) {
   const data = {
     currency, indicators,
     forecasts: {
-      cpi:                    ffForecasts.cpi,
+      // CPI — TE calendar forecast (priorité) puis ForexFactory
+      // Les forecasts TE sont des strings "2.8%" → parseFloat les convertit en number
+      cpi:                    parseTeF(teCpiForecast?.cpiYoY)  ?? ffForecasts.cpi  ?? null,
+      cpiCore:                parseTeF(teCpiForecast?.cpiCore) ?? null,
+      cpiMoM:                 parseTeF(teCpiForecast?.cpiMoM)  ?? null,
       cpiSurprise:            ffForecasts.cpiSurprise,
       unemployment:           ffForecasts.unemployment,
       unemploymentSurprise:   ffForecasts.unemploymentSurprise,

@@ -13,6 +13,8 @@ import NarrativeButton from "./NarrativeButton";
 interface Ind { value: number | null; prev: number | null; surprise: number | null; trend: "up"|"down"|"flat"|null; lastUpdated: string | null }
 interface MacroForecasts {
   cpi: number | null; cpiSurprise: number | null;
+  cpiCore: number | null;
+  cpiMoM:  number | null;
   unemployment: number | null; unemploymentSurprise: number | null;
   pmiMfg: number | null; pmiMfgSurprise: number | null;
   pmiSvc: number | null; pmiSvcSurprise: number | null;
@@ -356,8 +358,8 @@ export default function CurrencyCard({ currency, expectations, yields, sentiment
 
         {/* ── INFLATION ───────────────────────────────────────────────────── */}
         <SectionHeader label="Inflation" />
-        <Row label="CPI Core YoY"   ind={inds?.cpiCore  ?? null} unit="%" consensus={fc?.cpi ?? null} surpriseVsCons={fc?.cpiSurprise ?? null} />
-        <Row label="CPI MoM"        ind={inds?.cpiMoM   ?? null} unit="%" />
+        <Row label="CPI Core YoY"   ind={inds?.cpiCore  ?? null} unit="%" consensus={fc?.cpiCore ?? fc?.cpi ?? null} surpriseVsCons={fc?.cpiSurprise ?? null} />
+        <Row label="CPI MoM"        ind={inds?.cpiMoM   ?? null} unit="%" consensus={fc?.cpiMoM ?? null} />
 
         {/* ── CROISSANCE ──────────────────────────────────────────────────── */}
         <SectionHeader label="Croissance" />
