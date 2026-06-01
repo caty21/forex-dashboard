@@ -1,7 +1,9 @@
 // lib/tecpi.ts
-// Scrape tradingeconomics.com/country-list/core-inflation-rate pour les 8 devises.
-// Une seule requête HTTP (cache 6h via Next.js) — remplace les séries FRED mensuelles
-// qui avaient de 1 mois à 1 an de retard (GBP GBRCPIALLMINMEI, JPY PCPI total, etc.)
+// Scrape deux pages TE country-list en parallèle :
+//   - core-inflation-rate  → cpiCore YoY
+//   - inflation-rate-mom   → cpiMoM
+// Une seule requête HTTP par page (cache 6h) — remplace les séries FRED mensuelles
+// qui avaient jusqu'à 1.5 an de retard (GBP/JPY/CHF/CAD/AUD/NZD stale FRED).
 
 import type { Currency } from "./types";
 
@@ -23,6 +25,14 @@ export interface CoreCPIEntry {
 }
 
 export type CoreCPIMap = Partial<Record<Currency, CoreCPIEntry>>;
+
+export interface MoMCPIEntry {
+  value:    number;   // MoM %
+  prev:     number;
+  refMonth: string;
+}
+
+export type MoMCPIMap = Partial<Record<Currency, MoMCPIEntry>>;
 
 // Convertit "Apr/26" → "2026-04-01"
 function parseRefDate(raw: string): string {
