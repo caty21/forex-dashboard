@@ -72,6 +72,63 @@ export async function fetchTECoreInflation(): Promise<CoreCPIMap> {
   }
 }
 
+// ── MoM inflation rate ────────────────────────────────────────────────────────
+
+export async function fetchTEMoMInflation(): Promise<MoMCPIMap> {
+  try {
+    const res = await fetch(
+      "https://tradingeconomics.com/country-list/inflation-rate-mom?continent=world",
+      {
+        next: { revalidate: 21600 },
+        headers: {
+          "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
+          "Accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+      }
+    );
+    if (!res.ok) { console.warn("[tecpi-mom] HTTP", res.status); return {}; }
+    const html = await res.text();
+    return parseMoMHTML(html);
+  } catch (err) {
+    console.error("[tecpi-mom] error:", err);
+    return {};
+  }
+}
+
+function parseMoMHTML(html: string): MoMCPIMap {
+  const result: MoMCPIMap = {};
+  const seen = new Set<Currency>();
+  const rowPattern = /<tr[^>]*>([\s\S]*?)<\/tr>/g;
+  let m: RegExpExecArray | null;
+
+  while ((m = rowPattern.exec(html)) !== null) {
+    const text = m[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+
+    for (const [ccy, country] of Object.entries(TE_COUNTRY_CPI) as [Currency, string][]) {
+      if (seen.has(ccy)) continue;
+      if (!text.startsWith(country)) continue;
+
+      const nums      = text.match(/-?\d+\.?\d*/g);
+      const dateMatch = text.match(/([A-Za-z]{3}\/\d{2})/);
+
+      if (nums && nums.length >= 2) {
+        result[ccy] = {
+          value:    parseFloat(nums[0]),
+          prev:     parseFloat(nums[1]),
+          refMonth: dateMatch ? parseRefDate(dateMatch[1]) : "",
+        };
+        seen.add(ccy);
+      }
+      break;
+    }
+    if (seen.size === 8) break;
+  }
+  return result;
+}
+
+// ── Core YoY ──────────────────────────────────────────────────────────────────
+
 function parseCoreInflationHTML(html: string): CoreCPIMap {
   const result: CoreCPIMap = {};
   const seen = new Set<Currency>();

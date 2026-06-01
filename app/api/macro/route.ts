@@ -5,7 +5,7 @@ import cpiOverridesRaw   from "@/data/cpi_overrides.json";
 import rateDecisionsRaw  from "@/data/rate_decisions.json";
 import { fetchFFThisWeek, fetchFFEvents } from "@/lib/forexfactory";
 import type { FFEvent } from "@/lib/forexfactory";
-import { fetchTECoreInflation } from "@/lib/tecpi";
+import { fetchTECoreInflation, fetchTEMoMInflation } from "@/lib/tecpi";
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
 const REVALIDATE = 86400; // cache 24h
@@ -1003,23 +1003,37 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // ── TE Core CPI (priorité maximale — données du jour, toutes devises) ────────
-  // Remplace les séries FRED erronées :
-  //   GBP GBRCPIALLMINMEI = All Items (headline), pas core → écart ~1%
-  //   JPY PCPI total (3.6%) ≠ core (1.4%) → erreur massive
-  //   USD CPILFESL retard 1 mois → écart 0.2%
-  //   AUD/NZD trimestriels → retard jusqu'à 3 mois
+  // ── TE CPI override (priorité maximale — données du jour, toutes devises) ───
+  // Deux pages TE en parallèle : core YoY + MoM
+  // Remplace séries FRED stale/erronées (GBP headline au lieu de core,
+  //   JPY PCPI total ≠ core, CHF/CAD/AUD/NZD retard 1–18 mois)
   {
-    const teCpi = await fetchTECoreInflation();
-    const te    = teCpi[currency];
-    if (te) {
-      const surprise = parseFloat((te.value - te.prev).toFixed(3));
+    const [teCoreMap, teMoMMap] = await Promise.all([
+      fetchTECoreInflation(),
+      fetchTEMoMInflation(),
+    ]);
+
+    const teCore = teCoreMap[currency];
+    if (teCore) {
+      const surprise = parseFloat((teCore.value - teCore.prev).toFixed(3));
       indicators.cpiCore = {
-        value:       te.value,
-        prev:        te.prev,
+        value:       teCore.value,
+        prev:        teCore.prev,
         surprise,
         trend:       surprise > 0 ? "up" : surprise < 0 ? "down" : "flat",
-        lastUpdated: te.refMonth,
+        lastUpdated: teCore.refMonth,
+      };
+    }
+
+    const teMoM = teMoMMap[currency];
+    if (teMoM) {
+      const surprise = parseFloat((teMoM.value - teMoM.prev).toFixed(3));
+      indicators.cpiMoM = {
+        value:       teMoM.value,
+        prev:        teMoM.prev,
+        surprise,
+        trend:       surprise > 0 ? "up" : surprise < 0 ? "down" : "flat",
+        lastUpdated: teMoM.refMonth,
       };
     }
   }
