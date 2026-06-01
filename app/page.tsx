@@ -10,6 +10,7 @@ import CurrencyCard from "@/components/CurrencyCard";
 import DriversBar from "@/components/DriversBar";
 import CalendarTab from "@/components/CalendarTab";
 import SentimentPairsTab from "@/components/SentimentPairsTab";
+import YieldsTab from "@/components/YieldsTab";
 import type { CalendarEvent } from "@/app/api/calendar/route";
 
 const REFRESH_MS = parseInt(process.env.NEXT_PUBLIC_REFRESH_INTERVAL_MS ?? "3600000");
@@ -17,12 +18,12 @@ const REFRESH_MS = parseInt(process.env.NEXT_PUBLIC_REFRESH_INTERVAL_MS ?? "3600
 export default function Dashboard() {
   const [drivers,      setDrivers]      = useState<DriverData | null>(null);
   const [expectations, setExpectations] = useState<Record<string, unknown> | null>(null);
-  const [yields,       setYields]       = useState<{ yields: Record<string, number | null>; spreads: Record<string, number | null> } | null>(null);
+  const [yields,       setYields]       = useState<{ yields: Record<string, number | null>; spreads: Record<string, number | null>; dayDeltas?: Record<string, number | null> } | null>(null);
   const [sentiment,    setSentiment]    = useState<Record<string, SentimentEntry> | null>(null);
   const [cot,          setCot]          = useState<Record<string, CotEntry> | null>(null);
   const [calEvents,    setCalEvents]    = useState<CalendarEvent[]>([]);
   const [nextWeekAvail, setNextWeekAvail] = useState(false);
-  const [activeTab,    setActiveTab]    = useState<"dashboard" | "calendar" | "pairs">("dashboard");
+  const [activeTab,    setActiveTab]    = useState<"dashboard" | "calendar" | "pairs" | "yields">("dashboard");
   const [rawSymbols,   setRawSymbols]   = useState<Array<{ name: string; longPercentage: number; shortPercentage: number; totalPositions: number }> | null>(null);
   const [rateProbabilities, setRateProbabilities] = useState<RateProbData | null>(null);
   const [lastRefresh,  setLastRefresh]  = useState<Date>(new Date());
@@ -264,7 +265,7 @@ export default function Dashboard() {
 
       {/* Tab navigation */}
       <div className="flex gap-0 border-b border-gray-200 mb-4">
-        {(["dashboard", "calendar", "pairs"] as const).map((tab) => (
+        {(["dashboard", "calendar", "pairs", "yields"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -274,7 +275,10 @@ export default function Dashboard() {
                 : "border-transparent text-gray-500 hover:text-gray-700"
             }`}
           >
-            {tab === "dashboard" ? "Dashboard" : tab === "calendar" ? "📅 Calendrier" : "↕ Paires"}
+            {tab === "dashboard" ? "Dashboard"
+              : tab === "calendar" ? "📅 Calendrier"
+              : tab === "pairs"   ? "↕ Paires"
+              : "📈 Yields 10Y"}
           </button>
         ))}
       </div>
@@ -329,6 +333,10 @@ export default function Dashboard() {
 
       {activeTab === "pairs" && (
         <SentimentPairsTab symbols={rawSymbols} />
+      )}
+
+      {activeTab === "yields" && (
+        <YieldsTab yieldsData={yields} />
       )}
 
       {/* Footer */}
