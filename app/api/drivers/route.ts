@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
+import { fetchTEBondYields } from "@/lib/tebonds";
 
-// ── FRED (macro + taux + spread) ──────────────────────────────────────────────
-// limit=1 → valeur seule. limit=10 → filtre les "." pour trouver la dernière valeur valide.
+// ── FRED (spreads crédit + rendements) ───────────────────────────────────────
+// VIX et S&P500 ne passent plus par FRED (lag 1-2j) → Yahoo Finance (temps réel)
 
 async function fredObs(series: string, apiKey: string): Promise<number | null> {
   try {
     const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${series}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=1`;
-    const res  = await fetch(url, { next: { revalidate: 86400 } });
+    const res  = await fetch(url, { next: { revalidate: 3600 } }); // 1h — FRED publie 1x/jour mais réduit le délai d'affichage
     if (!res.ok) return null;
     const obs  = ((await res.json())?.observations ?? []).find(
       (o: { value: string }) => o.value !== "."
@@ -17,22 +18,32 @@ async function fredObs(series: string, apiKey: string): Promise<number | null> {
 
 type FredResult = { value: number | null; delta: number | null; deltaPct: number | null };
 
-/** Fetche les 10 dernières obs pour calculer valeur + delta vs session précédente */
-async function fredObsDelta(series: string, apiKey: string): Promise<FredResult> {
+// ── Yahoo Finance (VIX, S&P 500 — temps réel via regularMarketPrice) ──────────
+// Query v8 chart API : meta.regularMarketPrice + meta.chartPreviousClose
+// Cache 5 min → données fraîches pendant la séance boursière
+
+async function yahooQuote(symbol: string): Promise<FredResult> {
   const empty: FredResult = { value: null, delta: null, deltaPct: null };
   try {
-    const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${series}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=10`;
-    const res  = await fetch(url, { next: { revalidate: 86400 } });
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=2d`;
+    const res = await fetch(url, {
+      next: { revalidate: 300 }, // cache 5 min
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; ForexDashboard/1.0)" },
+    });
     if (!res.ok) return empty;
-    const obs: number[] = ((await res.json())?.observations ?? [])
-      .filter((o: { value: string }) => o.value !== ".")
-      .map((o: { value: string }) => parseFloat(o.value));
-    if (!obs.length) return empty;
-    const value    = obs[0];
-    const prev     = obs[1] ?? null;
-    const delta    = prev !== null ? parseFloat((value - prev).toFixed(2)) : null;
-    const deltaPct = prev !== null ? parseFloat(((value - prev) / prev * 100).toFixed(2)) : null;
-    return { value, delta, deltaPct };
+    const data = await res.json();
+    const meta = data?.chart?.result?.[0]?.meta as {
+      regularMarketPrice?: number;
+      chartPreviousClose?: number;
+    } | undefined;
+    const current   = meta?.regularMarketPrice ?? null;
+    const prevClose = meta?.chartPreviousClose ?? null;
+    if (current === null) return empty;
+    const delta    = prevClose !== null ? parseFloat((current - prevClose).toFixed(2)) : null;
+    const deltaPct = prevClose !== null && prevClose > 0
+      ? parseFloat(((current - prevClose) / prevClose * 100).toFixed(2))
+      : null;
+    return { value: parseFloat(current.toFixed(2)), delta, deltaPct };
   } catch { return empty; }
 }
 
@@ -65,16 +76,18 @@ async function stooqMetal(symbol: string): Promise<FredResult> {
 }
 
 // ── Binance (Bitcoin — gratuit, sans clé, temps réel) ────────────────────────
-
+// ticker/price = prix spot instantané (plus précis que ticker/24hr lastPrice)
+// ticker/24hr = stats 24h pour le % de variation
 async function binanceBTC(): Promise<{ value: number | null; change24h: number | null }> {
   try {
-    const res    = await fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT", { cache: "no-store" });
-    if (!res.ok) return { value: null, change24h: null };
-    const d      = await res.json();
-    const price  = parseFloat(d.lastPrice);
-    const pctChg = parseFloat(d.priceChangePercent);
+    const [priceRes, statsRes] = await Promise.all([
+      fetch("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT",  { cache: "no-store" }),
+      fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT",   { cache: "no-store" }),
+    ]);
+    const price  = priceRes.ok  ? parseFloat((await priceRes.json()).price)          : NaN;
+    const pctChg = statsRes.ok  ? parseFloat((await statsRes.json()).priceChangePercent) : NaN;
     return {
-      value:     isNaN(price)  ? null : Math.round(price),
+      value:     isNaN(price)  ? null : parseFloat(price.toFixed(2)),
       change24h: isNaN(pctChg) ? null : parseFloat(pctChg.toFixed(2)),
     };
   } catch { return { value: null, change24h: null }; }
@@ -103,11 +116,11 @@ export async function GET() {
   const fredKey = process.env.FRED_API_KEY;
   if (!fredKey) return NextResponse.json({ error: "FRED_API_KEY missing" }, { status: 500 });
 
-  // 1. Marchés indices — FRED (données fin de journée, cache 24h)
-  //    VIXCLS = VIX clôture CBOE | SP500 = S&P 500
+  // 1. Indices — Yahoo Finance (temps réel, cache 5 min)
+  //    ^VIX = CBOE Volatility Index | ^GSPC = S&P 500
   const [vixQ, sp500Q] = await Promise.all([
-    fredObsDelta("VIXCLS", fredKey),
-    fredObsDelta("SP500",  fredKey),
+    yahooQuote("^VIX"),
+    yahooQuote("^GSPC"),
   ]);
 
   // Pétrole — Stooq futures (quasi temps réel, cache 5 min, sans clé API)
@@ -128,13 +141,17 @@ export async function GET() {
   const btcBin = await binanceBTC();
   const btcCg  = btcBin.value === null ? await coingeckoBTC() : { value: null, change24h: null };
 
-  // 4. FRED — spreads crédit + taux directeurs (cache 24h)
-  const [hyRaw, igRaw, us10y, us2y] = await Promise.all([
+  // 4. FRED — spreads crédit (cache 1h)
+  //    Yields 10Y — TE bonds (cache 1h, données du jour)
+  //    US 2Y — FRED DGS2 (garde pour la courbe 2-10)
+  const [hyRaw, igRaw, us2y, bondYields] = await Promise.all([
     fredObs("BAMLH0A0HYM2", fredKey),
     fredObs("BAMLC0A0CM",   fredKey),
-    fredObs("DGS10",        fredKey),
     fredObs("DGS2",         fredKey),
+    fetchTEBondYields(),
   ]);
+
+  const us10y = bondYields["USD"]?.yield10y ?? null;
 
   return NextResponse.json({
     // Sentiment / Risk-On
@@ -145,10 +162,31 @@ export async function GET() {
     sp500ChangePct: sp500Q.deltaPct,
     btc:            btcBin.value    ?? btcCg.value,
     btcChange24h:   btcBin.change24h ?? btcCg.change24h,
-    // Crédit (FRED, % × 100 = bps)
+    // Crédit (FRED, bps)
     hySpread: hyRaw != null ? Math.round(hyRaw * 100) : null,
     igSpread: igRaw != null ? Math.round(igRaw * 100) : null,
-    // Taux (DXY injecté par page.tsx depuis /api/fx)
+    // Yields 10Y par devise — TE bonds (temps réel, cache 1h)
+    bondYields10y: {
+      USD: bondYields["USD"]?.yield10y  ?? null,
+      EUR: bondYields["EUR"]?.yield10y  ?? null,
+      GBP: bondYields["GBP"]?.yield10y  ?? null,
+      JPY: bondYields["JPY"]?.yield10y  ?? null,
+      AUD: bondYields["AUD"]?.yield10y  ?? null,
+      CAD: bondYields["CAD"]?.yield10y  ?? null,
+      CHF: bondYields["CHF"]?.yield10y  ?? null,
+      NZD: bondYields["NZD"]?.yield10y  ?? null,
+    },
+    bondYieldsDay: {
+      USD: bondYields["USD"]?.dayDelta  ?? null,
+      EUR: bondYields["EUR"]?.dayDelta  ?? null,
+      GBP: bondYields["GBP"]?.dayDelta  ?? null,
+      JPY: bondYields["JPY"]?.dayDelta  ?? null,
+      AUD: bondYields["AUD"]?.dayDelta  ?? null,
+      CAD: bondYields["CAD"]?.dayDelta  ?? null,
+      CHF: bondYields["CHF"]?.dayDelta  ?? null,
+      NZD: bondYields["NZD"]?.dayDelta  ?? null,
+    },
+    // Courbe USD (2Y de FRED, 10Y de TE)
     us10y,
     us2y,
     curveSlope: us10y !== null && us2y !== null ? Math.round((us10y - us2y) * 100) : null,

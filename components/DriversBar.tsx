@@ -129,7 +129,7 @@ export default function DriversBar({ drivers }: Props) {
     sp500, sp500ChangePct,
     btc, btcChange24h,
     hySpread, igSpread,
-    us10y, curveSlope,
+    us10y, us2y, curveSlope,
     gold, goldDelta,
     silver, silverDelta,
     brent, brentDelta,
@@ -158,9 +158,18 @@ export default function DriversBar({ drivers }: Props) {
       <div className="flex items-start gap-4 overflow-x-auto pb-0.5">
 
         {/* Sentiment / Risk-On */}
-        <M label="VIX"     value={vix}   dec={1} delta={vixDelta}       deltaDec={1} />
-        <M label="S&P 500" value={sp500} dec={0} delta={sp500ChangePct} deltaPct deltaDec={2} />
-        <M label="Bitcoin" value={btc}   dec={0} unit=" $" delta={btcChange24h} deltaPct deltaDec={2} />
+        <M
+          label="VIX" value={vix} dec={1} delta={vixDelta} deltaDec={1}
+          tooltip="Delta = clôture actuelle − clôture précédente issue de Yahoo Finance (métrique intraday/close de session)."
+        />
+        <M
+          label="S&P 500" value={sp500} dec={0} delta={sp500ChangePct} deltaPct deltaDec={2}
+          tooltip="Changement = clôture actuelle − clôture précédente de Yahoo Finance. Le % est calculé sur la clôture précédente."
+        />
+        <M
+          label="Bitcoin" value={btc} dec={0} unit=" $" delta={btcChange24h} deltaPct deltaDec={2}
+          tooltip="Variation 24h issue de Binance / CoinGecko via le ticker 24h (priceChangePercent)."
+        />
 
         <VSep />
 
@@ -177,20 +186,36 @@ export default function DriversBar({ drivers }: Props) {
         <VSep />
 
         {/* Taux & FX */}
-        <M label="DXY"    value={dxy}        dec={2} />
-        <M label="US 10Y" value={us10y}       dec={2} unit="%" />
+        <M
+          label="DXY" value={dxy} dec={2}
+          delta={(drivers as DriverData & { dxyDelta?: number | null }).dxyDelta ?? null}
+          deltaDec={2}
+          tooltip="ICE Dollar Index Futures (DX=F) via Yahoo Finance — temps réel, cache 5 min. Delta = clôture actuelle − clôture précédente."
+        />
         <M
           label="Crb 2-10" value={curveSlope} dec={0} unit=" bps"
-          tooltip="Spread US 10Y − US 2Y. Positif = courbe normale. Négatif = courbe inversée (signal récessif historiquement, se matérialise ~12–18 mois après)."
+          tooltip={`Spread US 10Y − US 2Y. Positif = courbe normale. Négatif = courbe inversée (signal récessif historiquement).\nUS 10Y: ${us10y != null ? us10y.toFixed(4) + "%" : "N/A"} | US 2Y: ${us2y != null ? us2y.toFixed(2) + "%" : "N/A"}`}
         />
 
         <VSep />
 
         {/* Commodités */}
-        <M label="Or $/oz"     value={gold}   dec={0} delta={goldDelta}   deltaDec={1} />
-        <M label="Argent $/oz" value={silver} dec={2} delta={silverDelta} deltaDec={2} />
-        <M label="Brent $/b"   value={brent}  dec={1} delta={brentDelta}  deltaDec={1} />
-        <M label="WTI $/b"     value={wti}    dec={1} delta={wtiDelta}    deltaDec={1} />
+        <M
+          label="Or $/oz" value={gold} dec={0} delta={goldDelta} deltaDec={1}
+          tooltip="Delta intraday = close − open issue de Stooq (métaux précieux)."
+        />
+        <M
+          label="Argent $/oz" value={silver} dec={2} delta={silverDelta} deltaDec={2}
+          tooltip="Delta intraday = close − open issue de Stooq (métaux précieux)."
+        />
+        <M
+          label="Brent $/b" value={brent} dec={1} delta={brentDelta} deltaDec={1}
+          tooltip="Delta intraday = close − open issue de Stooq (pétrole Brent)."
+        />
+        <M
+          label="WTI $/b" value={wti} dec={1} delta={wtiDelta} deltaDec={1}
+          tooltip="Delta intraday = close − open issue de Stooq (pétrole WTI)."
+        />
 
       </div>
     </div>

@@ -1,0 +1,48 @@
+[
+  {
+    "updated_at": "2026-05-30",
+    "note": "Taux directeurs officiels CB. current/prev = taux annoncés (pas interbancaires). EUR = MRO (DFR+15bps) pour cohérence avec investing.com/TE. Mettre à jour après chaque décision.",
+    "decisions": {
+      "USD": {
+        "current": 3.75,
+        "prev":    3.75,
+        "source":  "Fed funds target upper bound — Trading Economics / TE mai 2026 (fourchette 3.50-3.75%, upper=3.75%)"
+      },
+      "EUR": {
+        "current": 2.15,
+        "prev":    2.40,
+        "source":  "ECBDFR (FRED) + 0.15bps → MRO. DFR=2.00, MRO=DFR+15bps (corridor sep 2024)"
+      },
+      "GBP": {
+        "current": 3.75,
+        "prev":    4.00,
+        "source":  "BoE Official Bank Rate — Trading Economics mai 2026"
+      },
+      "JPY": {
+        "current": 0.75,
+        "prev":    0.50,
+        "source":  "BoJ — annonce jan 2026 (hausse 0.50% → 0.75%)"
+      },
+      "CHF": {
+        "current": 0.00,
+        "prev":    0.25,
+        "source":  "SNB — annonce déc 2025 (baisse 0.25% → 0.00%)"
+      },
+      "CAD": {
+        "current": 2.25,
+        "prev":    2.50,
+        "source":  "BoC — annonce avr 2026 (baisse 2.50% → 2.25%)"
+      },
+      "AUD": {
+        "current": 4.35,
+        "prev":    4.10,
+        "source":  "RBA — Trading Economics mai 2026 (Last=4.35, Previous=4.10)"
+      },
+      "NZD": {
+        "current": 2.25,
+        "prev":    2.50,
+        "source":  "RBNZ — annonce avr 2026 (baisse 2.50% → 2.25%)"
+      }
+    }
+  }
+]

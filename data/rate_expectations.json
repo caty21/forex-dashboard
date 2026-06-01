@@ -1,66 +1,65 @@
 [
   {
-    "url": "manual-update",
-    "title": "Rate expectations — 2026-05-29",
+    "url": "https://investinglive.com/news/how-have-interest-rate-expectations-changed-after-this-weeks-event-20260529/",
+    "title": "How have interest rate expectations changed after this week's event?",
     "date": "2026-05-29",
-    "scraped_at": "2026-05-29T08:00:00.000Z",
-    "rate_cuts": [
+    "scraped_at": "2026-05-29T18:22:00.000Z",
+    "rate_cuts": [],
+    "rate_hikes": [
       {
-        "cb": "Fed (USD)",
-        "bps": 68,
+        "cb": "RBNZ (NZD)",
+        "bps": 75,
         "prob_pct": 79,
-        "prob_desc": "no change at the upcoming meeting",
-        "direction": "cut"
+        "prob_desc": "rate hike at the next meeting",
+        "direction": "hike"
       },
       {
         "cb": "ECB (EUR)",
-        "bps": 49,
-        "prob_pct": 60,
-        "prob_desc": "rate cut at the upcoming meeting",
-        "direction": "cut"
+        "bps": 52,
+        "prob_pct": 89,
+        "prob_desc": "rate hike at the next meeting",
+        "direction": "hike"
+      },
+      {
+        "cb": "BoJ (JPY)",
+        "bps": 42,
+        "prob_pct": 71,
+        "prob_desc": "rate hike at the next meeting",
+        "direction": "hike"
       },
       {
         "cb": "BoE (GBP)",
-        "bps": 53,
-        "prob_pct": 96,
-        "prob_desc": "no change at today's decision",
-        "direction": "cut"
+        "bps": 32,
+        "prob_pct": 94,
+        "prob_desc": "no change at the next meeting",
+        "direction": "hike"
       },
       {
         "cb": "BoC (CAD)",
-        "bps": 48,
-        "prob_pct": 66,
-        "prob_desc": "no change at the upcoming meeting",
-        "direction": "cut"
+        "bps": 28,
+        "prob_pct": 99,
+        "prob_desc": "no change at the next meeting",
+        "direction": "hike"
       },
       {
         "cb": "RBA (AUD)",
-        "bps": 65,
-        "prob_pct": 92,
-        "prob_desc": "no change at the upcoming meeting",
-        "direction": "cut"
+        "bps": 18,
+        "prob_pct": 93,
+        "prob_desc": "no change at the next meeting",
+        "direction": "hike"
       },
       {
-        "cb": "RBNZ (NZD)",
-        "bps": 59,
-        "prob_pct": 64,
-        "prob_desc": "rate cut at the upcoming meeting",
-        "direction": "cut"
+        "cb": "Fed (USD)",
+        "bps": 13,
+        "prob_pct": 99,
+        "prob_desc": "no change at the next meeting",
+        "direction": "hike"
       },
       {
         "cb": "SNB (CHF)",
-        "bps": 4,
-        "prob_pct": 85,
-        "prob_desc": "no change at the upcoming meeting",
-        "direction": "cut"
-      }
-    ],
-    "rate_hikes": [
-      {
-        "cb": "BoJ (JPY)",
-        "bps": 32,
-        "prob_pct": 80,
-        "prob_desc": "no change at the upcoming meeting",
+        "bps": 11,
+        "prob_pct": 97,
+        "prob_desc": "no change at the next meeting",
         "direction": "hike"
       }
     ]
