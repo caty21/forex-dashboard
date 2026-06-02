@@ -99,7 +99,12 @@ function Row({ label, ind, unit = "", invertSurprise = false, warn = false, cons
           <span className="text-xs text-gray-500 truncate">
             {label}
             {warn  && <span className="text-amber-400 ml-0.5">⚠</span>}
-            {info  && <span className="text-blue-300 ml-0.5 text-[9px] cursor-help" title={info}>ⓘ</span>}
+            {info  && (
+              <span
+                className="inline-flex items-center justify-center w-3 h-3 rounded-full border border-blue-300 text-blue-400 text-[7px] font-bold ml-0.5 cursor-help leading-none flex-shrink-0"
+                title={info}
+              >i</span>
+            )}
           </span>
         </div>
         <span className={`text-xs font-semibold tabular-nums flex-shrink-0 ${valCls}`} title={tooltip ?? undefined}>
