@@ -27,9 +27,10 @@ export interface CoreCPIEntry {
 export type CoreCPIMap = Partial<Record<Currency, CoreCPIEntry>>;
 
 export interface MoMCPIEntry {
-  value:    number;   // MoM %
-  prev:     number;
+  value:    number;         // MoM % (ou QoQ pour AUD/NZD)
+  prev:     number | null;  // période précédente (null si calculé depuis index)
   refMonth: string;
+  isQoQ?:   boolean;        // true pour AUD et NZD (données trimestrielles)
 }
 
 export type MoMCPIMap = Partial<Record<Currency, MoMCPIEntry>>;
@@ -174,16 +175,21 @@ function parseCPIIndexHTML(html: string, countryMap: Record<Currency, string>): 
 // Format meta : "...increased to 0.40 percent in April from 0.20 percent..."
 // Pour CHF on utilise /switzerland/core-consumer-prices (pas de page -mom)
 
+// Pages existantes avec % direct : USD, EUR, GBP, CAD
+// Pages index seulement (calcul delta) : JPY, CHF, AUD (QoQ), NZD (QoQ)
 const TE_CORE_MOM_SLUG: Record<Currency, string> = {
   USD: "united-states/core-inflation-rate-mom",
   EUR: "euro-area/core-inflation-rate-mom",
   GBP: "united-kingdom/core-inflation-rate-mom",
-  JPY: "japan/core-inflation-rate-mom",
+  JPY: "japan/core-consumer-prices",        // pas de page -mom directe
   CAD: "canada/core-inflation-rate-mom",
-  AUD: "australia/core-inflation-rate-mom",
-  NZD: "new-zealand/core-inflation-rate-mom",
-  CHF: "switzerland/core-consumer-prices", // index → MoM calculé
+  AUD: "australia/core-consumer-prices",    // QoQ (données trimestrielles)
+  NZD: "new-zealand/core-consumer-prices",  // QoQ (données trimestrielles)
+  CHF: "switzerland/core-consumer-prices",  // index → delta calculé
 };
+
+// Devises publiées en QoQ (trimestriel) plutôt que MoM
+export const CORE_CPI_QOQ: Set<Currency> = new Set<Currency>(["AUD", "NZD"]);
 
 async function fetchOneTEMeta(url: string): Promise<string> {
   try {
@@ -203,22 +209,31 @@ async function fetchOneTEMeta(url: string): Promise<string> {
   } catch { return ""; }
 }
 
-function parseMetaForMoM(desc: string): { value: number; prev: number } | null {
-  // Pattern : "increased to X percent ... from Y percent"
-  const m = desc.match(
-    /(?:increased|decreased|declined|rose|fell|remained|eased|changed)\s+to\s*([\d.]+)\s+percent[^.]*from\s+([\d.]+)\s+percent/i
+function parseMetaForMoM(desc: string): { value: number; prev: number; isIndex?: boolean } | null {
+  // Pattern 1 : "increased/decreased to X percent from Y percent"
+  const p1 = desc.match(
+    /(?:increased|decreased|declined|rose|fell|eased|changed)\s+to\s*([\d.]+)\s+percent[^.]*?from\s+([\d.]+)\s+percent/i
   );
-  if (m) return { value: parseFloat(m[1]), prev: parseFloat(m[2]) };
+  if (p1) return { value: parseFloat(p1[1]), prev: parseFloat(p1[2]) };
 
-  // Pattern alternatif pour les index : "increased to X from Y points"
-  const m2 = desc.match(
-    /(?:increased|decreased|declined|rose|fell|remained|eased|changed)\s+to\s*([\d.]+)\s+(?:points?|index)[^.]*from\s+([\d.]+)/i
+  // Pattern 2 : "remained unchanged at X percent" → current = prev = X, delta = 0
+  const p2 = desc.match(/(?:remained unchanged at|is unchanged at)\s*([\d.]+)\s+percent/i);
+  if (p2) { const v = parseFloat(p2[1]); return { value: v, prev: v }; }
+
+  // Pattern 3 : "increased to X points from Y points" → calcul MoM% = (X-Y)/Y*100
+  const p3 = desc.match(
+    /(?:increased|decreased|declined|rose|fell|eased|changed)\s+to\s*([\d.]+)\s+points?[^.]*?from\s+([\d.]+)\s+points?/i
   );
-  if (m2) {
-    const last = parseFloat(m2[1]);
-    const prev = parseFloat(m2[2]);
-    if (prev !== 0) return { value: parseFloat(((last - prev) / prev * 100).toFixed(3)), prev: prev };
+  if (p3) {
+    const last = parseFloat(p3[1]);
+    const prev = parseFloat(p3[2]);
+    if (prev !== 0) return { value: parseFloat(((last - prev) / prev * 100).toFixed(3)), prev, isIndex: true };
   }
+
+  // Pattern 4 : "remained unchanged at X points" → delta = 0, on retourne 0
+  const p4 = desc.match(/(?:remained unchanged at|is unchanged at)\s*([\d.]+)\s+points?/i);
+  if (p4) return { value: 0, prev: parseFloat(p4[1]), isIndex: true };
+
   return null;
 }
 
