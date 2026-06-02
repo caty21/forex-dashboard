@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { RefreshCw, Zap, Database } from "lucide-react";
+import { RefreshCw, Zap, Database, Activity } from "lucide-react";
 import { CURRENCIES, CURRENCY_META } from "@/lib/constants";
 import type { Currency, DriverData, SentimentEntry, CotEntry } from "@/lib/types";
 import type { RateProbData } from "@/lib/rateprobability";
@@ -225,37 +225,42 @@ export default function Dashboard() {
   return (
     <div className="max-w-[1600px] mx-auto px-4 py-4">
       {/* Header */}
-      <header className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">
-            Forex Macro Dashboard
-          </h1>
+      <header className="flex items-center justify-between mb-4 bg-slate-950/80 border border-slate-800 rounded-xl px-5 py-3">
+        <div className="flex items-center gap-3">
+          <div className="w-7 h-7 rounded-lg bg-amber-500 flex items-center justify-center shrink-0">
+            <Activity size={15} className="text-black" />
+          </div>
+          <div>
+            <span className="text-sm font-bold text-white tracking-tight">MacroFlow</span>
+            <span className="ml-2 text-[10px] text-slate-600 uppercase tracking-widest">Forex · Macro · Mispricing</span>
+          </div>
         </div>
 
         <div className="flex items-center gap-3">
           {divergenceCount > 0 && (
-            <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-full px-3 py-1.5">
-              <Zap size={13} className="text-amber-600" />
-              <span className="text-xs font-medium text-amber-700">
+            <div className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 rounded-full px-3 py-1.5">
+              <Zap size={12} className="text-amber-400" />
+              <span className="text-xs font-medium text-amber-400">
                 {divergenceCount} divergence{divergenceCount > 1 ? "s" : ""} active{divergenceCount > 1 ? "s" : ""}
               </span>
             </div>
           )}
 
-          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+          <div className="flex items-center gap-2 text-[11px] text-slate-500">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             {driversFromCache && driversCacheAge && (
-              <span className="flex items-center gap-0.5 text-amber-500" title="Marchés affichés depuis le cache local">
+              <span className="flex items-center gap-0.5 text-amber-500" title="Marchés depuis le cache local">
                 <Database size={11} />
                 <span>cache {driversCacheAge}</span>
               </span>
             )}
-            {lastRefresh.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+            <span>{lastRefresh.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
           </div>
 
           <button
             onClick={refresh}
             disabled={loading}
-            className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-900 disabled:opacity-50"
+            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 disabled:opacity-50 transition-colors"
           >
             <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
             {loading ? "Chargement…" : "Rafraîchir"}
@@ -264,15 +269,15 @@ export default function Dashboard() {
       </header>
 
       {/* Tab navigation */}
-      <div className="flex gap-0 border-b border-gray-200 mb-4">
+      <div className="flex gap-0 border-b border-slate-800 mb-4">
         {(["dashboard", "calendar", "pairs", "yields"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               activeTab === tab
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
+                ? "border-amber-500 text-amber-400"
+                : "border-transparent text-slate-500 hover:text-slate-300"
             }`}
           >
             {tab === "dashboard" ? "Dashboard"
@@ -298,8 +303,8 @@ export default function Dashboard() {
                     key={currency}
                     className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full border font-medium ${
                       score < 0
-                        ? "bg-red-50 border-red-200 text-red-700"
-                        : "bg-green-50 border-green-200 text-green-700"
+                        ? "bg-red-500/10 border-red-500/20 text-red-400"
+                        : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
                     }`}
                   >
                     <Zap size={10} />
@@ -353,7 +358,7 @@ export default function Dashboard() {
       </div>
 
       {/* Footer */}
-      <footer className="mt-4 text-center text-xs text-gray-400 space-y-1">
+      <footer className="mt-4 text-center text-xs text-slate-600 space-y-1">
         <p>
           Sources: FRED · ECB · BoE · BoC · CFTC · Frankfurter · Myfxbook · ForexFactory
         </p>
