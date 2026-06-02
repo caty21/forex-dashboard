@@ -96,20 +96,29 @@ function Row({ label, ind, unit = "", invertSurprise = false, warn = false, cons
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
           <TrendIcon trend={ind?.trend ?? null} />
-          <span className="text-xs text-gray-500 truncate">
+          <span className="text-xs text-gray-500 truncate flex items-center gap-0.5">
             {label}
-            {warn  && <span className="text-amber-400 ml-0.5">⚠</span>}
-            {info  && (
-              <span
-                className="inline-flex items-center justify-center w-3 h-3 rounded-full border border-blue-300 text-blue-400 text-[7px] font-bold ml-0.5 cursor-help leading-none flex-shrink-0"
-                title={info}
-              >i</span>
+            {warn && <span className="text-amber-400 ml-0.5">⚠</span>}
+            {info && (
+              <span className="relative group/info inline-flex shrink-0 ml-0.5 cursor-help">
+                <span className="inline-flex items-center justify-center w-3 h-3 rounded-full border border-blue-300 text-blue-400 text-[7px] font-bold leading-none">i</span>
+                <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-48 px-2 py-1.5 rounded-md bg-gray-900 text-white text-[10px] leading-snug opacity-0 group-hover/info:opacity-100 transition-opacity duration-150 z-50 shadow-lg whitespace-normal text-left">
+                  {info}
+                </span>
+              </span>
             )}
           </span>
         </div>
-        <span className={`text-xs font-semibold tabular-nums flex-shrink-0 ${valCls}`} title={tooltip ?? undefined}>
-          {fmt(value)}
-        </span>
+        {tooltip ? (
+          <span className="relative group/val cursor-default shrink-0">
+            <span className={`text-xs font-semibold tabular-nums ${valCls}`}>{fmt(value)}</span>
+            <span className="pointer-events-none absolute bottom-full right-0 mb-1.5 w-52 px-2 py-1.5 rounded-md bg-gray-900 text-white text-[10px] leading-snug opacity-0 group-hover/val:opacity-100 transition-opacity duration-150 z-50 shadow-lg whitespace-normal text-left">
+              {tooltip}
+            </span>
+          </span>
+        ) : (
+          <span className={`text-xs font-semibold tabular-nums flex-shrink-0 ${valCls}`}>{fmt(value)}</span>
+        )}
       </div>
       {/* Ligne 2 : précédent + consensus à venir OU surprise post-publication */}
       <div className="flex items-center justify-between pl-5 mt-0.5">
