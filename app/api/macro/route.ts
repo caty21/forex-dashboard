@@ -1045,12 +1045,14 @@ export async function GET(req: NextRequest) {
 
     const teMoM = teMoMMap[currency];
     if (teMoM) {
-      const surprise = parseFloat((teMoM.value - teMoM.prev).toFixed(3));
+      const surprise = teMoM.prev !== null
+        ? parseFloat((teMoM.value - teMoM.prev).toFixed(3))
+        : null;
       indicators.cpiMoM = {
         value:       teMoM.value,
         prev:        teMoM.prev,
         surprise,
-        trend:       surprise > 0 ? "up" : surprise < 0 ? "down" : "flat",
+        trend:       teMoM.value > 0 ? "up" : teMoM.value < 0 ? "down" : "flat",
         lastUpdated: teMoM.refMonth,
       };
     }
@@ -1071,12 +1073,15 @@ export async function GET(req: NextRequest) {
     // Core CPI MoM (pages individuelles, décimales précises)
     const teCoreMoM = teCoreMoMMap[currency];
     if (teCoreMoM) {
-      const surprise = parseFloat((teCoreMoM.value - teCoreMoM.prev).toFixed(3));
+      // prev=null pour les devises index-only (JPY/CHF/AUD/NZD)
+      const surprise = teCoreMoM.prev !== null
+        ? parseFloat((teCoreMoM.value - teCoreMoM.prev).toFixed(3))
+        : null;
       indicators.cpiCoreMoM = {
         value:       teCoreMoM.value,
         prev:        teCoreMoM.prev,
         surprise,
-        trend:       surprise > 0 ? "up" : surprise < 0 ? "down" : "flat",
+        trend:       teCoreMoM.value > 0 ? "up" : teCoreMoM.value < 0 ? "down" : "flat",
         lastUpdated: teCoreMoM.refMonth,
       };
     }

@@ -243,11 +243,34 @@ export async function fetchTECoreCPIMoM(): Promise<MoMCPIMap> {
       const desc = await fetchOneTEMeta(`https://tradingeconomics.com/${slug}`);
       const parsed = parseMetaForMoM(desc);
       if (!parsed) return null;
-      // Extraire la date de référence depuis la meta (ex: "in April from ... in March of 2026")
-      const dateM = desc.match(/in\s+([A-Za-z]+)\s+(?:of\s+)?(\d{4})/i);
       const MONTHS: Record<string, string> = { January:"01",February:"02",March:"03",April:"04",May:"05",June:"06",July:"07",August:"08",September:"09",October:"10",November:"11",December:"12" };
-      const refMonth = dateM ? `${dateM[2]}-${MONTHS[dateM[1]] ?? "01"}-01` : "";
-      return [ccy, { value: parsed.value, prev: parsed.prev, refMonth }] as [Currency, MoMCPIEntry];
+      const QUARTERS: Record<string, string> = { first:"01",second:"04",third:"07",fourth:"10" };
+      const curYear = new Date().getFullYear().toString();
+      // 1) "in [Month] of [Year]" ou "in [Month] from ... [Year]"
+      const dateM = desc.match(/in\s+([A-Za-z]+)\s+(?:of\s+)?(\d{4})/i);
+      // 2) Trimestriel : "in the fourth quarter of 2025"
+      const dateQ = desc.match(/in\s+the\s+(first|second|third|fourth)\s+quarter\s+of\s+(\d{4})/i);
+      // 3) Mois sans année : "remained unchanged at X points in March."
+      const dateNoYear = desc.match(/in\s+(January|February|March|April|May|June|July|August|September|October|November|December)[\s.,]/i);
+      let refMonth = "";
+      if (dateM && MONTHS[dateM[1]]) {
+        refMonth = `${dateM[2]}-${MONTHS[dateM[1]]}-01`;
+      } else if (dateQ) {
+        refMonth = `${dateQ[2]}-${QUARTERS[dateQ[1].toLowerCase()]}-01`;
+      } else if (dateNoYear) {
+        const mn = dateNoYear[1];
+        const cap = mn.charAt(0).toUpperCase() + mn.slice(1).toLowerCase();
+        if (MONTHS[cap]) refMonth = `${curYear}-${MONTHS[cap]}-01`;
+      }
+      const entry: MoMCPIEntry = {
+        value:   parsed.value,
+        // Pour les devises index-only (JPY/CHF/AUD/NZD), parsed.prev est la valeur brute
+        // de l'index, pas le MoM% précédent → on met null
+        prev:    parsed.isIndex ? null : parsed.prev,
+        refMonth,
+        isQoQ:   CORE_CPI_QOQ.has(ccy) || undefined,
+      };
+      return [ccy, entry] as [Currency, MoMCPIEntry];
     })
   );
 
