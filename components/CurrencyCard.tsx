@@ -437,16 +437,17 @@ export default function CurrencyCard({
     });
   }
 
-  // Inflation pressure
-  const cpiYoY = inds?.cpiYoY?.value ?? inds?.cpiCore?.value ?? null;
+  // Taux réel = Taux directeur − CPI YoY headline (= Inflation Rate YoY TE)
+  // Pas de fallback sur Core CPI : Core < Headline → gonflerait artificiellement le taux réel
+  const cpiHeadlineForReal = inds?.cpiYoY?.value ?? null;
   const policyRate = inds?.policyRate?.value ?? null;
-  if (cpiYoY !== null && policyRate !== null) {
-    const realRate = policyRate - cpiYoY;
+  if (cpiHeadlineForReal !== null && policyRate !== null) {
+    const realRate = policyRate - cpiHeadlineForReal;
     const inflDir: SignalDir = realRate < 0 ? "bearish" : realRate > 1.5 ? "bullish" : "neutral";
     mispricingSignals.push({
-      id: "inflation", label: "Taux Réel (Taux − Inflation)", direction: inflDir,
+      id: "inflation", label: "Taux Réel (CT − CPI YoY)", direction: inflDir,
       value: `${realRate > 0 ? "+" : ""}${realRate.toFixed(2)}%`,
-      detail: `Taux directeur ${policyRate.toFixed(2)}% − Inflation YoY ${cpiYoY.toFixed(2)}% = Taux réel ${realRate.toFixed(2)}%. ${realRate < 0 ? "Taux réel négatif → politique encore accommodante → bearish devise." : "Taux réel positif → politique restrictive → bullish devise."}`,
+      detail: `Taux directeur ${policyRate.toFixed(2)}% − CPI YoY ${cpiHeadlineForReal.toFixed(2)}% = Taux réel ${realRate.toFixed(2)}%. ${realRate < 0 ? "Taux réel négatif → politique encore accommodante → bearish devise." : realRate > 1.5 ? "Taux réel élevé → politique très restrictive → bullish devise." : "Taux réel faiblement positif → neutre."}`,
       strength: Math.min(100, Math.abs(realRate) * 25),
       icon: <Zap size={13} />,
     });
@@ -779,9 +780,11 @@ export default function CurrencyCard({
                     </div>
                   )}
                   {(() => {
-                    const cpiRef = inds?.cpiYoY?.value ?? inds?.cpiCore?.value ?? null;
-                    if (policyRateValue === null || cpiRef === null) return null;
-                    const realRate = parseFloat((policyRateValue - cpiRef).toFixed(2));
+                    // Taux réel = Taux directeur − CPI YoY headline (= Inflation Rate YoY)
+                    // On n'utilise PAS Core CPI comme fallback : Core < Headline → gonflerait le taux réel
+                    const cpiHeadline = inds?.cpiYoY?.value ?? null;
+                    if (policyRateValue === null || cpiHeadline === null) return null;
+                    const realRate = parseFloat((policyRateValue - cpiHeadline).toFixed(2));
                     const rDir: SignalDir = realRate < 0 ? "bearish" : realRate > 1.5 ? "bullish" : "neutral";
                     return (
                       <div className="flex items-center justify-between text-[12px]">
@@ -789,7 +792,8 @@ export default function CurrencyCard({
                           <span className="text-slate-600">→</span>
                           <span className="text-slate-400">Taux réel (CT−CPI)</span>
                         </div>
-                        <span className={`font-semibold tabular-nums ${sigColor(rDir)}`}>
+                        <span className={`font-semibold tabular-nums ${sigColor(rDir)}`}
+                          title={`${policyRateValue.toFixed(2)}% − CPI ${cpiHeadline.toFixed(2)}%`}>
                           {realRate > 0 ? "+" : ""}{realRate}%
                         </span>
                       </div>
