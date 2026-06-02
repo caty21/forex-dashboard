@@ -414,8 +414,43 @@ export default function CurrencyCard({ currency, expectations, yields, sentiment
         )}
         {(inflFilter === "all" || inflFilter === "yoy") && (
           <>
-            <Row label="Core CPI YoY"      ind={inds?.cpiCore ?? null} unit="%" consensus={fc?.cpiCore ?? fc?.cpi ?? null} surpriseVsCons={fc?.cpiSurprise ?? null} />
-            <Row label="Inflation Rate YoY" ind={inds?.cpiYoY ?? null} unit="%" consensus={fc?.cpi ?? null} />
+            <Row
+              label="Core CPI YoY"
+              ind={inds?.cpiCore ?? null}
+              unit="%"
+              consensus={fc?.cpiCore ?? fc?.cpi ?? null}
+              surpriseVsCons={fc?.cpiSurprise ?? null}
+              tooltip={(() => {
+                const fd = (inds?.cpiCore as (Ind & { _finalForecast?: number; _finalDelta?: number }) | null);
+                if (fd?._finalForecast === undefined) return null;
+                const d = fd._finalDelta ?? 0;
+                const arrow = d > 0 ? "↑" : d < 0 ? "↓" : "=";
+                return `Prel./Flash — Final prévu : ${fd._finalForecast?.toFixed(1)}% (${arrow}${d > 0 ? "+" : ""}${d.toFixed(2)})`;
+              })()}
+              info={(() => {
+                const fd = (inds?.cpiCore as (Ind & { _finalDelta?: number }) | null);
+                if (fd?._finalDelta === undefined) return null;
+                return fd._finalDelta > 0 ? "↑F" : fd._finalDelta < 0 ? "↓F" : "=F";
+              })()}
+            />
+            <Row
+              label="Inflation Rate YoY"
+              ind={inds?.cpiYoY ?? null}
+              unit="%"
+              consensus={fc?.cpi ?? null}
+              tooltip={(() => {
+                const fd = (inds?.cpiYoY as (Ind & { _finalForecast?: number; _finalDelta?: number }) | null);
+                if (fd?._finalForecast === undefined) return null;
+                const d = fd._finalDelta ?? 0;
+                const arrow = d > 0 ? "↑" : d < 0 ? "↓" : "=";
+                return `Prel./Flash — Final prévu : ${fd._finalForecast?.toFixed(1)}% (${arrow}${d > 0 ? "+" : ""}${d.toFixed(2)})`;
+              })()}
+              info={(() => {
+                const fd = (inds?.cpiYoY as (Ind & { _finalDelta?: number }) | null);
+                if (fd?._finalDelta === undefined) return null;
+                return fd._finalDelta > 0 ? "↑F" : fd._finalDelta < 0 ? "↓F" : "=F";
+              })()}
+            />
             {inds?.commodityPricesYoY && (
               <Row label="Commodity Prices YoY" ind={inds.commodityPricesYoY} unit="%" info="AUD — RBA Commodity Price Index (TradingEconomics)" />
             )}

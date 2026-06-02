@@ -1086,6 +1086,20 @@ export async function GET(req: NextRequest) {
         lastUpdated: yoyRef,
         ...(yoyCons !== null ? { consensus: yoyCons } : {}),
       };
+      // Flash vs Final : si un Final est attendu, calculer le delta Final_forecast − Flash_actual
+      const finalForecastYoY = parseTeF(teCpiForecast?.cpiYoYFinal);
+      if (finalForecastYoY !== null && indicators.cpiYoY) {
+        const delta = parseFloat((finalForecastYoY - yoyValue).toFixed(2));
+        (indicators.cpiYoY as Record<string,unknown>)["_finalForecast"] = finalForecastYoY;
+        (indicators.cpiYoY as Record<string,unknown>)["_finalDelta"]    = delta;
+      }
+      // Idem pour cpiCore
+      const finalForecastCore = parseTeF(teCpiForecast?.cpiCoreFinal);
+      if (finalForecastCore !== null && coreValue !== null && indicators.cpiCore) {
+        const delta = parseFloat((finalForecastCore - coreValue).toFixed(2));
+        (indicators.cpiCore as Record<string,unknown>)["_finalForecast"] = finalForecastCore;
+        (indicators.cpiCore as Record<string,unknown>)["_finalDelta"]    = delta;
+      }
     }
 
     // Core CPI MoM (pages individuelles, décimales précises)

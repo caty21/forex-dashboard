@@ -221,11 +221,13 @@ function parseCalendarHTML(html: string): TECalendarEvent[] {
 // Utilisé par la macro route pour remplir forecasts.cpiCore / forecasts.cpiMoM.
 
 export interface TEInflationForecasts {
-  cpiYoY:     string | null;
-  cpiCore:    string | null;
-  cpiMoM:     string | null;
-  cpiCoreMoM: string | null;
-  ppiMoM:     string | null;
+  cpiYoY:          string | null;
+  cpiYoYFinal:     string | null;  // "Final" event specifically (vs Flash/Prel)
+  cpiCore:         string | null;
+  cpiCoreFinal:    string | null;  // Core CPI YoY Final event
+  cpiMoM:          string | null;
+  cpiCoreMoM:      string | null;
+  ppiMoM:          string | null;
 }
 
 export async function fetchTEInflationForecasts(
@@ -243,20 +245,23 @@ export async function fetchTEInflationForecasts(
 
     const ccy   = ev.currency;
     const title = ev.title.toLowerCase();
-    if (!result[ccy]) result[ccy] = { cpiYoY: null, cpiCore: null, cpiMoM: null, cpiCoreMoM: null, ppiMoM: null };
+    if (!result[ccy]) result[ccy] = { cpiYoY: null, cpiYoYFinal: null, cpiCore: null, cpiCoreFinal: null, cpiMoM: null, cpiCoreMoM: null, ppiMoM: null };
 
-    const r = result[ccy]!;
+    const r    = result[ccy]!;
+    const isFinal = /\bfinal\b/i.test(title);
     // Order matters: Core MoM before generic MoM, Core YoY before generic YoY, PPI before CPI
     if (!r.ppiMoM && /ppi.*mom|producer.*price.*mom/i.test(title)) {
       r.ppiMoM = ev.forecast;
     } else if (!r.cpiCoreMoM && /core.*mom|core.*inflation.*mom|core.*rate.*mom/i.test(title)) {
       r.cpiCoreMoM = ev.forecast;
-    } else if (!r.cpiCore && /core.*inflation.*yoy|core.*cpi.*yoy|core.*rate.*yoy/i.test(title)) {
-      r.cpiCore = ev.forecast;
+    } else if (/core.*inflation.*yoy|core.*cpi.*yoy|core.*rate.*yoy/i.test(title)) {
+      if (isFinal && !r.cpiCoreFinal) r.cpiCoreFinal = ev.forecast;
+      if (!r.cpiCore)                 r.cpiCore       = ev.forecast;
     } else if (!r.cpiMoM && /^(?!.*core).*(?:inflation.*mom|cpi.*mom|rate.*mom)/i.test(title)) {
       r.cpiMoM = ev.forecast;
-    } else if (!r.cpiYoY && /^(?!.*core).*(?:inflation.*yoy|cpi.*yoy|inflation\s+rate.*yoy)/i.test(title)) {
-      r.cpiYoY = ev.forecast;
+    } else if (/^(?!.*core).*(?:inflation.*yoy|cpi.*yoy|inflation\s+rate.*yoy)/i.test(title)) {
+      if (isFinal && !r.cpiYoYFinal) r.cpiYoYFinal = ev.forecast;
+      if (!r.cpiYoY)                 r.cpiYoY       = ev.forecast;
     }
   }
   return result;
