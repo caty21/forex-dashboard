@@ -135,8 +135,9 @@ export default function CurrencyCard({ currency, expectations, yields, sentiment
   const [loading, setLoading]   = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [rateExp, setRateExp]   = useState<RateExpectation | null>(null);
-  const [fromCache, setFromCache] = useState(false);
-  const [cacheAge, setCacheAge]   = useState<string | null>(null);
+  const [fromCache, setFromCache]   = useState(false);
+  const [cacheAge, setCacheAge]     = useState<string | null>(null);
+  const [inflFilter, setInflFilter] = useState<"all" | "mom" | "yoy">("mom");
 
   // Single fetch — server batches all FRED calls
   const load = useCallback(async () => {
@@ -346,7 +347,7 @@ export default function CurrencyCard({ currency, expectations, yields, sentiment
         <SectionHeader label="Politique monétaire" />
         <Row label="Taux directeur" ind={inds?.policyRate ?? null} unit="%" consensus={rateConsensus} />
         <div className="flex items-center justify-between py-1.5 text-xs border-b border-gray-50">
-          <span className="text-gray-500 text-xs">10Y Yield</span>
+          <span className="text-gray-500 text-xs pl-5">10Y Yield</span>
           <span className="font-semibold text-gray-800 tabular-nums text-xs">
             {yield10Y !== null ? `${yield10Y.toFixed(2)}%` : "—"}
             {spread10Y !== null && (
@@ -358,32 +359,49 @@ export default function CurrencyCard({ currency, expectations, yields, sentiment
         </div>
 
         {/* ── INFLATION ───────────────────────────────────────────────────── */}
-        <SectionHeader label="Inflation" />
-        <Row label="CPI Core YoY"   ind={inds?.cpiCore    ?? null} unit="%" consensus={fc?.cpiCore ?? fc?.cpi ?? null} surpriseVsCons={fc?.cpiSurprise ?? null} />
-        <Row
-          label={(() => {
-            const isQoQ = (inds?.cpiCoreMoM as (Ind & { isQoQ?: boolean }) | null)?.isQoQ;
-            return isQoQ ? "Core CPI QoQ" : "Core CPI MoM";
-          })()}
-          ind={inds?.cpiCoreMoM ?? null}
-          unit="%"
-          tooltip={(() => {
-            const raw = (inds?.cpiCoreMoM as (Ind & { _raw?: { last: number; prev: number; refMonth: string } }) | null)?._raw;
-            const base = "=Core Inflation Rate MoM";
-            return raw ? `${base} — Index: last=${raw.last}  prev=${raw.prev}  ref=${raw.refMonth}` : base;
-          })()}
-        />
-        <Row label="Inflation YoY"  ind={inds?.cpiYoY     ?? null} unit="%" />
-        <Row label="CPI MoM"        ind={inds?.cpiMoM     ?? null} unit="%" consensus={fc?.cpiMoM ?? null} />
-        <Row
-          label="CPI Index MoM%"
-          ind={inds?.cpiIndex ?? null}
-          unit="%"
-          tooltip={(() => {
-            const raw = (inds?.cpiIndex as (Ind & { _raw?: { last: number; prev: number; refMonth: string } }) | null)?._raw;
-            return raw ? `Index: last=${raw.last}  prev=${raw.prev}  ref=${raw.refMonth}` : null;
-          })()}
-        />
+        <div className="flex items-center justify-between mt-2 mb-0.5">
+          <span className="text-[8px] font-bold text-gray-300 uppercase tracking-widest">Inflation</span>
+          <div className="flex gap-0.5">
+            {(["all", "mom", "yoy"] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setInflFilter(v)}
+                className={`text-[8px] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide transition-colors ${
+                  inflFilter === v
+                    ? "bg-gray-700 text-white"
+                    : "text-gray-400 hover:text-gray-600"
+                }`}
+              >
+                {v === "all" ? "Tout" : v.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+        {(inflFilter === "all" || inflFilter === "mom") && (
+          <>
+            <Row label="PPI MoM" ind={inds?.ppiMoM ?? null} unit="%" />
+            <Row label="CPI MoM" ind={inds?.cpiMoM ?? null} unit="%" consensus={fc?.cpiMoM ?? null} />
+            <Row
+              label={(() => {
+                const isQoQ = (inds?.cpiCoreMoM as (Ind & { isQoQ?: boolean }) | null)?.isQoQ;
+                return isQoQ ? "Core CPI QoQ" : "Core CPI MoM";
+              })()}
+              ind={inds?.cpiCoreMoM ?? null}
+              unit="%"
+              tooltip={(() => {
+                const raw = (inds?.cpiCoreMoM as (Ind & { _raw?: { last: number; prev: number; refMonth: string } }) | null)?._raw;
+                const base = "=Core Inflation Rate MoM";
+                return raw ? `${base} — Index: last=${raw.last}  prev=${raw.prev}  ref=${raw.refMonth}` : base;
+              })()}
+            />
+          </>
+        )}
+        {(inflFilter === "all" || inflFilter === "yoy") && (
+          <>
+            <Row label="Core CPI YoY"      ind={inds?.cpiCore ?? null} unit="%" consensus={fc?.cpiCore ?? fc?.cpi ?? null} surpriseVsCons={fc?.cpiSurprise ?? null} />
+            <Row label="Inflation Rate YoY" ind={inds?.cpiYoY ?? null} unit="%" />
+          </>
+        )}
 
         {/* ── CROISSANCE ──────────────────────────────────────────────────── */}
         <SectionHeader label="Croissance" />

@@ -5,7 +5,7 @@ import cpiOverridesRaw   from "@/data/cpi_overrides.json";
 import rateDecisionsRaw  from "@/data/rate_decisions.json";
 import { fetchFFThisWeek, fetchFFEvents } from "@/lib/forexfactory";
 import type { FFEvent } from "@/lib/forexfactory";
-import { fetchTECoreInflation, fetchTEMoMInflation, fetchTEInflationYoY, fetchTECoreCPIMoM, fetchTECPIIndex, fetchTECoreConsumerPricesIndex } from "@/lib/tecpi";
+import { fetchTECoreInflation, fetchTEMoMInflation, fetchTEInflationYoY, fetchTECoreCPIMoM, fetchTECoreConsumerPricesIndex, fetchTEPPIMoM } from "@/lib/tecpi";
 import { fetchTEInflationForecasts } from "@/lib/tradingeconomics";
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
@@ -1020,15 +1020,15 @@ export async function GET(req: NextRequest) {
 
   // ── TE CPI override (priorité maximale — données du jour, toutes devises) ───
   // Remplace séries FRED stale/erronées.
-  // Nouvelles données : cpiYoY headline, cpiCoreMoM (pages individuelles), cpiIndex MoM%
+  // Nouvelles données : cpiYoY headline, cpiCoreMoM (pages individuelles), ppiMoM
   {
-    const [teCoreMap, teMoMMap, teYoYMap, teCoreMoMMap, teIdxMap, teCoreIdxMap] = await Promise.all([
+    const [teCoreMap, teMoMMap, teYoYMap, teCoreMoMMap, teCoreIdxMap, tePPIMap] = await Promise.all([
       fetchTECoreInflation(),
       fetchTEMoMInflation(),
       fetchTEInflationYoY(),
       fetchTECoreCPIMoM(),
-      fetchTECPIIndex(),
       fetchTECoreConsumerPricesIndex(),
+      fetchTEPPIMoM(),
     ]);
 
     const teCore = teCoreMap[currency];
@@ -1086,27 +1086,24 @@ export async function GET(req: NextRequest) {
       };
     }
 
-    // CPI Index → MoM% (avec rawValues pour tooltip)
-    const teIdx = teIdxMap[currency];
-    if (teIdx) {
-      const surprise = parseFloat((teIdx.momPct - (teIdxMap[currency]?.rawPrev ?? 0)).toFixed(3));
-      indicators.cpiIndex = {
-        value:       teIdx.momPct,
-        prev:        null,
-        surprise:    null,
-        trend:       teIdx.momPct > 0 ? "up" : teIdx.momPct < 0 ? "down" : "flat",
-        lastUpdated: teIdx.refMonth,
+    // PPI MoM
+    const tePPI = tePPIMap[currency];
+    if (tePPI) {
+      const surprise = tePPI.prev !== null
+        ? parseFloat((tePPI.value - tePPI.prev).toFixed(3))
+        : null;
+      indicators.ppiMoM = {
+        value:       tePPI.value,
+        prev:        tePPI.prev,
+        surprise,
+        trend:       tePPI.value > 0 ? "up" : tePPI.value < 0 ? "down" : "flat",
+        lastUpdated: tePPI.refMonth,
       };
     }
 
-    // Raw index values for tooltips (CPI + Core CPI)
+    // Raw Core CPI index values for tooltip on cpiCoreMoM
     const teRawCore = teCoreIdxMap[currency];
-    // Stored in the response as rawCpiIndex and rawCoreIndex
-    const rawCpiIndex    = teIdx   ? { last: teIdx.rawLast,       prev: teIdx.rawPrev,        refMonth: teIdx.refMonth    } : null;
-    const rawCoreIndex   = teRawCore ? { last: teRawCore.rawLast, prev: teRawCore.rawPrev,     refMonth: teRawCore.refMonth } : null;
-
-    // Attach raw values to indicators for tooltip access
-    if (indicators.cpiIndex   && rawCpiIndex)  (indicators.cpiIndex   as Record<string,unknown>)["_raw"]  = rawCpiIndex;
+    const rawCoreIndex = teRawCore ? { last: teRawCore.rawLast, prev: teRawCore.rawPrev, refMonth: teRawCore.refMonth } : null;
     if (indicators.cpiCoreMoM && rawCoreIndex) (indicators.cpiCoreMoM as Record<string,unknown>)["_raw"] = rawCoreIndex;
   }
 
