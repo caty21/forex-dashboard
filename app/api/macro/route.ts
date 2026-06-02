@@ -961,16 +961,18 @@ export async function GET(req: NextRequest) {
   toDateObj.setDate(toDateObj.getDate() + 21);
   const toDate = toDateObj.toISOString().slice(0, 10);
 
-  const [ffPMI, pmiMfgRaw, pmiSvcRaw, pmiCompositeRaw, ffForecasts, teForecastMap] = await Promise.all([
+  const [ffPMI, pmiMfgRaw, pmiSvcRaw, pmiCompositeRaw, ffForecasts, teForecastMap, invForecastMap] = await Promise.all([
     fetchFFPMI(currency),
     scrapePMI(currency, "manufacturing-pmi"),
     scrapePMI(currency, "services-pmi"),
     scrapePMI(currency, "composite-pmi"),
     fetchFFForecasts(currency),
     fetchTEInflationForecasts(today, toDate),
+    (await import("@/lib/investing")).fetchInvestingInflationForecasts(today, toDate),
   ]);
 
   const teCpiForecast = teForecastMap[currency];
+  const invForecast   = invForecastMap[currency];
   // FF en priorité (forecast + actual) ; TE en fallback
   indicators.pmiMfg       = ffPMI.mfg       ? toPmiIndicator(ffPMI.mfg)       : toPmiIndicator(pmiMfgRaw);
   indicators.pmiServices  = ffPMI.svc       ? toPmiIndicator(ffPMI.svc)       : toPmiIndicator(pmiSvcRaw);
@@ -1150,11 +1152,11 @@ export async function GET(req: NextRequest) {
     forecasts: {
       // CPI — TE calendar forecast (priorité) puis ForexFactory
       // Les forecasts TE sont des strings "2.8%" → parseFloat les convertit en number
-      cpi:                    parseTeF(teCpiForecast?.cpiYoY)     ?? ffForecasts.cpi  ?? null,
-      cpiCore:                parseTeF(teCpiForecast?.cpiCore)    ?? null,
-      cpiMoM:                 parseTeF(teCpiForecast?.cpiMoM)     ?? null,
-      cpiCoreMoM:             parseTeF(teCpiForecast?.cpiCoreMoM) ?? null,
-      ppiMoM:                 parseTeF(teCpiForecast?.ppiMoM)     ?? null,
+      cpi:                    parseTeF(teCpiForecast?.cpiYoY)     ?? parseTeF(invForecast?.cpiYoY)     ?? ffForecasts.cpi ?? null,
+      cpiCore:                parseTeF(teCpiForecast?.cpiCore)    ?? parseTeF(invForecast?.cpiCore)    ?? null,
+      cpiMoM:                 parseTeF(teCpiForecast?.cpiMoM)     ?? parseTeF(invForecast?.cpiMoM)     ?? null,
+      cpiCoreMoM:             parseTeF(teCpiForecast?.cpiCoreMoM) ?? parseTeF(invForecast?.cpiCoreMoM) ?? null,
+      ppiMoM:                 parseTeF(teCpiForecast?.ppiMoM)     ?? parseTeF(invForecast?.ppiMoM)     ?? null,
       cpiSurprise:            ffForecasts.cpiSurprise,
       unemployment:           ffForecasts.unemployment,
       unemploymentSurprise:   ffForecasts.unemploymentSurprise,

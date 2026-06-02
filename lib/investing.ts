@@ -1,8 +1,8 @@
 // lib/investing.ts
-// Scrape investing.com economic calendar (inflation events).
-// Uses the AJAX endpoint which returns HTML inside JSON.
+// Scrape investing.com economic calendar.
+// Uses the AJAX endpoint: POST /economic-calendar/Service/getCalendarFilteredData
 //
-// Mapping confirmed by user:
+// Inflation mapping:
 //   "CPI (YoY)"      = Inflation Rate YoY → cpiYoY
 //   "Core CPI (YoY)" = Core Inflation Rate YoY → cpiCore
 //   "CPI (MoM)"      = Inflation Rate MoM → cpiMoM
@@ -10,6 +10,33 @@
 //   "PPI (MoM)"      = PPI MoM → ppiMoM
 
 import type { Currency } from "./types";
+import type { TECalendarEvent } from "./tradingeconomics";
+import type { EventCategory } from "@/app/api/calendar/route";
+
+// Category detection from event name
+function invCategory(name: string): EventCategory {
+  const n = name.toLowerCase();
+  if (/\bpmi\b|purchasing\s+managers/i.test(n))                   return "pmi";
+  if (/inflation|cpi|hicp|consumer\s+price|ppi/i.test(n))         return "inflation";
+  if (/\bgdp\b|gross\s+domestic|growth\s+rate/i.test(n))          return "gdp";
+  if (/retail\s+sales|core\s+retail/i.test(n))                    return "retail_sales";
+  if (/employment|payrolls|nonfarm|jobless|unemployment/i.test(n)) return "employment";
+  if (/trade\s+balance|current\s+account/i.test(n))               return "trade_balance";
+  if (/interest\s+rate|rate\s+decision|bank\s+rate/i.test(n))     return "policy_rate";
+  if (/speech|speaks?|testimony|press\s+conf/i.test(n))           return "cb_speech";
+  return "other";
+}
+
+function cleanVal(s: string): string | null {
+  const v = s.replace(/&nbsp;/g, "").trim();
+  return v.length > 0 ? v : null;
+}
+
+function to24h(t: string): string {
+  const m = t.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (!m) return "00:00";
+  return `${m[1].padStart(2, "0")}:${m[2]}`;
+}
 
 const INV_COUNTRY_IDS: Record<Currency, number> = {
   USD: 5, EUR: 22, GBP: 4, JPY: 25, CHF: 35, CAD: 32, AUD: 6, NZD: 36,
@@ -68,25 +95,65 @@ function parseInvHTML(html: string, now: Date): Partial<Record<Currency, Investi
   return result;
 }
 
-export async function fetchInvestingInflationForecasts(
-  fromDate?: string,
-  toDate?:   string,
-): Promise<Partial<Record<Currency, InvestingInflationForecasts>>> {
+// ── Full calendar events (same shape as TECalendarEvent) ─────────────────────
+
+function parseInvCalendarHTML(html: string): TECalendarEvent[] {
+  const events: TECalendarEvent[] = [];
+  const now = new Date();
+  const rowPat = /eventRowId_(\d+)[^>]+data-event-datetime="([^"]+)"[^>]*>([\s\S]*?)(?=eventRowId_|$)/g;
+  let m: RegExpExecArray | null;
+
+  while ((m = rowPat.exec(html)) !== null) {
+    const [, rowId, dtStr, body] = m;
+
+    const ccyM = body.match(/ceFlags[^>]*>&nbsp;<\/span>\s*(\w+)/);
+    if (!ccyM) continue;
+    const ccy = INV_CCY_TO_CCY[ccyM[1].trim()];
+    if (!ccy) continue;
+
+    const nameM = body.match(/target="_blank">\s*([^<\n]+?)\s*<\/a>/);
+    if (!nameM) continue;
+    const name = nameM[1].trim();
+
+    // Date: "2026/06/10 14:30:00" → ISO
+    const [datePart, timePart = "00:00:00"] = dtStr.split(" ");
+    const isoDate = `${datePart.replace(/\//g, "-")}T${to24h(timePart)}:00Z`;
+    const evDate  = new Date(isoDate);
+
+    // Importance from bull icons count
+    const bulls = (body.match(/grayFullBullishIcon/g) ?? []).length;
+    const impact = bulls >= 3 ? "high" : bulls >= 2 ? "medium" : "low";
+
+    // Values
+    const actual   = cleanVal((body.match(new RegExp(`eventActual_${rowId}">([^<]+)`))   ?? [])[1] ?? "");
+    const forecast = cleanVal((body.match(new RegExp(`eventForecast_${rowId}">([^<]+)`)) ?? [])[1] ?? "");
+    const previous = cleanVal((body.match(new RegExp(`eventPrevious_${rowId}">([^<]+)`)) ?? [])[1] ?? "");
+
+    events.push({
+      id:          `inv_${rowId}`,
+      date:        isoDate,
+      currency:    ccy,
+      category:    invCategory(name),
+      title:       name,
+      impact,
+      actual,
+      forecast,
+      previous,
+      isPublished: actual !== null || evDate < now,
+      teId:        rowId,
+    });
+  }
+
+  return events;
+}
+
+async function fetchInvestingRawHTML(fromDate: string, toDate: string): Promise<string | null> {
   try {
-    const from = fromDate ?? new Date().toISOString().slice(0, 10);
-    const to   = toDate ?? (() => {
-      const d = new Date(); d.setDate(d.getDate() + 21);
-      return d.toISOString().slice(0, 10);
-    })();
-
-    const countryParams = Object.values(INV_COUNTRY_IDS)
-      .map((id) => `country%5B%5D=${id}`).join("&");
-
-    const reqBody = [
+    const countryParams = Object.values(INV_COUNTRY_IDS).map((id) => `country%5B%5D=${id}`).join("&");
+    const body = [
       countryParams,
       "importance%5B%5D=1&importance%5B%5D=2&importance%5B%5D=3",
-      "category%5B%5D=_inflation",
-      `dateFrom=${from}&dateTo=${to}`,
+      `dateFrom=${fromDate}&dateTo=${toDate}`,
       "currentTab=custom&submitFilters=1&limit_from=0",
     ].join("&");
 
@@ -102,18 +169,44 @@ export async function fetchInvestingInflationForecasts(
           "User-Agent":       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
           "Accept-Language":  "en-US,en;q=0.9",
         },
-        body: reqBody,
+        body,
       }
     );
-
-    if (!res.ok) { console.warn("[investing] HTTP", res.status); return {}; }
+    if (!res.ok) { console.warn("[investing] HTTP", res.status); return null; }
     const json = await res.json() as { data?: string };
-    if (!json.data) return {};
-
-    const now = fromDate ? new Date(fromDate + "T00:00:00Z") : new Date();
-    return parseInvHTML(json.data, now);
+    return json.data ?? null;
   } catch (err) {
     console.error("[investing] error:", err);
-    return {};
+    return null;
   }
+}
+
+export async function fetchInvestingCalendar(
+  fromDate?: string,
+  toDate?:   string,
+): Promise<TECalendarEvent[]> {
+  const from = fromDate ?? new Date().toISOString().slice(0, 10);
+  const to   = toDate ?? (() => {
+    const d = new Date(); d.setDate(d.getDate() + 21);
+    return d.toISOString().slice(0, 10);
+  })();
+  const html = await fetchInvestingRawHTML(from, to);
+  return html ? parseInvCalendarHTML(html) : [];
+}
+
+// Reuses the raw HTML from the general calendar fetch (no category filter here
+// so we get inflation data alongside other events in one request)
+export async function fetchInvestingInflationForecasts(
+  fromDate?: string,
+  toDate?:   string,
+): Promise<Partial<Record<Currency, InvestingInflationForecasts>>> {
+  const from = fromDate ?? new Date().toISOString().slice(0, 10);
+  const to   = toDate ?? (() => {
+    const d = new Date(); d.setDate(d.getDate() + 21);
+    return d.toISOString().slice(0, 10);
+  })();
+  const html = await fetchInvestingRawHTML(from, to);
+  if (!html) return {};
+  const now = fromDate ? new Date(fromDate + "T00:00:00Z") : new Date();
+  return parseInvHTML(html, now);
 }
