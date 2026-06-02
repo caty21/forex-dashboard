@@ -5,7 +5,7 @@ import cpiOverridesRaw   from "@/data/cpi_overrides.json";
 import rateDecisionsRaw  from "@/data/rate_decisions.json";
 import { fetchFFThisWeek, fetchFFEvents } from "@/lib/forexfactory";
 import type { FFEvent } from "@/lib/forexfactory";
-import { fetchTECoreInflation, fetchTEMoMInflation, fetchTEInflationYoY, fetchTECoreCPIMoM, fetchTECoreConsumerPricesIndex, fetchTEPPIMoM, fetchTECoreInflationPages } from "@/lib/tecpi";
+import { fetchTECoreInflation, fetchTEMoMInflation, fetchTEInflationYoY, fetchTECoreCPIMoM, fetchTECoreConsumerPricesIndex, fetchTEPPIMoM, fetchTECoreInflationPages, fetchTEInflationYoYPages } from "@/lib/tecpi";
 import { fetchTEInflationForecasts } from "@/lib/tradingeconomics";
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
@@ -1022,14 +1022,15 @@ export async function GET(req: NextRequest) {
   // Remplace séries FRED stale/erronées.
   // Nouvelles données : cpiYoY headline, cpiCoreMoM (pages individuelles), ppiMoM
   {
-    const [teCoreMap, teMoMMap, teYoYMap, teCoreMoMMap, teCoreIdxMap, tePPIMap, teCorePages] = await Promise.all([
+    const [teCoreMap, teMoMMap, teYoYMap, teCoreMoMMap, teCoreIdxMap, tePPIMap, teCorePages, teYoYPages] = await Promise.all([
       fetchTECoreInflation(),
       fetchTEMoMInflation(),
       fetchTEInflationYoY(),
       fetchTECoreCPIMoM(),
       fetchTECoreConsumerPricesIndex(),
       fetchTEPPIMoM(),
-      fetchTECoreInflationPages(), // EUR valeur précise + JPY consensus via TEForecast
+      fetchTECoreInflationPages(),   // EUR valeur précise + JPY consensus via TEForecast
+      fetchTEInflationYoYPages(),    // EUR valeur à jour + GBP/JPY consensus
     ]);
 
     const teCore     = teCoreMap[currency];
@@ -1064,16 +1065,22 @@ export async function GET(req: NextRequest) {
       };
     }
 
-    // Inflation Rate YoY (headline)
-    const teYoY = teYoYMap[currency];
-    if (teYoY) {
-      const surprise = parseFloat((teYoY.value - teYoY.prev).toFixed(3));
+    // Inflation Rate YoY (headline) — pages individuelles prioritaires pour EUR/GBP/JPY
+    const teYoY     = teYoYMap[currency];
+    const teYoYPage = teYoYPages[currency];
+    const yoyValue  = teYoYPage?.value ?? teYoY?.value ?? null;
+    if (yoyValue !== null) {
+      const yoyPrev    = teYoYPage?.prev ?? teYoY?.prev ?? null;
+      const yoyRef     = teYoYPage?.refMonth || teYoY?.refMonth || "";
+      const yoySurp    = yoyPrev !== null ? parseFloat((yoyValue - yoyPrev).toFixed(3)) : null;
+      const yoyCons    = teYoYPage?.consensus ?? null;
       indicators.cpiYoY = {
-        value:       teYoY.value,
-        prev:        teYoY.prev,
-        surprise,
-        trend:       surprise > 0 ? "up" : surprise < 0 ? "down" : "flat",
-        lastUpdated: teYoY.refMonth,
+        value:       yoyValue,
+        prev:        yoyPrev,
+        surprise:    yoySurp,
+        trend:       yoySurp !== null ? (yoySurp > 0 ? "up" : yoySurp < 0 ? "down" : "flat") : null,
+        lastUpdated: yoyRef,
+        ...(yoyCons !== null ? { consensus: yoyCons } : {}),
       };
     }
 
