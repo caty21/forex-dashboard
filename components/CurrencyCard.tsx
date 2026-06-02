@@ -58,10 +58,11 @@ function TrendIcon({ trend }: { trend: "up"|"down"|"flat"|null }) {
   return <Minus size={11} className="text-gray-300 flex-shrink-0" />;
 }
 
-function Row({ label, ind, unit = "", invertSurprise = false, warn = false, consensus = null, surpriseVsCons = null }: {
+function Row({ label, ind, unit = "", invertSurprise = false, warn = false, consensus = null, surpriseVsCons = null, tooltip = null }: {
   label: string; ind: Ind | null; unit?: string; invertSurprise?: boolean; warn?: boolean;
-  consensus?: number | null;       // consensus à venir (upcoming)
-  surpriseVsCons?: number | null;  // actual − consensus si ≤5j post-release
+  consensus?: number | null;
+  surpriseVsCons?: number | null;
+  tooltip?: string | null;
 }) {
   const value = ind?.value ?? null;
   const prev  = ind?.prev  ?? null;
@@ -96,7 +97,7 @@ function Row({ label, ind, unit = "", invertSurprise = false, warn = false, cons
             {label}{warn && <span className="text-amber-400 ml-0.5">⚠</span>}
           </span>
         </div>
-        <span className={`text-xs font-semibold tabular-nums flex-shrink-0 ${valCls}`}>
+        <span className={`text-xs font-semibold tabular-nums flex-shrink-0 ${valCls}`} title={tooltip ?? undefined}>
           {fmt(value)}
         </span>
       </div>
@@ -358,8 +359,30 @@ export default function CurrencyCard({ currency, expectations, yields, sentiment
 
         {/* ── INFLATION ───────────────────────────────────────────────────── */}
         <SectionHeader label="Inflation" />
-        <Row label="CPI Core YoY"   ind={inds?.cpiCore  ?? null} unit="%" consensus={fc?.cpiCore ?? fc?.cpi ?? null} surpriseVsCons={fc?.cpiSurprise ?? null} />
-        <Row label="CPI MoM"        ind={inds?.cpiMoM   ?? null} unit="%" consensus={fc?.cpiMoM ?? null} />
+        <Row label="CPI Core YoY"   ind={inds?.cpiCore    ?? null} unit="%" consensus={fc?.cpiCore ?? fc?.cpi ?? null} surpriseVsCons={fc?.cpiSurprise ?? null} />
+        <Row
+          label={(() => {
+            const isQoQ = (inds?.cpiCoreMoM as (Ind & { isQoQ?: boolean }) | null)?.isQoQ;
+            return isQoQ ? "Core CPI QoQ (=Core CPI Index)" : "Core CPI MoM (=Core CPI Index)";
+          })()}
+          ind={inds?.cpiCoreMoM ?? null}
+          unit="%"
+          tooltip={(() => {
+            const raw = (inds?.cpiCoreMoM as (Ind & { _raw?: { last: number; prev: number; refMonth: string } }) | null)?._raw;
+            return raw ? `Index: last=${raw.last}  prev=${raw.prev}  ref=${raw.refMonth}` : null;
+          })()}
+        />
+        <Row label="Inflation YoY"  ind={inds?.cpiYoY     ?? null} unit="%" />
+        <Row label="CPI MoM"        ind={inds?.cpiMoM     ?? null} unit="%" consensus={fc?.cpiMoM ?? null} />
+        <Row
+          label="CPI Index MoM%"
+          ind={inds?.cpiIndex ?? null}
+          unit="%"
+          tooltip={(() => {
+            const raw = (inds?.cpiIndex as (Ind & { _raw?: { last: number; prev: number; refMonth: string } }) | null)?._raw;
+            return raw ? `Index: last=${raw.last}  prev=${raw.prev}  ref=${raw.refMonth}` : null;
+          })()}
+        />
 
         {/* ── CROISSANCE ──────────────────────────────────────────────────── */}
         <SectionHeader label="Croissance" />
