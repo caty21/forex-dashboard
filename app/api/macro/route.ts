@@ -5,7 +5,7 @@ import cpiOverridesRaw   from "@/data/cpi_overrides.json";
 import rateDecisionsRaw  from "@/data/rate_decisions.json";
 import { fetchFFThisWeek, fetchFFEvents } from "@/lib/forexfactory";
 import type { FFEvent } from "@/lib/forexfactory";
-import { fetchTECoreInflation, fetchTEMoMInflation, fetchTEInflationYoY, fetchTECoreCPIMoM, fetchTECoreConsumerPricesIndex, fetchTEPPIMoM, fetchTECoreInflationPages, fetchTEInflationYoYPages, fetchTEAUDCommodityYoY, fetchTEGDPGrowthRate } from "@/lib/tecpi";
+import { fetchTECoreInflation, fetchTEMoMInflation, fetchTEInflationYoY, fetchTECoreCPIMoM, fetchTECoreConsumerPricesIndex, fetchTEPPIMoM, fetchTECoreInflationPages, fetchTEInflationYoYPages, fetchTEAUDCommodityYoY, fetchTEGDPGrowthRate, fetchTEUnemploymentRate } from "@/lib/tecpi";
 import { fetchTEInflationForecasts } from "@/lib/tradingeconomics";
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
@@ -1025,7 +1025,7 @@ export async function GET(req: NextRequest) {
   // Remplace séries FRED stale/erronées.
   // Nouvelles données : cpiYoY headline, cpiCoreMoM (pages individuelles), ppiMoM
   {
-    const [teCoreMap, teMoMMap, teYoYMap, teCoreMoMMap, teCoreIdxMap, tePPIMap, teCorePages, teYoYPages, teAUDComm, teGDPMap] = await Promise.all([
+    const [teCoreMap, teMoMMap, teYoYMap, teCoreMoMMap, teCoreIdxMap, tePPIMap, teCorePages, teYoYPages, teAUDComm, teGDPMap, teUneMap] = await Promise.all([
       fetchTECoreInflation(),
       fetchTEMoMInflation(),
       fetchTEInflationYoY(),
@@ -1036,6 +1036,7 @@ export async function GET(req: NextRequest) {
       fetchTEInflationYoYPages(),
       currency === "AUD" ? fetchTEAUDCommodityYoY() : Promise.resolve(null),
       fetchTEGDPGrowthRate(),
+      fetchTEUnemploymentRate(),
     ]);
 
     const teCore     = teCoreMap[currency];
@@ -1152,6 +1153,27 @@ export async function GET(req: NextRequest) {
             ? (teGDP.value > teGDP.prev ? "up" : teGDP.value < teGDP.prev ? "down" : "flat")
             : null,
           lastUpdated: teGDP.refMonth,
+        };
+      }
+    }
+
+    // Unemployment Rate — TE country-list (taux national officiel, toutes devises)
+    // Remplace FRED qui publie souvent le taux ILO harmonisé (2-3pp supérieur au taux national,
+    // notamment CHF ~5% ILO vs ~3% SECO, GBP ~4% ILO vs ONS, etc.)
+    {
+      const teUne = teUneMap[currency];
+      if (teUne) {
+        const surprise = teUne.prev !== null
+          ? parseFloat((teUne.value - teUne.prev).toFixed(4))
+          : null;
+        indicators.unemployment = {
+          value:       teUne.value,
+          prev:        teUne.prev,
+          surprise,
+          trend:       teUne.prev !== null
+            ? (teUne.value > teUne.prev ? "up" : teUne.value < teUne.prev ? "down" : "flat")
+            : null,
+          lastUpdated: teUne.refMonth,
         };
       }
     }

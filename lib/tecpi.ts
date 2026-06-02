@@ -610,6 +610,34 @@ export async function fetchTEAUDCommodityYoY(): Promise<InflationYoYPageEntry | 
   } catch { return null; }
 }
 
+// ── Unemployment Rate ─────────────────────────────────────────────────────────
+// Source : https://tradingeconomics.com/country-list/unemployment-rate?continent=world
+// Une seule requête HTTP (cache 6h) pour les 8 devises.
+// Donne le taux national officiel (ex : SECO ~3% pour CHF) au lieu du taux ILO harmonisé
+// FRED qui peut être de 2-3 pp supérieur (ex : LRHUTTTTCHQ156S ~5% pour CHF).
+
+export async function fetchTEUnemploymentRate(): Promise<CoreCPIMap> {
+  try {
+    const res = await fetch(
+      "https://tradingeconomics.com/country-list/unemployment-rate?continent=world",
+      {
+        next: { revalidate: 21600 },
+        headers: {
+          "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
+          "Accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+      }
+    );
+    if (!res.ok) { console.warn("[tecpi-une] HTTP", res.status); return {}; }
+    const html = await res.text();
+    return parseCoreInflationHTML(html);
+  } catch (err) {
+    console.error("[tecpi-une] error:", err);
+    return {};
+  }
+}
+
 // ── GDP Growth Rate QoQ% ──────────────────────────────────────────────────────
 // Source : https://tradingeconomics.com/country-list/gdp-growth-rate
 // Une seule requête HTTP (cache 6h) couvre les 8 devises.
