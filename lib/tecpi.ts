@@ -418,3 +418,144 @@ function parseCoreInflationHTML(html: string): CoreCPIMap {
 
   return result;
 }
+
+// ── Core CPI YoY individuel (valeur précise + consensus via TEForecast) ───────
+// Utilisé pour EUR (fiabilité) et JPY (consensus).
+// Retourne { value, consensus, refMonth } — prev reste fourni par le country-list.
+
+export interface CoreCPIPageEntry {
+  value:     number;
+  consensus: number | null;  // TEForecast[0] si disponible
+  refMonth:  string;
+}
+
+const TE_CORE_YOY_SLUG: Partial<Record<Currency, string>> = {
+  EUR: "euro-area/core-inflation-rate",
+  JPY: "japan/core-inflation-rate",
+};
+
+// Pages individuelles pour Inflation Rate YoY (headline) — plus à jour que le country-list
+const TE_INFLATION_YOY_SLUG: Partial<Record<Currency, string>> = {
+  EUR: "euro-area/inflation-cpi",
+  GBP: "united-kingdom/inflation-cpi",
+  JPY: "japan/inflation-cpi",
+};
+
+export async function fetchTECoreInflationPages(): Promise<Partial<Record<Currency, CoreCPIPageEntry>>> {
+  const MONTHS: Record<string, string> = { January:"01",February:"02",March:"03",April:"04",May:"05",June:"06",July:"07",August:"08",September:"09",October:"10",November:"11",December:"12" };
+
+  const entries = await Promise.all(
+    (Object.entries(TE_CORE_YOY_SLUG) as [Currency, string][]).map(async ([ccy, slug]) => {
+      try {
+        const res = await fetch(`https://tradingeconomics.com/${slug}`, {
+          next: { revalidate: 21600 },
+          headers: {
+            "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
+            "Accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+          },
+        });
+        if (!res.ok) return null;
+        const html = await res.text();
+
+        // Meta description → valeur courante
+        const metaM = html.match(/name=["']description["'][^>]*content=["']([^"']+)["']/i)
+                   ?? html.match(/content=["']([^"']+)["'][^>]*name=["']description["']/i);
+        const desc = metaM?.[1] ?? "";
+        const valM = desc.match(/(?:increased|decreased|declined|rose|fell|eased|remained unchanged at)\s+([\d.]+)\s+percent/i);
+        if (!valM) return null;
+        const value = parseFloat(valM[1]);
+
+        // Date : "in [Month] of [Year]"
+        const dateM = desc.match(/in\s+([A-Za-z]+)\s+of\s+(\d{4})/i);
+        let refMonth = "";
+        if (dateM && MONTHS[dateM[1]]) refMonth = `${dateM[2]}-${MONTHS[dateM[1]]}-01`;
+
+        // Consensus = TEForecast[0]
+        let consensus: number | null = null;
+        const fcM = html.match(/TEForecast\s*=\s*\[\s*([\d.,\s]+)\]/);
+        if (fcM) {
+          const first = fcM[1].split(",")[0].trim();
+          if (first) consensus = parseFloat(first);
+        }
+
+        return [ccy, { value, consensus, refMonth }] as [Currency, CoreCPIPageEntry];
+      } catch { return null; }
+    })
+  );
+
+  const result: Partial<Record<Currency, CoreCPIPageEntry>> = {};
+  for (const e of entries) if (e) result[e[0]] = e[1];
+  return result;
+}
+
+// ── Inflation Rate YoY individuel (EUR valeur à jour + GBP/JPY consensus) ────
+// Meta format : "increased to X.XX percent in [Month] from Y.YY percent in [PrevMonth] of [Year]"
+
+export interface InflationYoYPageEntry {
+  value:     number;
+  prev:      number | null;
+  consensus: number | null;
+  refMonth:  string;
+}
+
+export async function fetchTEInflationYoYPages(): Promise<Partial<Record<Currency, InflationYoYPageEntry>>> {
+  const MONTHS: Record<string, string> = { January:"01",February:"02",March:"03",April:"04",May:"05",June:"06",July:"07",August:"08",September:"09",October:"10",November:"11",December:"12" };
+
+  const entries = await Promise.all(
+    (Object.entries(TE_INFLATION_YOY_SLUG) as [Currency, string][]).map(async ([ccy, slug]) => {
+      try {
+        const res = await fetch(`https://tradingeconomics.com/${slug}`, {
+          next: { revalidate: 21600 },
+          headers: {
+            "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
+            "Accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+          },
+        });
+        if (!res.ok) return null;
+        const html = await res.text();
+
+        const metaM = html.match(/name=["']description["'][^>]*content=["']([^"']+)["']/i)
+                   ?? html.match(/content=["']([^"']+)["'][^>]*name=["']description["']/i);
+        const desc = metaM?.[1] ?? "";
+
+        // "increased/decreased to X percent in [Month] from Y percent in [PrevMonth] of [Year]"
+        const p1 = desc.match(
+          /(?:increased|decreased|declined|rose|fell|eased|changed)\s+to\s+([\d.]+)\s+percent[^.]*?from\s+([\d.]+)\s+percent/i
+        );
+        // "remained unchanged at X percent in [Month]"
+        const p2 = !p1 ? desc.match(/(?:remained unchanged at|is unchanged at)\s*([\d.]+)\s+percent/i) : null;
+
+        const value = p1 ? parseFloat(p1[1]) : p2 ? parseFloat(p2[1]) : null;
+        const prev  = p1 ? parseFloat(p1[2]) : p2 ? parseFloat(p2[1]) : null;
+        if (value === null) return null;
+
+        // Date : current month + year
+        const dateCurrM = desc.match(/(?:to|at)\s+[\d.]+\s+percent\s+in\s+([A-Za-z]+)/i);
+        const yearM     = desc.match(/\bof\s+(\d{4})\b/);
+        const curYear   = new Date().getFullYear().toString();
+        let refMonth = "";
+        if (dateCurrM) {
+          const mn  = dateCurrM[1];
+          const cap = mn.charAt(0).toUpperCase() + mn.slice(1).toLowerCase();
+          if (MONTHS[cap]) refMonth = `${yearM?.[1] ?? curYear}-${MONTHS[cap]}-01`;
+        }
+
+        // Consensus = TEForecast[0]
+        let consensus: number | null = null;
+        const fcM = html.match(/TEForecast\s*=\s*\[\s*([\d.,\s]+)\]/);
+        if (fcM) {
+          const first = fcM[1].split(",")[0].trim();
+          if (first) consensus = parseFloat(first);
+        }
+
+        return [ccy, { value, prev, consensus, refMonth }] as [Currency, InflationYoYPageEntry];
+      } catch { return null; }
+    })
+  );
+
+  const result: Partial<Record<Currency, InflationYoYPageEntry>> = {};
+  for (const e of entries) if (e) result[e[0]] = e[1];
+  return result;
+}

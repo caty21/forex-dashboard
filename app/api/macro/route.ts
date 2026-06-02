@@ -5,7 +5,7 @@ import cpiOverridesRaw   from "@/data/cpi_overrides.json";
 import rateDecisionsRaw  from "@/data/rate_decisions.json";
 import { fetchFFThisWeek, fetchFFEvents } from "@/lib/forexfactory";
 import type { FFEvent } from "@/lib/forexfactory";
-import { fetchTECoreInflation, fetchTEMoMInflation, fetchTEInflationYoY, fetchTECoreCPIMoM, fetchTECoreConsumerPricesIndex, fetchTEPPIMoM } from "@/lib/tecpi";
+import { fetchTECoreInflation, fetchTEMoMInflation, fetchTEInflationYoY, fetchTECoreCPIMoM, fetchTECoreConsumerPricesIndex, fetchTEPPIMoM, fetchTECoreInflationPages } from "@/lib/tecpi";
 import { fetchTEInflationForecasts } from "@/lib/tradingeconomics";
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
@@ -1022,24 +1022,31 @@ export async function GET(req: NextRequest) {
   // Remplace séries FRED stale/erronées.
   // Nouvelles données : cpiYoY headline, cpiCoreMoM (pages individuelles), ppiMoM
   {
-    const [teCoreMap, teMoMMap, teYoYMap, teCoreMoMMap, teCoreIdxMap, tePPIMap] = await Promise.all([
+    const [teCoreMap, teMoMMap, teYoYMap, teCoreMoMMap, teCoreIdxMap, tePPIMap, teCorePages] = await Promise.all([
       fetchTECoreInflation(),
       fetchTEMoMInflation(),
       fetchTEInflationYoY(),
       fetchTECoreCPIMoM(),
       fetchTECoreConsumerPricesIndex(),
       fetchTEPPIMoM(),
+      fetchTECoreInflationPages(), // EUR valeur précise + JPY consensus via TEForecast
     ]);
 
-    const teCore = teCoreMap[currency];
-    if (teCore) {
-      const surprise = parseFloat((teCore.value - teCore.prev).toFixed(3));
+    const teCore     = teCoreMap[currency];
+    const teCorePage = teCorePages[currency]; // EUR: valeur précise; JPY: + consensus
+    const coreValue  = teCorePage?.value ?? teCore?.value ?? null;
+    if (coreValue !== null) {
+      const prev      = teCore?.prev ?? null;
+      const refMonth  = teCorePage?.refMonth || teCore?.refMonth || "";
+      const surprise  = prev !== null ? parseFloat((coreValue - prev).toFixed(3)) : null;
+      const consensus = teCorePage?.consensus ?? null;
       indicators.cpiCore = {
-        value:       teCore.value,
-        prev:        teCore.prev,
+        value:       coreValue,
+        prev,
         surprise,
-        trend:       surprise > 0 ? "up" : surprise < 0 ? "down" : "flat",
-        lastUpdated: teCore.refMonth,
+        trend:       prev !== null ? (coreValue > prev ? "up" : coreValue < prev ? "down" : "flat") : null,
+        lastUpdated: refMonth,
+        ...(consensus !== null ? { consensus } : {}),
       };
     }
 
