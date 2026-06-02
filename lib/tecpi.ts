@@ -326,7 +326,7 @@ export async function fetchTEMoMInflation(): Promise<MoMCPIMap> {
   }
 }
 
-function parseMoMHTML(html: string): MoMCPIMap {
+function parseMoMHTML(html: string, countryMap: Record<Currency, string> = TE_COUNTRY_CPI): MoMCPIMap {
   const result: MoMCPIMap = {};
   const seen = new Set<Currency>();
   const rowPattern = /<tr[^>]*>([\s\S]*?)<\/tr>/g;
@@ -334,10 +334,11 @@ function parseMoMHTML(html: string): MoMCPIMap {
 
   while ((m = rowPattern.exec(html)) !== null) {
     const text = m[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const textLower = text.toLowerCase();
 
-    for (const [ccy, country] of Object.entries(TE_COUNTRY_CPI) as [Currency, string][]) {
+    for (const [ccy, country] of Object.entries(countryMap) as [Currency, string][]) {
       if (seen.has(ccy)) continue;
-      if (!text.startsWith(country)) continue;
+      if (!textLower.startsWith(country.toLowerCase())) continue;
 
       const nums      = text.match(/-?\d+\.?\d*/g);
       const dateMatch = text.match(/([A-Za-z]{3}\/\d{2})/);
@@ -355,6 +356,30 @@ function parseMoMHTML(html: string): MoMCPIMap {
     if (seen.size === 8) break;
   }
   return result;
+}
+
+// ── PPI MoM ──────────────────────────────────────────────────────────────────
+
+export async function fetchTEPPIMoM(): Promise<MoMCPIMap> {
+  try {
+    const res = await fetch(
+      "https://tradingeconomics.com/country-list/producer-price-inflation-mom?continent=world",
+      {
+        next: { revalidate: 21600 },
+        headers: {
+          "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
+          "Accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+      }
+    );
+    if (!res.ok) { console.warn("[tecpi-ppi] HTTP", res.status); return {}; }
+    const html = await res.text();
+    return parseMoMHTML(html); // case-insensitive → "Euro area" matche "Euro Area"
+  } catch (err) {
+    console.error("[tecpi-ppi] error:", err);
+    return {};
+  }
 }
 
 // ── Core YoY ──────────────────────────────────────────────────────────────────
