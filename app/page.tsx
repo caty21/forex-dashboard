@@ -11,7 +11,9 @@ import DriversBar from "@/components/DriversBar";
 import CalendarTab from "@/components/CalendarTab";
 import SentimentPairsTab from "@/components/SentimentPairsTab";
 import YieldsTab from "@/components/YieldsTab";
+import NewsTab from "@/components/NewsTab";
 import type { CalendarEvent } from "@/app/api/calendar/route";
+import type { NewsItem } from "@/app/api/news/route";
 
 const REFRESH_MS = parseInt(process.env.NEXT_PUBLIC_REFRESH_INTERVAL_MS ?? "3600000");
 
@@ -23,7 +25,9 @@ export default function Dashboard() {
   const [cot,          setCot]          = useState<Record<string, CotEntry> | null>(null);
   const [calEvents,    setCalEvents]    = useState<CalendarEvent[]>([]);
   const [nextWeekAvail, setNextWeekAvail] = useState(false);
-  const [activeTab,    setActiveTab]    = useState<"dashboard" | "calendar" | "pairs" | "yields">("dashboard");
+  const [activeTab,    setActiveTab]    = useState<"dashboard" | "calendar" | "pairs" | "yields" | "news">("dashboard");
+  const [newsItems,    setNewsItems]    = useState<NewsItem[]>([]);
+  const [newsLoading,  setNewsLoading]  = useState(false);
   const [rawSymbols,   setRawSymbols]   = useState<Array<{ name: string; longPercentage: number; shortPercentage: number; totalPositions: number }> | null>(null);
   const [rateProbabilities, setRateProbabilities] = useState<RateProbData | null>(null);
   const [lastRefresh,  setLastRefresh]  = useState<Date>(new Date());
@@ -212,6 +216,23 @@ export default function Dashboard() {
     return () => clearInterval(id);
   }, [refresh]);
 
+  const refreshNews = useCallback(async () => {
+    setNewsLoading(true);
+    try {
+      const res = await fetch("/api/news");
+      if (res.ok) {
+        const json = await res.json();
+        setNewsItems(json.items ?? []);
+      }
+    } finally {
+      setNewsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "news" && newsItems.length === 0) refreshNews();
+  }, [activeTab, newsItems.length, refreshNews]);
+
   const handleDivergenceUpdate = useCallback((currency: Currency, score: number) => {
     setActiveDivergences((prev) => {
       const filtered = prev.filter((d) => d.currency !== currency);
@@ -271,7 +292,7 @@ export default function Dashboard() {
 
       {/* Tab navigation */}
       <div className="flex gap-0 border-b border-slate-800 mb-4">
-        {(["dashboard", "calendar", "pairs", "yields"] as const).map((tab) => (
+        {(["dashboard", "calendar", "pairs", "yields", "news"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -284,7 +305,8 @@ export default function Dashboard() {
             {tab === "dashboard" ? "Dashboard"
               : tab === "calendar" ? "📅 Calendrier"
               : tab === "pairs"   ? "↕ Paires"
-              : "📈 Yields 10Y"}
+              : tab === "yields"  ? "📈 Yields 10Y"
+              : "📰 Actualités"}
           </button>
         ))}
       </div>
@@ -343,6 +365,10 @@ export default function Dashboard() {
 
       {activeTab === "yields" && (
         <YieldsTab yieldsData={yields} />
+      )}
+
+      {activeTab === "news" && (
+        <NewsTab items={newsItems} loading={newsLoading} onRefresh={refreshNews} />
       )}
 
       {/* Legend */}
