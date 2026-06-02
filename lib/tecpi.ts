@@ -609,3 +609,31 @@ export async function fetchTEAUDCommodityYoY(): Promise<InflationYoYPageEntry | 
     return { value, prev, consensus, refMonth };
   } catch { return null; }
 }
+
+// ── GDP Growth Rate QoQ% ──────────────────────────────────────────────────────
+// Source : https://tradingeconomics.com/country-list/gdp-growth-rate
+// Une seule requête HTTP (cache 6h) couvre les 8 devises.
+// Remplace les séries FRED qui retournent souvent un indice niveau à la place
+// du QoQ% réel, et qui sont en retard d'1 à 4 trimestres selon la devise.
+
+export async function fetchTEGDPGrowthRate(): Promise<CoreCPIMap> {
+  try {
+    const res = await fetch(
+      "https://tradingeconomics.com/country-list/gdp-growth-rate?continent=world",
+      {
+        next: { revalidate: 21600 },
+        headers: {
+          "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
+          "Accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+      }
+    );
+    if (!res.ok) { console.warn("[tecpi-gdp] HTTP", res.status); return {}; }
+    const html = await res.text();
+    return parseCoreInflationHTML(html);
+  } catch (err) {
+    console.error("[tecpi-gdp] error:", err);
+    return {};
+  }
+}

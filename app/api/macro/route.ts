@@ -5,7 +5,7 @@ import cpiOverridesRaw   from "@/data/cpi_overrides.json";
 import rateDecisionsRaw  from "@/data/rate_decisions.json";
 import { fetchFFThisWeek, fetchFFEvents } from "@/lib/forexfactory";
 import type { FFEvent } from "@/lib/forexfactory";
-import { fetchTECoreInflation, fetchTEMoMInflation, fetchTEInflationYoY, fetchTECoreCPIMoM, fetchTECoreConsumerPricesIndex, fetchTEPPIMoM, fetchTECoreInflationPages, fetchTEInflationYoYPages, fetchTEAUDCommodityYoY } from "@/lib/tecpi";
+import { fetchTECoreInflation, fetchTEMoMInflation, fetchTEInflationYoY, fetchTECoreCPIMoM, fetchTECoreConsumerPricesIndex, fetchTEPPIMoM, fetchTECoreInflationPages, fetchTEInflationYoYPages, fetchTEAUDCommodityYoY, fetchTEGDPGrowthRate } from "@/lib/tecpi";
 import { fetchTEInflationForecasts } from "@/lib/tradingeconomics";
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
@@ -1025,7 +1025,7 @@ export async function GET(req: NextRequest) {
   // Remplace séries FRED stale/erronées.
   // Nouvelles données : cpiYoY headline, cpiCoreMoM (pages individuelles), ppiMoM
   {
-    const [teCoreMap, teMoMMap, teYoYMap, teCoreMoMMap, teCoreIdxMap, tePPIMap, teCorePages, teYoYPages, teAUDComm] = await Promise.all([
+    const [teCoreMap, teMoMMap, teYoYMap, teCoreMoMMap, teCoreIdxMap, tePPIMap, teCorePages, teYoYPages, teAUDComm, teGDPMap] = await Promise.all([
       fetchTECoreInflation(),
       fetchTEMoMInflation(),
       fetchTEInflationYoY(),
@@ -1035,6 +1035,7 @@ export async function GET(req: NextRequest) {
       fetchTECoreInflationPages(),
       fetchTEInflationYoYPages(),
       currency === "AUD" ? fetchTEAUDCommodityYoY() : Promise.resolve(null),
+      fetchTEGDPGrowthRate(),
     ]);
 
     const teCore     = teCoreMap[currency];
@@ -1132,6 +1133,27 @@ export async function GET(req: NextRequest) {
         lastUpdated: tePPI.refMonth,
         consensus:   parseTeF(teCpiForecast?.ppiMoM) ?? null,
       };
+    }
+
+    // GDP Growth Rate QoQ% — TE country-list (source autoritaire, remplace FRED stale)
+    // FRED : retourne souvent l'indice niveau brut → QoQ% faux ou en retard de plusieurs trimestres
+    // TE country-list/gdp-growth-rate : QoQ% publié directement, mis à jour à chaque release
+    {
+      const teGDP = teGDPMap[currency];
+      if (teGDP) {
+        const surprise = teGDP.prev !== null
+          ? parseFloat((teGDP.value - teGDP.prev).toFixed(4))
+          : null;
+        indicators.gdp = {
+          value:       teGDP.value,
+          prev:        teGDP.prev,
+          surprise,
+          trend:       teGDP.prev !== null
+            ? (teGDP.value > teGDP.prev ? "up" : teGDP.value < teGDP.prev ? "down" : "flat")
+            : null,
+          lastUpdated: teGDP.refMonth,
+        };
+      }
     }
 
     // AUD Commodity Prices YoY
