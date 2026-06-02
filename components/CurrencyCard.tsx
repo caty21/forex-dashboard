@@ -251,6 +251,7 @@ export default function CurrencyCard({
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [inflFilter, setInflFilter] = useState<"all" | "mom" | "yoy">("mom");
   const [expandedSig, setExpandedSig] = useState<string | null>(null);
+  const [divergenceOpen, setDivergenceOpen] = useState(false);
 
   // ── Data fetch ───────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -463,6 +464,18 @@ export default function CurrencyCard({
     divergenceSignal === "warning" ? `Divergence: macro ${dir === "bullish" ? "↑" : dir === "bearish" ? "↓" : "→"} vs signaux ${mispricDir === "bullish" ? "↑" : mispricDir === "bearish" ? "↓" : "→"}` :
     "Pas de signal convergent";
 
+  // Détail des contributeurs macro (même logique que calcMacroScore)
+  const macroContributors: { label: string; value: string; sig: number }[] = [
+    { label: "Taux directeur", value: inds?.policyRate?.value != null ? `${inds.policyRate.value.toFixed(2)}%` : "", sig: (() => { const s = inds?.policyRate?.surprise; return s == null ? 0 : s > 0.3 ? 1 : s < -0.3 ? -1 : 0; })() },
+    { label: "Core CPI",       value: inds?.cpiCore?.value     != null ? `${inds.cpiCore.value.toFixed(2)}%`     : "", sig: (() => { const s = inds?.cpiCore?.surprise;      return s == null ? 0 : s > 0.3 ? 1 : s < -0.3 ? -1 : 0; })() },
+    { label: "PMI Mfg",        value: inds?.pmiMfg?.value      != null ? `${inds.pmiMfg.value.toFixed(1)}`       : "", sig: inds?.pmiMfg?.value      != null ? (inds.pmiMfg.value > 50 ? 1 : -1)      : 0 },
+    { label: "PMI Services",   value: inds?.pmiServices?.value  != null ? `${inds.pmiServices.value.toFixed(1)}`  : "", sig: inds?.pmiServices?.value  != null ? (inds.pmiServices.value > 50 ? 1 : -1)  : 0 },
+    { label: "PIB QoQ",        value: inds?.gdp?.value         != null ? `${inds.gdp.value > 0 ? "+" : ""}${inds.gdp.value.toFixed(2)}%`         : "", sig: (() => { const s = inds?.gdp?.surprise;         return s == null ? 0 : s > 0.3 ? 1 : s < -0.3 ? -1 : 0; })() },
+    { label: "Retail Sales",   value: inds?.retailSales?.value  != null ? `${inds.retailSales.value > 0 ? "+" : ""}${inds.retailSales.value.toFixed(2)}%` : "", sig: (() => { const s = inds?.retailSales?.surprise;  return s == null ? 0 : s > 0.3 ? 1 : s < -0.3 ? -1 : 0; })() },
+    { label: "Chômage",        value: inds?.unemployment?.value != null ? `${inds.unemployment.value.toFixed(2)}%` : "", sig: (() => { const s = inds?.unemployment?.surprise; return s == null ? 0 : s < -0.3 ? 1 : s > 0.3 ? -1 : 0; })() },
+    { label: "Emploi",         value: inds?.employment?.value  != null ? `${inds.employment.value > 0 ? "+" : ""}${inds.employment.value.toFixed(1)}k` : "", sig: (() => { const s = inds?.employment?.surprise;  return s == null ? 0 : s > 10 ? 1 : s < -10 ? -1 : 0; })() },
+  ].filter(c => c.value !== "");
+
   // ── Tabs config ──────────────────────────────────────────────────────────────
   const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "overview",   label: "Aperçu",   icon: <Layers size={10} /> },
@@ -607,18 +620,86 @@ export default function CurrencyCard({
                   </div>
                 )}
 
-                {/* Divergence / convergence signal */}
+                {/* Divergence / convergence signal — expandable */}
                 {divergenceSignal !== "neutral" && (
-                  <div className={`rounded-xl border p-3 flex items-center justify-between ${sigBg(divergenceSignal)}`}>
-                    <div>
-                      <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-0.5">Signal Convergence</div>
-                      <div className={`text-[11px] font-semibold ${sigColor(divergenceSignal)}`}>{divergenceType}</div>
-                    </div>
-                    <div>
-                      {divergenceSignal === "bullish" && <TrendingUp size={18} className="text-emerald-400" />}
-                      {divergenceSignal === "bearish" && <TrendingDown size={18} className="text-red-400" />}
-                      {divergenceSignal === "warning" && <AlertTriangle size={18} className="text-amber-400" />}
-                    </div>
+                  <div className={`rounded-xl border overflow-hidden ${sigBg(divergenceSignal)}`}>
+                    <button
+                      className="w-full p-3 flex items-center justify-between text-left"
+                      onClick={() => setDivergenceOpen(o => !o)}
+                    >
+                      <div>
+                        <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-0.5">Signal Convergence</div>
+                        <div className={`text-[11px] font-semibold ${sigColor(divergenceSignal)}`}>{divergenceType}</div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {divergenceSignal === "bullish" && <TrendingUp size={16} className="text-emerald-400" />}
+                        {divergenceSignal === "bearish" && <TrendingDown size={16} className="text-red-400" />}
+                        {divergenceSignal === "warning" && <AlertTriangle size={16} className="text-amber-400" />}
+                        <ChevronRight size={12} className={`text-slate-600 transition-transform ${divergenceOpen ? "rotate-90" : ""}`} />
+                      </div>
+                    </button>
+                    <AnimatePresence>
+                      {divergenceOpen && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="px-3 pb-3 space-y-3 border-t border-slate-700/30">
+                            {/* Macro indicators */}
+                            <div className="pt-2">
+                              <div className="text-[9px] text-slate-600 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                                <span>Fondamentaux macro</span>
+                                <span className={`font-bold text-[10px] ${sigColor(dir)}`}>score {macroScore > 0 ? "+" : ""}{macroScore}</span>
+                              </div>
+                              <div className="space-y-1">
+                                {macroContributors.map(c => (
+                                  <div key={c.label} className="flex items-center justify-between text-[11px]">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className={c.sig > 0 ? "text-emerald-400" : c.sig < 0 ? "text-red-400" : "text-slate-600"}>
+                                        {c.sig > 0 ? "↑" : c.sig < 0 ? "↓" : "→"}
+                                      </span>
+                                      <span className="text-slate-400">{c.label}</span>
+                                    </div>
+                                    <span className={`font-semibold tabular-nums ${c.sig > 0 ? "text-emerald-400" : c.sig < 0 ? "text-red-400" : "text-slate-500"}`}>
+                                      {c.value}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                            {/* Market signals */}
+                            {mispricingSignals.length > 0 && (
+                              <div className="pt-2 border-t border-slate-700/30">
+                                <div className="text-[9px] text-slate-600 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                                  <span>Signaux marché</span>
+                                  <span className={`font-bold text-[10px] ${sigColor(mispricDir)}`}>
+                                    {bullCount}↑ {bearCount}↓
+                                  </span>
+                                </div>
+                                <div className="space-y-1">
+                                  {mispricingSignals.map(s => (
+                                    <div key={s.id} className="flex items-center justify-between text-[11px]">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className={sigColor(s.direction)}>
+                                          {s.direction === "bullish" ? "↑" : s.direction === "bearish" ? "↓" : "→"}
+                                        </span>
+                                        <span className="text-slate-400 truncate max-w-[120px]">{s.label}</span>
+                                      </div>
+                                      <span className={`font-semibold tabular-nums shrink-0 ${sigColor(s.direction)}`}>
+                                        {s.value}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 )}
 
