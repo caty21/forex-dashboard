@@ -351,9 +351,13 @@ export default function CurrencyCard({ currency, expectations, yields, sentiment
         {/* ── POLITIQUE MONÉTAIRE ─────────────────────────────────────────── */}
         <SectionHeader label="Politique monétaire" />
         <Row label="Taux directeur" ind={inds?.policyRate ?? null} unit="%" consensus={rateConsensus} />
-        <div className="flex items-center justify-between py-1.5 text-xs border-b border-gray-50">
-          <span className="text-gray-500 text-xs pl-5">10Y Yield</span>
-          <span className="font-semibold text-gray-800 tabular-nums text-xs">
+        <div className="py-1.5 border-b border-gray-50">
+          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <div className="w-3 h-3 flex-shrink-0" />
+            <span className="text-xs text-gray-500">10Y Yield</span>
+          </div>
+          <span className="font-semibold text-gray-800 tabular-nums text-xs flex-shrink-0">
             {yield10Y !== null ? `${yield10Y.toFixed(2)}%` : "—"}
             {spread10Y !== null && (
               <span className={`ml-1 text-[10px] ${spread10Y > 0 ? "text-green-600" : "text-red-600"}`}>
@@ -361,6 +365,7 @@ export default function CurrencyCard({ currency, expectations, yields, sentiment
               </span>
             )}
           </span>
+          </div>
         </div>
 
         {/* ── INFLATION ───────────────────────────────────────────────────── */}
