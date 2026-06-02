@@ -96,18 +96,20 @@ function Row({ label, ind, unit = "", invertSurprise = false, warn = false, cons
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
           <TrendIcon trend={ind?.trend ?? null} />
-          <span className="text-xs text-gray-500 truncate flex items-center gap-0.5">
+          {/* label dans son propre span truncate — sans enfants positionnés absolument */}
+          <span className="text-xs text-gray-500 truncate">
             {label}
             {warn && <span className="text-amber-400 ml-0.5">⚠</span>}
-            {info && (
-              <span className="relative group/info inline-flex shrink-0 ml-0.5 cursor-help">
-                <span className="inline-flex items-center justify-center w-3 h-3 rounded-full border border-blue-300 text-blue-400 text-[7px] font-bold leading-none">i</span>
-                <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-48 px-2 py-1.5 rounded-md bg-gray-900 text-white text-[10px] leading-snug opacity-0 group-hover/info:opacity-100 transition-opacity duration-150 z-50 shadow-lg whitespace-normal text-left">
-                  {info}
-                </span>
-              </span>
-            )}
           </span>
+          {/* info badge EN DEHORS du truncate pour éviter le clip overflow:hidden */}
+          {info && (
+            <span className="relative group/info inline-flex shrink-0 cursor-help">
+              <span className="inline-flex items-center justify-center w-3 h-3 rounded-full border border-blue-300 text-blue-400 text-[7px] font-bold leading-none">i</span>
+              <span className="pointer-events-none absolute bottom-full left-0 mb-1.5 w-52 px-2 py-1.5 rounded-md bg-gray-900 text-white text-[10px] leading-snug opacity-0 group-hover/info:opacity-100 transition-opacity duration-150 z-50 shadow-lg whitespace-normal text-left">
+                {info}
+              </span>
+            </span>
+          )}
         </div>
         {tooltip ? (
           <span className="relative group/val cursor-default shrink-0">
@@ -267,7 +269,7 @@ export default function CurrencyCard({ currency, expectations, yields, sentiment
   })();
 
   return (
-    <div className={`bg-white border rounded-xl overflow-hidden ${borderCls}`}>
+    <div className={`bg-white border rounded-xl ${borderCls}`}>
       {/* Header */}
       <div className="px-4 pt-3 pb-2">
         <div className="flex items-center justify-between mb-1">

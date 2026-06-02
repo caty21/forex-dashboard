@@ -15,6 +15,12 @@ const config: Config = {
     },
   },
   plugins: [],
+  safelist: [
+    "group/info",
+    "group-hover/info:opacity-100",
+    "group/val",
+    "group-hover/val:opacity-100",
+  ],
 };
 
 export default config;
