@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import { Sparkles, X } from "lucide-react";
-import type { Currency, CurrencyIndicators } from "@/lib/types";
+import type { Currency, BiasPhase } from "@/lib/types";
 
 interface Props {
   currency: Currency;
-  indicators: CurrencyIndicators;
+  phase: BiasPhase;
   macroScore: number;
 }
 
-export default function NarrativeButton({ currency, indicators, macroScore }: Props) {
+export default function NarrativeButton({ currency, phase, macroScore }: Props) {
   const [open, setOpen] = useState(false);
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -26,7 +26,7 @@ export default function NarrativeButton({ currency, indicators, macroScore }: Pr
         body: JSON.stringify({
           mode: "summary",
           currency,
-          data: { indicators, macroScore },
+          data: { phase, macroScore },
         }),
       });
       const data = await res.json();
