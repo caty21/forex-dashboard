@@ -58,11 +58,12 @@ function TrendIcon({ trend }: { trend: "up"|"down"|"flat"|null }) {
   return <Minus size={11} className="text-gray-300 flex-shrink-0" />;
 }
 
-function Row({ label, ind, unit = "", invertSurprise = false, warn = false, consensus = null, surpriseVsCons = null, tooltip = null }: {
+function Row({ label, ind, unit = "", invertSurprise = false, warn = false, consensus = null, surpriseVsCons = null, tooltip = null, info = null }: {
   label: string; ind: Ind | null; unit?: string; invertSurprise?: boolean; warn?: boolean;
   consensus?: number | null;
   surpriseVsCons?: number | null;
   tooltip?: string | null;
+  info?: string | null;       // petit "i" avec tooltip sur le label
 }) {
   const value = ind?.value ?? null;
   const prev  = ind?.prev  ?? null;
@@ -94,7 +95,9 @@ function Row({ label, ind, unit = "", invertSurprise = false, warn = false, cons
         <div className="flex items-center gap-1.5 min-w-0">
           <TrendIcon trend={ind?.trend ?? null} />
           <span className="text-xs text-gray-500 truncate">
-            {label}{warn && <span className="text-amber-400 ml-0.5">⚠</span>}
+            {label}
+            {warn  && <span className="text-amber-400 ml-0.5">⚠</span>}
+            {info  && <span className="text-blue-300 ml-0.5 text-[9px] cursor-help" title={info}>ⓘ</span>}
           </span>
         </div>
         <span className={`text-xs font-semibold tabular-nums flex-shrink-0 ${valCls}`} title={tooltip ?? undefined}>
@@ -380,7 +383,7 @@ export default function CurrencyCard({ currency, expectations, yields, sentiment
         {(inflFilter === "all" || inflFilter === "mom") && (
           <>
             <Row label="PPI MoM" ind={inds?.ppiMoM ?? null} unit="%" />
-            <Row label="CPI MoM" ind={inds?.cpiMoM ?? null} unit="%" consensus={fc?.cpiMoM ?? null} />
+            <Row label="CPI MoM" ind={inds?.cpiMoM ?? null} unit="%" consensus={fc?.cpiMoM ?? null} info="Source : Inflation Rate MoM (TradingEconomics)" />
             <Row
               label={(() => {
                 const isQoQ = (inds?.cpiCoreMoM as (Ind & { isQoQ?: boolean }) | null)?.isQoQ;

@@ -246,21 +246,19 @@ export async function fetchTECoreCPIMoM(): Promise<MoMCPIMap> {
       const MONTHS: Record<string, string> = { January:"01",February:"02",March:"03",April:"04",May:"05",June:"06",July:"07",August:"08",September:"09",October:"10",November:"11",December:"12" };
       const QUARTERS: Record<string, string> = { first:"01",second:"04",third:"07",fourth:"10" };
       const curYear = new Date().getFullYear().toString();
-      // 1) "in [Month] of [Year]" ou "in [Month] from ... [Year]"
-      const dateM = desc.match(/in\s+([A-Za-z]+)\s+(?:of\s+)?(\d{4})/i);
-      // 2) Trimestriel : "in the fourth quarter of 2025"
-      const dateQ = desc.match(/in\s+the\s+(first|second|third|fourth)\s+quarter\s+of\s+(\d{4})/i);
-      // 3) Mois sans année : "remained unchanged at X points in March."
-      const dateNoYear = desc.match(/in\s+(January|February|March|April|May|June|July|August|September|October|November|December)[\s.,]/i);
+      // Mois courant = premier "to/at X [points/percent] in [Month]" dans la description
+      const dateCurrM = desc.match(/(?:to|at)\s+[\d.]+\s+(?:points?|percent)\s+in\s+([A-Za-z]+)/i);
+      // Année = "of [Year]" n'importe où
+      const yearM    = desc.match(/\bof\s+(\d{4})\b/);
+      // Trimestriel NZD
+      const dateQ    = desc.match(/in\s+the\s+(first|second|third|fourth)\s+quarter\s+of\s+(\d{4})/i);
       let refMonth = "";
-      if (dateM && MONTHS[dateM[1]]) {
-        refMonth = `${dateM[2]}-${MONTHS[dateM[1]]}-01`;
-      } else if (dateQ) {
+      if (dateQ) {
         refMonth = `${dateQ[2]}-${QUARTERS[dateQ[1].toLowerCase()]}-01`;
-      } else if (dateNoYear) {
-        const mn = dateNoYear[1];
+      } else if (dateCurrM) {
+        const mn  = dateCurrM[1];
         const cap = mn.charAt(0).toUpperCase() + mn.slice(1).toLowerCase();
-        if (MONTHS[cap]) refMonth = `${curYear}-${MONTHS[cap]}-01`;
+        if (MONTHS[cap]) refMonth = `${yearM?.[1] ?? curYear}-${MONTHS[cap]}-01`;
       }
       const entry: MoMCPIEntry = {
         value:   parsed.value,
