@@ -508,6 +508,7 @@ type IndicatorResult = {
   surprise: number | null;
   trend: "up" | "down" | "flat" | null;
   lastUpdated: string | null;
+  consensus?: number | null;
 } | null;
 
 function toIndicator(obs: Obs[]): IndicatorResult {
@@ -1087,7 +1088,6 @@ export async function GET(req: NextRequest) {
     // Core CPI MoM (pages individuelles, décimales précises)
     const teCoreMoM = teCoreMoMMap[currency];
     if (teCoreMoM) {
-      // prev=null pour les devises index-only (JPY/CHF/AUD/NZD)
       const surprise = teCoreMoM.prev !== null
         ? parseFloat((teCoreMoM.value - teCoreMoM.prev).toFixed(3))
         : null;
@@ -1097,6 +1097,7 @@ export async function GET(req: NextRequest) {
         surprise,
         trend:       teCoreMoM.value > 0 ? "up" : teCoreMoM.value < 0 ? "down" : "flat",
         lastUpdated: teCoreMoM.refMonth,
+        consensus:   parseTeF(teCpiForecast?.cpiCoreMoM) ?? null,
       };
     }
 
@@ -1112,6 +1113,7 @@ export async function GET(req: NextRequest) {
         surprise,
         trend:       tePPI.value > 0 ? "up" : tePPI.value < 0 ? "down" : "flat",
         lastUpdated: tePPI.refMonth,
+        consensus:   parseTeF(teCpiForecast?.ppiMoM) ?? null,
       };
     }
 
@@ -1132,9 +1134,11 @@ export async function GET(req: NextRequest) {
     forecasts: {
       // CPI — TE calendar forecast (priorité) puis ForexFactory
       // Les forecasts TE sont des strings "2.8%" → parseFloat les convertit en number
-      cpi:                    parseTeF(teCpiForecast?.cpiYoY)  ?? ffForecasts.cpi  ?? null,
-      cpiCore:                parseTeF(teCpiForecast?.cpiCore) ?? null,
-      cpiMoM:                 parseTeF(teCpiForecast?.cpiMoM)  ?? null,
+      cpi:                    parseTeF(teCpiForecast?.cpiYoY)     ?? ffForecasts.cpi  ?? null,
+      cpiCore:                parseTeF(teCpiForecast?.cpiCore)    ?? null,
+      cpiMoM:                 parseTeF(teCpiForecast?.cpiMoM)     ?? null,
+      cpiCoreMoM:             parseTeF(teCpiForecast?.cpiCoreMoM) ?? null,
+      ppiMoM:                 parseTeF(teCpiForecast?.ppiMoM)     ?? null,
       cpiSurprise:            ffForecasts.cpiSurprise,
       unemployment:           ffForecasts.unemployment,
       unemploymentSurprise:   ffForecasts.unemploymentSurprise,

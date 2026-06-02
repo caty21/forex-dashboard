@@ -13,8 +13,10 @@ import NarrativeButton from "./NarrativeButton";
 interface Ind { value: number | null; prev: number | null; surprise: number | null; trend: "up"|"down"|"flat"|null; lastUpdated: string | null }
 interface MacroForecasts {
   cpi: number | null; cpiSurprise: number | null;
-  cpiCore: number | null;
-  cpiMoM:  number | null;
+  cpiCore:    number | null;
+  cpiMoM:     number | null;
+  cpiCoreMoM: number | null;
+  ppiMoM:     number | null;
   unemployment: number | null; unemploymentSurprise: number | null;
   pmiMfg: number | null; pmiMfgSurprise: number | null;
   pmiSvc: number | null; pmiSvcSurprise: number | null;
@@ -382,7 +384,7 @@ export default function CurrencyCard({ currency, expectations, yields, sentiment
         </div>
         {(inflFilter === "all" || inflFilter === "mom") && (
           <>
-            <Row label="PPI MoM" ind={inds?.ppiMoM ?? null} unit="%" />
+            <Row label="PPI MoM" ind={inds?.ppiMoM ?? null} unit="%" consensus={fc?.ppiMoM ?? null} />
             <Row label="CPI MoM" ind={inds?.cpiMoM ?? null} unit="%" consensus={fc?.cpiMoM ?? null} info="Source : Inflation Rate MoM (TradingEconomics)" />
             <Row
               label={(() => {
@@ -391,6 +393,7 @@ export default function CurrencyCard({ currency, expectations, yields, sentiment
               })()}
               ind={inds?.cpiCoreMoM ?? null}
               unit="%"
+              consensus={fc?.cpiCoreMoM ?? null}
               tooltip={(() => {
                 const raw = (inds?.cpiCoreMoM as (Ind & { _raw?: { last: number; prev: number; refMonth: string } }) | null)?._raw;
                 const base = "=Core Inflation Rate MoM";
