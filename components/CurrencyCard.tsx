@@ -103,6 +103,45 @@ function sigBar(d: SignalDir) {
   return "bg-slate-500";
 }
 
+function computeESI(inds: Record<string, Ind | null> | undefined): number | null {
+  if (!inds) return null;
+  const invertedKeys = new Set(["unemployment"]);
+  const checkKeys = ["cpiYoY", "cpiCore", "pmiMfg", "pmiServices", "gdp", "retailSales", "cpiMoM", "ppiMoM", "employment"];
+  const signs: number[] = [];
+  for (const key of checkKeys) {
+    const s = inds[key]?.surprise;
+    if (s === null || s === undefined) continue;
+    const sign = s > 0 ? 1 : s < 0 ? -1 : 0;
+    signs.push(invertedKeys.has(key) ? -sign : sign);
+  }
+  if (signs.length === 0) return null;
+  return Math.round(signs.reduce((a, v) => a + v, 0) / signs.length * 100);
+}
+
+function SurpriseIndexBadge({ value }: { value: number }) {
+  const color = value > 20 ? "text-emerald-400" : value < -20 ? "text-red-400" : "text-slate-400";
+  const bgBar = value > 20 ? "bg-emerald-500" : value < -20 ? "bg-red-500" : "bg-slate-500";
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-[10px] text-slate-600">ESI</span>
+      <div className="w-12 h-1 bg-slate-700 rounded-full overflow-hidden">
+        <div className={`h-full ${bgBar} rounded-full`} style={{ width: `${Math.min(100, Math.abs(value))}%` }} />
+      </div>
+      <span className={`text-[10px] font-bold tabular-nums ${color}`}>{value > 0 ? "+" : ""}{value}</span>
+    </div>
+  );
+}
+
+function FocusRow({ importance, children }: { importance: "critical" | "high" | "medium"; children: React.ReactNode }) {
+  const dot = importance === "critical" ? "bg-red-500" : importance === "high" ? "bg-amber-500" : "bg-slate-500";
+  return (
+    <div className="flex items-start gap-2">
+      <span className={`w-1.5 h-1.5 rounded-full mt-[7px] shrink-0 ${dot}`} />
+      <div className="flex-1 min-w-0">{children}</div>
+    </div>
+  );
+}
+
 function trendDir(t: "up"|"down"|"flat"|null): SignalDir {
   if (t === "up")   return "bullish";
   if (t === "down") return "bearish";
@@ -292,6 +331,16 @@ export default function CurrencyCard({
   const yield10Y   = yields?.yields[currency]  ?? null;
   const spread10Y  = yields?.spreads[currency] ?? null;
 
+  const esi = computeESI(inds);
+  const policyRateValue = inds?.policyRate?.value ?? null;
+  const curveSpread = yield10Y !== null && policyRateValue !== null
+    ? Math.round((yield10Y - policyRateValue) * 100) : null;
+  const curveInverted = curveSpread !== null && curveSpread < 0;
+  const curveSig: SignalDir = curveSpread === null ? "neutral"
+    : curveSpread < -50 ? "warning"
+    : curveInverted ? "neutral"
+    : "bullish";
+
   useEffect(() => { onDivergenceUpdate(currency, macroScore); }, [macroScore, currency, onDivergenceUpdate]);
 
   const rateConsensus = (() => {
@@ -334,15 +383,21 @@ export default function CurrencyCard({
     });
   }
 
-  // OIS / rate probability
+  // OIS / rate probability — avec drift bps fin d'an
   if (ratePath && ratePath.meetings.length > 0) {
     const peak = ratePath.peakMeeting;
+    const yearEndBps = ratePath.yearEndImplied !== null
+      ? Math.round((ratePath.yearEndImplied - ratePath.currentRate) * 100) : null;
     if (peak) {
       const oisDir: SignalDir = peak.probIsCut ? "bearish" : "bullish";
+      const bpsLabel = yearEndBps !== null ? `${yearEndBps > 0 ? "+" : ""}${yearEndBps}bps fin an` : "";
       mispricingSignals.push({
-        id: "ois", label: "OIS Probabilité de Move", direction: oisDir,
-        value: `${peak.probMovePct.toFixed(0)}% ${peak.probIsCut ? "Cut" : "Hike"}`,
-        detail: `Pic de probabilité OIS : ${peak.probMovePct.toFixed(0)}% ${peak.probIsCut ? "de baisse" : "de hausse"} lors de la réunion ${peak.label}. Taux fin d'année implicite : ${ratePath.yearEndImplied?.toFixed(2) ?? "—"}%.`,
+        id: "ois", label: "OIS — Drift taux fin d'an",
+        direction: oisDir,
+        value: bpsLabel
+          ? `${peak.probMovePct.toFixed(0)}% ${peak.probIsCut ? "Cut" : "Hike"} · ${bpsLabel}`
+          : `${peak.probMovePct.toFixed(0)}% ${peak.probIsCut ? "Cut" : "Hike"}`,
+        detail: `Pic OIS : ${peak.probMovePct.toFixed(0)}% de ${peak.probIsCut ? "baisse" : "hausse"} à la réunion ${peak.label}. Taux implicite fin d'an : ${ratePath.yearEndImplied?.toFixed(2) ?? "—"}% (${yearEndBps !== null ? (yearEndBps > 0 ? "+" : "") + yearEndBps + "bps vs taux actuel" : "—"}).`,
         strength: peak.probMovePct,
         icon: <Target size={13} />,
       });
@@ -376,14 +431,14 @@ export default function CurrencyCard({
     });
   }
 
-  // Sentiment
+  // Sentiment retail — contrarian (majorité short = bullish, majorité long = bearish)
   if (sentiment) {
-    const sentDir: SignalDir = sentiment.signal === "contrarian_bullish" ? "bullish"
-      : sentiment.signal === "contrarian_bearish" ? "bearish" : "neutral";
+    const sentDir: SignalDir = sentiment.longPct < 30 ? "bullish"
+      : sentiment.longPct > 70 ? "bearish" : "neutral";
     mispricingSignals.push({
       id: "sentiment", label: "Sentiment Retail (Contrarian)", direction: sentDir,
       value: `${sentiment.longPct.toFixed(0)}% Long`,
-      detail: `Retail ${sentiment.longPct.toFixed(0)}% long / ${sentiment.shortPct.toFixed(0)}% short. Signal contrarian : ${sentDir === "bullish" ? "majorité short → opportunité haussière" : sentDir === "bearish" ? "majorité long → opportunité baissière" : "sentiment neutre"}.`,
+      detail: `Retail ${sentiment.longPct.toFixed(0)}% long / ${sentiment.shortPct.toFixed(0)}% short. Signal contrarian : ${sentDir === "bullish" ? "majorité short → opportunité haussière" : sentDir === "bearish" ? "majorité long → opportunité baissière" : "sentiment équilibré — pas de signal contrarian fort"}.`,
       strength: Math.abs(sentiment.longPct - 50) * 2,
       icon: <Eye size={13} />,
     });
@@ -394,6 +449,16 @@ export default function CurrencyCard({
   const avgStr     = mispricingSignals.length > 0
     ? Math.round(mispricingSignals.reduce((a, s) => a + s.strength, 0) / mispricingSignals.length) : 0;
   const mispricDir: SignalDir = bullCount > bearCount ? "bullish" : bearCount > bullCount ? "bearish" : "neutral";
+
+  const divergenceSignal: SignalDir =
+    mispricDir !== "neutral" && dir !== "neutral" && mispricDir === dir ? mispricDir :
+    mispricDir !== "neutral" && dir !== "neutral" && mispricDir !== dir ? "warning" :
+    mispricDir !== "neutral" ? mispricDir : "neutral";
+  const divergenceType =
+    divergenceSignal === "bullish" ? "Convergence haussière multi-signal" :
+    divergenceSignal === "bearish" ? "Convergence baissière multi-signal" :
+    divergenceSignal === "warning" ? `Divergence: macro ${dir === "bullish" ? "↑" : dir === "bearish" ? "↓" : "→"} vs signaux ${mispricDir === "bullish" ? "↑" : mispricDir === "bearish" ? "↓" : "→"}` :
+    "Pas de signal convergent";
 
   // ── Tabs config ──────────────────────────────────────────────────────────────
   const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
@@ -434,7 +499,7 @@ export default function CurrencyCard({
           </div>
         </div>
 
-        {/* Phase pill + mispricing + cache */}
+        {/* Phase pill + mispricing + ESI + cache */}
         <div className="flex items-center gap-2 flex-wrap">
           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${phaseStyle(phase)}`}>
             {phaseLabel(phase)}
@@ -447,6 +512,7 @@ export default function CurrencyCard({
               <span className="text-slate-600">signaux</span>
             </span>
           )}
+          {esi !== null && <SurpriseIndexBadge value={esi} />}
           {fromCache && cacheAge && (
             <span className="flex items-center gap-0.5 text-[9px] text-amber-500" title="Données depuis le cache local">
               <Database size={9} /> cache {cacheAge}
@@ -538,6 +604,21 @@ export default function CurrencyCard({
                   </div>
                 )}
 
+                {/* Divergence / convergence signal */}
+                {divergenceSignal !== "neutral" && (
+                  <div className={`rounded-xl border p-3 flex items-center justify-between ${sigBg(divergenceSignal)}`}>
+                    <div>
+                      <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-0.5">Signal Convergence</div>
+                      <div className={`text-[11px] font-semibold ${sigColor(divergenceSignal)}`}>{divergenceType}</div>
+                    </div>
+                    <div>
+                      {divergenceSignal === "bullish" && <TrendingUp size={18} className="text-emerald-400" />}
+                      {divergenceSignal === "bearish" && <TrendingDown size={18} className="text-red-400" />}
+                      {divergenceSignal === "warning" && <AlertTriangle size={18} className="text-amber-400" />}
+                    </div>
+                  </div>
+                )}
+
                 {/* Politique Monétaire */}
                 <MacroBlock title="Politique Monétaire">
                   <IRow
@@ -561,6 +642,17 @@ export default function CurrencyCard({
                       )}
                     </div>
                   </div>
+                  {curveSpread !== null && (
+                    <div className="flex items-center justify-between text-[12px]">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-slate-600">→</span>
+                        <span className="text-slate-400">Courbe (10Y−CT)</span>
+                      </div>
+                      <span className={`font-semibold tabular-nums ${sigColor(curveSig)}`}>
+                        {curveSpread > 0 ? "+" : ""}{curveSpread}bps{curveInverted ? " ⚠" : ""}
+                      </span>
+                    </div>
+                  )}
                 </MacroBlock>
 
                 {/* Inflation avec filtre MoM/YoY */}
@@ -676,42 +768,34 @@ export default function CurrencyCard({
                   </div>
                 </div>
 
-                {/* COT mini chart */}
-                {cot && cot.history.length > 1 && (
+                {/* COT — positions Long/Short hedge funds */}
+                {cot && (
                   <div className="bg-slate-800/40 rounded-xl border border-slate-700/30 p-3">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-1.5">
                         <BarChart2 size={11} className="text-slate-400" />
-                        <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Positions COT Nettes (historique)</span>
+                        <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">COT — Positions Hedge Funds</span>
                       </div>
-                      <span className={`text-xs font-bold ${cot.deltaWoW > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                        {cot.deltaWoW > 0 ? "+" : ""}{cot.deltaWoW.toFixed(0)}k WoW
+                      <span className={`text-xs font-bold tabular-nums ${cot.net > 0 ? "text-emerald-400" : cot.net < 0 ? "text-red-400" : "text-slate-400"}`}>
+                        {cot.net > 0 ? "+" : ""}{(cot.net / 1000).toFixed(0)}k net
                       </span>
                     </div>
-                    <ResponsiveContainer width="100%" height={52}>
-                      <AreaChart
-                        data={cot.history.slice(-8).map(h => ({ date: h.weekEnding.slice(5), net: h.net }))}
-                        margin={{ top: 2, right: 0, left: 0, bottom: 0 }}
-                      >
-                        <defs>
-                          <linearGradient id={`cot-${currency}`} x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%"  stopColor={cot.deltaWoW > 0 ? "#10b981" : "#ef4444"} stopOpacity={0.3} />
-                            <stop offset="95%" stopColor={cot.deltaWoW > 0 ? "#10b981" : "#ef4444"} stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <Area type="monotone" dataKey="net"
-                          stroke={cot.deltaWoW > 0 ? "#10b981" : "#ef4444"}
-                          fill={`url(#cot-${currency})`} strokeWidth={1.5} dot={false}
-                        />
-                        <XAxis dataKey="date" tick={{ fontSize: 8, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                        <Tooltip
-                          contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 6, fontSize: 10 }}
-                          labelStyle={{ color: "#94a3b8" }}
-                          itemStyle={{ color: cot.deltaWoW > 0 ? "#10b981" : "#ef4444" }}
-                          formatter={(v: number) => [`${v.toFixed(0)}k`, "Nette"]}
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2 text-[10px]">
+                        <span className="text-slate-500 w-8 shrink-0">Long</span>
+                        <div className="flex-1 h-2 bg-slate-700/40 rounded-full overflow-hidden">
+                          <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${cot.longPct}%` }} />
+                        </div>
+                        <span className="text-emerald-400 font-bold w-7 text-right">{cot.longPct}%</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px]">
+                        <span className="text-slate-500 w-8 shrink-0">Short</span>
+                        <div className="flex-1 h-2 bg-slate-700/40 rounded-full overflow-hidden">
+                          <div className="h-full bg-red-500 rounded-full" style={{ width: `${cot.shortPct}%` }} />
+                        </div>
+                        <span className="text-red-400 font-bold w-7 text-right">{cot.shortPct}%</span>
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -791,18 +875,18 @@ export default function CurrencyCard({
                 <MacroBlock title={phase === "easing" || phase === "dovish_pause" ? "Données Assouplissement" : "Données Resserrement"}>
                   {(phase === "easing" || phase === "dovish_pause")
                     ? <>
-                        <IRow label="Taux de chômage" ind={inds?.unemployment ?? null} unit="%" invertSurprise consensus={fc?.unemployment ?? null} />
-                        <IRow label="Variation emploi" ind={inds?.employment ?? null} unit="k" consensus={fc?.employment ?? null} />
-                        <IRow label="PIB (QoQ%)"      ind={inds?.gdp ?? null} unit="%" consensus={fc?.gdp ?? null} />
-                        <IRow label="PMI Composite"   ind={inds?.pmiComposite ?? null} consensus={fc?.pmiComposite ?? null} />
-                        <IRow label="Retail Sales"    ind={inds?.retailSales ?? null} unit="%" consensus={fc?.retailSales ?? null} />
+                        <FocusRow importance="critical"><IRow label="Taux de chômage" ind={inds?.unemployment ?? null} unit="%" invertSurprise consensus={fc?.unemployment ?? null} /></FocusRow>
+                        <FocusRow importance="critical"><IRow label="Variation emploi" ind={inds?.employment ?? null} unit="k" consensus={fc?.employment ?? null} /></FocusRow>
+                        <FocusRow importance="high"><IRow label="PIB (QoQ%)" ind={inds?.gdp ?? null} unit="%" consensus={fc?.gdp ?? null} /></FocusRow>
+                        <FocusRow importance="high"><IRow label="PMI Composite" ind={inds?.pmiComposite ?? null} consensus={fc?.pmiComposite ?? null} /></FocusRow>
+                        <FocusRow importance="medium"><IRow label="Retail Sales" ind={inds?.retailSales ?? null} unit="%" consensus={fc?.retailSales ?? null} /></FocusRow>
                       </>
                     : <>
-                        <IRow label="CPI MoM"          ind={inds?.cpiMoM ?? null} unit="%" consensus={fc?.cpiMoM ?? null} />
-                        <IRow label="Core CPI YoY"     ind={inds?.cpiCore ?? null} unit="%" consensus={fc?.cpiCore ?? null} />
-                        <IRow label="Inflation Rate YoY" ind={inds?.cpiYoY ?? null} unit="%" consensus={fc?.cpi ?? null} />
-                        <IRow label="PMI Services"     ind={inds?.pmiServices ?? null} consensus={fc?.pmiSvc ?? null} />
-                        <IRow label="Variation emploi" ind={inds?.employment ?? null} unit="k" consensus={fc?.employment ?? null} />
+                        <FocusRow importance="critical"><IRow label="CPI MoM" ind={inds?.cpiMoM ?? null} unit="%" consensus={fc?.cpiMoM ?? null} /></FocusRow>
+                        <FocusRow importance="critical"><IRow label="Core CPI YoY" ind={inds?.cpiCore ?? null} unit="%" consensus={fc?.cpiCore ?? null} /></FocusRow>
+                        <FocusRow importance="critical"><IRow label="Inflation Rate YoY" ind={inds?.cpiYoY ?? null} unit="%" consensus={fc?.cpi ?? null} /></FocusRow>
+                        <FocusRow importance="high"><IRow label="PMI Services" ind={inds?.pmiServices ?? null} consensus={fc?.pmiSvc ?? null} /></FocusRow>
+                        <FocusRow importance="high"><IRow label="Variation emploi" ind={inds?.employment ?? null} unit="k" consensus={fc?.employment ?? null} /></FocusRow>
                       </>
                   }
                 </MacroBlock>
@@ -811,14 +895,14 @@ export default function CurrencyCard({
                 <MacroBlock title="Référence (autres données)">
                   {(phase === "easing" || phase === "dovish_pause")
                     ? <>
-                        <IRow label="CPI MoM"      ind={inds?.cpiMoM  ?? null} unit="%" />
-                        <IRow label="Core CPI YoY" ind={inds?.cpiCore ?? null} unit="%" />
-                        <IRow label="PPI MoM"      ind={inds?.ppiMoM  ?? null} unit="%" />
+                        <FocusRow importance="medium"><IRow label="CPI MoM" ind={inds?.cpiMoM ?? null} unit="%" /></FocusRow>
+                        <FocusRow importance="medium"><IRow label="Core CPI YoY" ind={inds?.cpiCore ?? null} unit="%" /></FocusRow>
+                        <FocusRow importance="medium"><IRow label="PPI MoM" ind={inds?.ppiMoM ?? null} unit="%" /></FocusRow>
                       </>
                     : <>
-                        <IRow label="Taux de chômage" ind={inds?.unemployment ?? null} unit="%" invertSurprise />
-                        <IRow label="PIB (QoQ%)"      ind={inds?.gdp          ?? null} unit="%" />
-                        <IRow label="Retail Sales"    ind={inds?.retailSales  ?? null} unit="%" />
+                        <FocusRow importance="medium"><IRow label="Taux de chômage" ind={inds?.unemployment ?? null} unit="%" invertSurprise /></FocusRow>
+                        <FocusRow importance="medium"><IRow label="PIB (QoQ%)" ind={inds?.gdp ?? null} unit="%" /></FocusRow>
+                        <FocusRow importance="medium"><IRow label="Retail Sales" ind={inds?.retailSales ?? null} unit="%" /></FocusRow>
                       </>
                   }
                 </MacroBlock>

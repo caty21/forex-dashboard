@@ -339,8 +339,21 @@ export default function Dashboard() {
         <YieldsTab yieldsData={yields} />
       )}
 
+      {/* Legend */}
+      <div className="mt-4 pt-3 border-t border-slate-800 flex items-center gap-5 flex-wrap text-[10px] text-slate-600">
+        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" /> Haussier / Sous-évalué</div>
+        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500 shrink-0" /> Baissier / Sur-évalué</div>
+        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" /> Ambigu / Divergence</div>
+        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-500 shrink-0" /> Neutre / Pas de signal</div>
+        <span className="text-slate-700">·</span>
+        <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" /> Donnée critique</div>
+        <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" /> Donnée importante</div>
+        <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0" /> Donnée secondaire</div>
+        <div className="ml-auto text-slate-700 hidden sm:block">Cliquer sur chaque signal pour voir l'analyse détaillée</div>
+      </div>
+
       {/* Footer */}
-      <footer className="mt-6 text-center text-xs text-gray-400 space-y-1">
+      <footer className="mt-4 text-center text-xs text-gray-400 space-y-1">
         <p>
           Sources: FRED · ECB · BoE · BoC · CFTC · Frankfurter · Myfxbook · ForexFactory
         </p>
