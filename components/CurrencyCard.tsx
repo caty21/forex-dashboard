@@ -439,9 +439,12 @@ export default function CurrencyCard({ currency, expectations, yields, sentiment
                 return `Prel./Flash — Final prévu : ${fd._finalForecast?.toFixed(1)}% (${arrow}${d > 0 ? "+" : ""}${d.toFixed(2)})`;
               })()}
               info={(() => {
-                const fd = (inds?.cpiCore as (Ind & { _finalDelta?: number }) | null);
-                if (fd?._finalDelta === undefined) return null;
-                return fd._finalDelta > 0 ? "↑F" : fd._finalDelta < 0 ? "↓F" : "=F";
+                const fd = (inds?.cpiCore as (Ind & { _finalForecast?: number; _finalDelta?: number }) | null);
+                const base = "=Core Inflation Rate YoY";
+                if (fd?._finalForecast === undefined) return base;
+                const d = fd._finalDelta ?? 0;
+                const arrow = d > 0 ? "↑" : d < 0 ? "↓" : "=";
+                return `${base} • Prel./Flash — Final prévu : ${fd._finalForecast?.toFixed(1)}% (${arrow}${d > 0 ? "+" : ""}${d.toFixed(2)})`;
               })()}
             />
             <Row
@@ -449,17 +452,14 @@ export default function CurrencyCard({ currency, expectations, yields, sentiment
               ind={inds?.cpiYoY ?? null}
               unit="%"
               consensus={fc?.cpi ?? null}
-              tooltip={(() => {
+              tooltip={null}
+              info={(() => {
                 const fd = (inds?.cpiYoY as (Ind & { _finalForecast?: number; _finalDelta?: number }) | null);
-                if (fd?._finalForecast === undefined) return null;
+                const base = "=Inflation Rate YoY";
+                if (fd?._finalForecast === undefined) return base;
                 const d = fd._finalDelta ?? 0;
                 const arrow = d > 0 ? "↑" : d < 0 ? "↓" : "=";
-                return `Prel./Flash — Final prévu : ${fd._finalForecast?.toFixed(1)}% (${arrow}${d > 0 ? "+" : ""}${d.toFixed(2)})`;
-              })()}
-              info={(() => {
-                const fd = (inds?.cpiYoY as (Ind & { _finalDelta?: number }) | null);
-                if (fd?._finalDelta === undefined) return null;
-                return fd._finalDelta > 0 ? "↑F" : fd._finalDelta < 0 ? "↓F" : "=F";
+                return `${base} • Prel./Flash — Final prévu : ${fd._finalForecast?.toFixed(1)}% (${arrow}${d > 0 ? "+" : ""}${d.toFixed(2)})`;
               })()}
             />
             {inds?.commodityPricesYoY && (
