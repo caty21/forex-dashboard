@@ -471,14 +471,30 @@ export default function CurrencyCard({
     ? Math.round(mispricingSignals.reduce((a, s) => a + s.strength, 0) / mispricingSignals.length) : 0;
   const mispricDir: SignalDir = bullCount > bearCount ? "bullish" : bearCount > bullCount ? "bearish" : "neutral";
 
+  // Convergence : les deux s'alignent → fort signal
+  // Divergence  : macro et signaux se contredisent → alerte
+  // Macro seul  : signaux neutres mais macro directionnelle → signaler quand même
+  // Signaux seuls: macro neutre mais signaux directionnels → signaler quand même
   const divergenceSignal: SignalDir =
     mispricDir !== "neutral" && dir !== "neutral" && mispricDir === dir ? mispricDir :
     mispricDir !== "neutral" && dir !== "neutral" && mispricDir !== dir ? "warning" :
-    mispricDir !== "neutral" ? mispricDir : "neutral";
+    dir !== "neutral" ? dir :            // macro seule directionnelle (signaux neutres)
+    mispricDir !== "neutral" ? mispricDir : // signaux seuls (macro neutre)
+    "neutral";
+
+  const macroOnly   = dir !== "neutral" && mispricDir === "neutral";
+  const signalsOnly = mispricDir !== "neutral" && dir === "neutral";
+  const bothAligned = mispricDir !== "neutral" && dir !== "neutral" && mispricDir === dir;
+  const bothOpposed = mispricDir !== "neutral" && dir !== "neutral" && mispricDir !== dir;
+
   const divergenceType =
-    divergenceSignal === "bullish" ? "Convergence haussière multi-signal" :
-    divergenceSignal === "bearish" ? "Convergence baissière multi-signal" :
-    divergenceSignal === "warning" ? `Divergence: macro ${dir === "bullish" ? "↑" : dir === "bearish" ? "↓" : "→"} vs signaux ${mispricDir === "bullish" ? "↑" : mispricDir === "bearish" ? "↓" : "→"}` :
+    bothAligned && divergenceSignal === "bullish" ? "Convergence haussière multi-signal" :
+    bothAligned && divergenceSignal === "bearish" ? "Convergence baissière multi-signal" :
+    bothOpposed ? `Divergence: macro ${dir === "bullish" ? "↑" : "↓"} vs signaux ${mispricDir === "bullish" ? "↑" : "↓"}` :
+    macroOnly && dir === "bullish" ? `Macro haussière (score +${macroScore}), signaux neutres` :
+    macroOnly && dir === "bearish" ? `Macro baissière (score ${macroScore}), signaux neutres` :
+    signalsOnly && mispricDir === "bullish" ? `Signaux haussiers, macro neutre` :
+    signalsOnly && mispricDir === "bearish" ? `Signaux baissiers, macro neutre` :
     "Pas de signal convergent";
 
   // Détail des contributeurs macro (même logique que calcMacroScore)
@@ -762,6 +778,23 @@ export default function CurrencyCard({
                       </span>
                     </div>
                   )}
+                  {(() => {
+                    const cpiRef = inds?.cpiYoY?.value ?? inds?.cpiCore?.value ?? null;
+                    if (policyRateValue === null || cpiRef === null) return null;
+                    const realRate = parseFloat((policyRateValue - cpiRef).toFixed(2));
+                    const rDir: SignalDir = realRate < 0 ? "bearish" : realRate > 1.5 ? "bullish" : "neutral";
+                    return (
+                      <div className="flex items-center justify-between text-[12px]">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-slate-600">→</span>
+                          <span className="text-slate-400">Taux réel (CT−CPI)</span>
+                        </div>
+                        <span className={`font-semibold tabular-nums ${sigColor(rDir)}`}>
+                          {realRate > 0 ? "+" : ""}{realRate}%
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </MacroBlock>
 
                 {/* Inflation avec filtre MoM/YoY */}

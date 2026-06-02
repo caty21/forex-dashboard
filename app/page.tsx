@@ -231,8 +231,9 @@ export default function Dashboard() {
             <Activity size={15} className="text-black" />
           </div>
           <div>
-            <span className="text-sm font-bold text-white tracking-tight">MacroFlow</span>
-            <span className="ml-2 text-[10px] text-slate-600 uppercase tracking-widest">Forex · Macro · Mispricing</span>
+            <span className="text-sm font-bold text-white tracking-tight">
+              {new Date().getHours() < 18 ? "Bonjour" : "Bonsoir"} 👋
+            </span>
           </div>
         </div>
 
