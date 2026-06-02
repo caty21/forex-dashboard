@@ -142,6 +142,23 @@ function FocusRow({ importance, children }: { importance: "critical" | "high" | 
   );
 }
 
+// ─── Profils géopolitiques statiques ─────────────────────────────────────────
+
+const ENERGY_PROFILE: Record<string, {
+  type: "export" | "import" | "neutre";
+  desc: string;
+  products: string[];
+}> = {
+  USD: { type: "export",  desc: "1er producteur mondial pétrole + gaz (EIA). Exportateur net depuis 2019.",            products: ["Pétrole", "GNL", "Blé", "Soja", "Maïs"] },
+  EUR: { type: "import",  desc: "Import ~75% énergie (MENA, Russie réduit). Très sensible aux chocs pétrole.",         products: ["Blé (FR, DE)", "Machines industrielles"] },
+  GBP: { type: "neutre",  desc: "Mer du Nord en déclin. Production ≈ consommation (~neutre).",                          products: ["Services financiers"] },
+  JPY: { type: "import",  desc: "Import ~90% énergie. 3ème importateur GNL mondial. Très sensible au Détroit d'Hormuz.", products: ["Électronique", "Voitures"] },
+  CHF: { type: "import",  desc: "Import ~75% énergie (gaz naturel Europe, pétrole OPEP).",                              products: [] },
+  CAD: { type: "export",  desc: "Pétrole sables bitumineux (Alberta). Export ~4 Mb/j.",                                 products: ["Pétrole", "Gaz naturel", "Blé", "Potasse", "Bois d'œuvre"] },
+  AUD: { type: "export",  desc: "2ème exportateur GNL mondial. Export charbon thermique + métallurgique.",              products: ["Minerai de fer", "GNL", "Charbon", "Or", "Blé", "Cuivre"] },
+  NZD: { type: "import",  desc: "Import pétrole. Renouvelables ~85% élec (hydro). Indépendant localement.",            products: ["Lait / Produits laitiers", "Viande bovine", "Bois", "Laine"] },
+};
+
 function trendDir(t: "up"|"down"|"flat"|null): SignalDir {
   if (t === "up")   return "bullish";
   if (t === "down") return "bearish";
