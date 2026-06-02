@@ -35,7 +35,167 @@ interface ImpactRule {
   reason:     string;
 }
 
+// ── Noms des gouverneurs de banques centrales ─────────────────────────────────
+// Mis à jour juin 2026
+const CB_GOVERNORS: Record<Currency, string[]> = {
+  USD: ["Powell", "Jerome Powell", "FOMC chair"],
+  EUR: ["Lagarde", "Christine Lagarde", "ECB president", "ECB chief"],
+  GBP: ["Bailey", "Andrew Bailey", "BoE governor"],
+  JPY: ["Ueda", "Kazuo Ueda", "BoJ governor", "Bank of Japan governor"],
+  CHF: ["Schlegel", "Martin Schlegel", "SNB chairman", "SNB chair"],
+  CAD: ["Macklem", "Tiff Macklem", "BoC governor"],
+  AUD: ["Bullock", "Michele Bullock", "RBA governor"],
+  NZD: ["Orr", "Adrian Orr", "RBNZ governor"],
+};
+
+// ── Noms des chefs d'État pertinents (sauf EUR : uniquement Lagarde) ──────────
+const HEADS_OF_STATE: Record<string, { ccy: Currency; names: string[] }> = {
+  USD: { ccy: "USD", names: ["Trump", "Biden", "US president", "White House", "US treasury", "Bessent", "Yellen", "Scott Bessent"] },
+  GBP: { ccy: "GBP", names: ["Starmer", "Keir Starmer", "UK prime minister", "UK chancellor", "Rachel Reeves"] },
+  JPY: { ccy: "JPY", names: ["Ishiba", "Shigeru Ishiba", "Japan prime minister", "Japan PM", "Japanese PM", "Akazawa"] },
+  CAD: { ccy: "CAD", names: ["Carney", "Mark Carney", "Canada prime minister", "Canadian PM"] },
+  AUD: { ccy: "AUD", names: ["Albanese", "Anthony Albanese", "Australia prime minister", "Australian PM"] },
+  NZD: { ccy: "NZD", names: ["Luxon", "Christopher Luxon", "New Zealand PM", "NZ prime minister"] },
+  CHF: { ccy: "CHF", names: ["Swiss Federal Council", "Swiss government", "Swiss president"] },
+};
+
+// Génère les règles pour les gouverneurs et chefs d'État
+function buildPersonRules(): ImpactRule[] {
+  const rules: ImpactRule[] = [];
+
+  // Gouverneurs CB
+  for (const [ccyStr, names] of Object.entries(CB_GOVERNORS)) {
+    const ccy = ccyStr as Currency;
+    const pattern = new RegExp(`\\b(${names.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`, "i");
+    rules.push({
+      pattern,
+      impacts:    [{ ccy, dir: "neutral" }],
+      categories: ["Discours BC"],
+      reason:     `Déclaration gouverneur ${ccy}`,
+    });
+  }
+
+  // Chefs d'État
+  for (const { ccy, names } of Object.values(HEADS_OF_STATE)) {
+    const pattern = new RegExp(`\\b(${names.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`, "i");
+    rules.push({
+      pattern,
+      impacts:    [{ ccy, dir: "neutral" }],
+      categories: ["Chef d'État"],
+      reason:     `Déclaration politique officielle ${ccy}`,
+    });
+  }
+
+  return rules;
+}
+
 const IMPACT_RULES: ImpactRule[] = [
+  // ── Décisions de taux (priorité maximale) ─────────────────────────────────
+  {
+    pattern:    /\b(rate (decision|cut|hike|hold|change|increase|decrease)|interest rate (cut|hike|hold|decision|change)|rate (unchanged|on hold)|basis point(s)?|bps (cut|hike))\b/i,
+    impacts:    [],
+    categories: ["Décision Taux"],
+    reason:     "Décision de taux directeur",
+  },
+
+  // ── Presse/Conférences CB ─────────────────────────────────────────────────
+  {
+    pattern:    /\b(press conference|monetary policy (statement|meeting|decision|minutes)|forward guidance|dot plot|summary of projections|soe|statement on (monetary|rates))\b/i,
+    impacts:    [],
+    categories: ["Discours BC"],
+    reason:     "Communication banque centrale officielle",
+  },
+
+  // ── Données clés emploi ────────────────────────────────────────────────────
+  {
+    pattern:    /\b(unemployment (rate|data|report|figures)|non.?farm payrolls|nfp|jobs (report|data|figures)|jobless (rate|claims)|employment (change|data|report|figures)|labor market|labour market|payroll(s)?)\b/i,
+    impacts:    [],
+    categories: ["Données Clés", "Emploi"],
+    reason:     "Publication données emploi",
+  },
+
+  // ── Données clés inflation ─────────────────────────────────────────────────
+  {
+    pattern:    /\b(cpi (data|release|report|print|reading|figure)|inflation (data|report|release|print|reading|figure)|consumer price index (release|data|report)|pce deflator)\b/i,
+    impacts:    [],
+    categories: ["Données Clés", "Inflation"],
+    reason:     "Publication données inflation",
+  },
+
+  // ── Crises financières ─────────────────────────────────────────────────────
+  {
+    pattern:    /\b(banking (crisis|collapse|failure|run|contagion)|financial (crisis|contagion|meltdown|turmoil)|bank (collapse|bail.?out|default|insolvency)|systemic (risk|crisis)|credit (crisis|crunch|event))\b/i,
+    impacts:    [
+      { ccy: "JPY", dir: "bullish" },
+      { ccy: "CHF", dir: "bullish" },
+      { ccy: "USD", dir: "bullish" },
+      { ccy: "AUD", dir: "bearish" },
+      { ccy: "NZD", dir: "bearish" },
+    ],
+    categories: ["Crise", "Risk-Off"],
+    reason:     "Crise financière → refuges (JPY/CHF/USD) haussiers",
+  },
+
+  // ── Guerre Ukraine ─────────────────────────────────────────────────────────
+  {
+    pattern:    /\b(ukraine|zelenskyy|zelensky|kyiv|russia (attack|invade|shelling|drone|missile)|nato (ukraine|summit|support)|war in europe|eastern europe (conflict|war|tension))\b/i,
+    impacts:    [
+      { ccy: "EUR", dir: "bearish" },
+      { ccy: "JPY", dir: "bullish" },
+      { ccy: "CHF", dir: "bullish" },
+      { ccy: "USD", dir: "bullish" },
+      { ccy: "AUD", dir: "bullish" }, // commodity/wheat exporter
+    ],
+    categories: ["Géopolitique", "Guerre"],
+    reason:     "Guerre Ukraine → EUR baissier (proximité), refuges (JPY/CHF/USD) haussiers, AUD haussier (blé/gaz)",
+  },
+
+  // ── Détroit d'Hormuz / Moyen-Orient ───────────────────────────────────────
+  {
+    pattern:    /\b(strait of hormuz|hormuz|houthi(s)?|red sea (attack|blockade|shipping)|iran (attack|sanction|nuclear|strait)|middle east (conflict|escalat|war|tension)|israel.?(hamas|hezbollah|iran)|persian gulf (tension|conflict))\b/i,
+    impacts:    [
+      { ccy: "JPY", dir: "bearish" },  // Japon importe ~90% énergie via Hormuz
+      { ccy: "CAD", dir: "bullish" },  // Pétrole monte
+      { ccy: "CHF", dir: "bullish" },
+      { ccy: "USD", dir: "bullish" },
+    ],
+    categories: ["Géopolitique", "Énergie", "Guerre"],
+    reason:     "Tensions Hormuz → pétrole hausse (CAD bullish), JPY baissier (90% énergie importée via Hormuz)",
+  },
+
+  // ── Tensions Taiwan / Asie du Pacifique ───────────────────────────────────
+  {
+    pattern:    /\b(taiwan (strait|tension|conflict|independence|invasion|crisis|blockade)|china (taiwan|military|invasion)|south china sea (tension|dispute|conflict))\b/i,
+    impacts:    [
+      { ccy: "AUD", dir: "bearish" },
+      { ccy: "NZD", dir: "bearish" },
+      { ccy: "JPY", dir: "bullish" },
+      { ccy: "USD", dir: "bullish" },
+    ],
+    categories: ["Géopolitique", "Guerre"],
+    reason:     "Tensions Taiwan → AUD/NZD baissiers (exposition Chine), JPY/USD haussiers (refuges/proxémité)",
+  },
+
+  // ── Russie / Sanctions ─────────────────────────────────────────────────────
+  {
+    pattern:    /\b(russia (sanction|oil cap|energy|export ban|gas supply|lng)|(new )?(sanction|embargo) (on|against) russia|russian (oil|gas|energy|export))\b/i,
+    impacts:    [
+      { ccy: "EUR", dir: "bearish" },
+      { ccy: "CAD", dir: "bullish" },
+      { ccy: "AUD", dir: "bullish" },
+    ],
+    categories: ["Géopolitique", "Énergie"],
+    reason:     "Sanctions Russie → EUR baissier (dépendance gaz), CAD/AUD haussiers (exportateurs énergie alternatifs)",
+  },
+
+  // ── Press release probabilité de taux ─────────────────────────────────────
+  {
+    pattern:    /\b(rate (cut|hike) (probability|odds|chance(s)?|expectation(s)?|pricing)|market (prices? in|expects?|anticipates?) (cut|hike|pause|hold)|(ois|swap|futures?) (price(s)?|imply|signal) (cut|hike|easing|tightening)|probability of (rate|cut|hike) (change|move|rise|fall))\b/i,
+    impacts:    [],
+    categories: ["Probabilités Taux"],
+    reason:     "Repricing des probabilités de taux OIS/futures",
+  },
+
   // ── Fed / USD ──────────────────────────────────────────────────────────────
   {
     pattern:    /\b(hawkish fed|fed hike|fed rate (up|rise)|us inflation (surge|higher|above)|fomc (hike|tighten))\b/i,
@@ -320,12 +480,16 @@ const IMPACT_RULES: ImpactRule[] = [
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+// Règles dynamiques gouverneurs/chefs d'État (construites une seule fois)
+const PERSON_RULES: ImpactRule[] = buildPersonRules();
+const ALL_RULES: ImpactRule[] = [...IMPACT_RULES, ...PERSON_RULES];
+
 function applyRules(text: string): { impacts: NewsImpact[]; categories: string[] } {
   const impacts: NewsImpact[] = [];
   const categories = new Set<string>();
   const seenCcy = new Set<Currency>();
 
-  for (const rule of IMPACT_RULES) {
+  for (const rule of ALL_RULES) {
     if (!rule.pattern.test(text)) continue;
 
     for (const cat of rule.categories) categories.add(cat);
@@ -339,7 +503,7 @@ function applyRules(text: string): { impacts: NewsImpact[]; categories: string[]
     if (seenCcy.size >= 8) break; // toutes les devises couvertes
   }
 
-  return { impacts, categories: [...categories] };
+  return { impacts, categories: Array.from(categories) };
 }
 
 function parseDate(raw: string): string {

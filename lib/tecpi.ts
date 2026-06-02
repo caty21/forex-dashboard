@@ -638,6 +638,38 @@ export async function fetchTEUnemploymentRate(): Promise<CoreCPIMap> {
   }
 }
 
+// ── STIR — Taux interbancaire 3 mois ─────────────────────────────────────────
+// Source : https://tradingeconomics.com/country-list/3-month-interbank-rate
+// Donne le taux de marché à 3 mois (SOFR 3M, EURIBOR 3M, SONIA 3M, TIBOR 3M…)
+// pour les 8 devises en une seule requête.
+// Interprétation :
+//   STIR > taux directeur  → marché price des hausses → signal hawkish
+//   STIR < taux directeur  → marché price des baisses → signal dovish
+//   STIR en hausse         → conditions de crédit plus restrictives (prêter = plus risqué/cher)
+//   STIR en baisse         → conditions de crédit plus souples (prêter = plus sûr/moins cher)
+
+export async function fetchTESTIRRate(): Promise<CoreCPIMap> {
+  try {
+    const res = await fetch(
+      "https://tradingeconomics.com/country-list/3-month-interbank-rate?continent=world",
+      {
+        next: { revalidate: 21600 },
+        headers: {
+          "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
+          "Accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+      }
+    );
+    if (!res.ok) { console.warn("[tecpi-stir] HTTP", res.status); return {}; }
+    const html = await res.text();
+    return parseCoreInflationHTML(html);
+  } catch (err) {
+    console.error("[tecpi-stir] error:", err);
+    return {};
+  }
+}
+
 // ── GDP Growth Rate QoQ% ──────────────────────────────────────────────────────
 // Source : https://tradingeconomics.com/country-list/gdp-growth-rate
 // Une seule requête HTTP (cache 6h) couvre les 8 devises.

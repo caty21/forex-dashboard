@@ -779,6 +779,59 @@ export default function CurrencyCard({
                       </span>
                     </div>
                   )}
+                  {/* STIR 3M — Taux interbancaire court terme */}
+                  {inds?.stir3m?.value != null && (() => {
+                    const stir = inds.stir3m!.value!;
+                    const stirPrev = inds.stir3m!.prev;
+                    const stirTrend = inds.stir3m!.trend;
+                    // Spread STIR - Taux directeur
+                    const stirSpread = policyRateValue !== null
+                      ? parseFloat((stir - policyRateValue).toFixed(2)) : null;
+                    // Signal : spread positif = marché price des hausses (hawkish)
+                    const stirSig: SignalDir =
+                      stirTrend === "up"   ? "bearish"  // hausse STIR = crédit plus cher/risqué
+                      : stirTrend === "down" ? "bullish"  // baisse STIR = crédit plus sûr/souple
+                      : "neutral";
+                    const spreadSig: SignalDir =
+                      stirSpread !== null && stirSpread > 0.1  ? "bullish"  // STIR > CT = hawkish bias
+                      : stirSpread !== null && stirSpread < -0.1 ? "bearish"  // STIR < CT = dovish bias
+                      : "neutral";
+                    return (
+                      <>
+                        <div className="flex items-center justify-between text-[12px]">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-slate-600">→</span>
+                            <span className="text-slate-400">STIR 3M</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className={`font-semibold tabular-nums ${sigColor(stirSig)}`}>
+                              {stir.toFixed(2)}%
+                            </span>
+                            {stirTrend && (
+                              <span className={`text-[10px] ${sigColor(stirSig)}`}>
+                                {stirTrend === "up" ? "↑" : stirTrend === "down" ? "↓" : "→"}
+                                {stirPrev !== null ? ` ${stirPrev.toFixed(2)}%` : ""}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {stirSpread !== null && (
+                          <div className="flex items-center justify-between text-[12px]">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-slate-600">→</span>
+                              <span className="text-slate-400">Spread STIR−CT</span>
+                            </div>
+                            <span
+                              className={`font-semibold tabular-nums ${sigColor(spreadSig)}`}
+                              title={stirSpread > 0 ? "STIR > taux directeur → marché price des hausses" : stirSpread < 0 ? "STIR < taux directeur → marché price des baisses" : "STIR ≈ taux directeur"}
+                            >
+                              {stirSpread > 0 ? "+" : ""}{Math.round(stirSpread * 100)}bps
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                   {(() => {
                     // Taux réel = Taux directeur − CPI YoY headline (= Inflation Rate YoY)
                     // On n'utilise PAS Core CPI comme fallback : Core < Headline → gonflerait le taux réel

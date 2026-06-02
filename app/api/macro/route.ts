@@ -5,7 +5,7 @@ import cpiOverridesRaw   from "@/data/cpi_overrides.json";
 import rateDecisionsRaw  from "@/data/rate_decisions.json";
 import { fetchFFThisWeek, fetchFFEvents } from "@/lib/forexfactory";
 import type { FFEvent } from "@/lib/forexfactory";
-import { fetchTECoreInflation, fetchTEMoMInflation, fetchTEInflationYoY, fetchTECoreCPIMoM, fetchTECoreConsumerPricesIndex, fetchTEPPIMoM, fetchTECoreInflationPages, fetchTEInflationYoYPages, fetchTEAUDCommodityYoY, fetchTEGDPGrowthRate, fetchTEUnemploymentRate } from "@/lib/tecpi";
+import { fetchTECoreInflation, fetchTEMoMInflation, fetchTEInflationYoY, fetchTECoreCPIMoM, fetchTECoreConsumerPricesIndex, fetchTEPPIMoM, fetchTECoreInflationPages, fetchTEInflationYoYPages, fetchTEAUDCommodityYoY, fetchTEGDPGrowthRate, fetchTEUnemploymentRate, fetchTESTIRRate } from "@/lib/tecpi";
 import { fetchTEInflationForecasts } from "@/lib/tradingeconomics";
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
@@ -1025,7 +1025,7 @@ export async function GET(req: NextRequest) {
   // Remplace séries FRED stale/erronées.
   // Nouvelles données : cpiYoY headline, cpiCoreMoM (pages individuelles), ppiMoM
   {
-    const [teCoreMap, teMoMMap, teYoYMap, teCoreMoMMap, teCoreIdxMap, tePPIMap, teCorePages, teYoYPages, teAUDComm, teGDPMap, teUneMap] = await Promise.all([
+    const [teCoreMap, teMoMMap, teYoYMap, teCoreMoMMap, teCoreIdxMap, tePPIMap, teCorePages, teYoYPages, teAUDComm, teGDPMap, teUneMap, teSTIRMap] = await Promise.all([
       fetchTECoreInflation(),
       fetchTEMoMInflation(),
       fetchTEInflationYoY(),
@@ -1037,6 +1037,7 @@ export async function GET(req: NextRequest) {
       currency === "AUD" ? fetchTEAUDCommodityYoY() : Promise.resolve(null),
       fetchTEGDPGrowthRate(),
       fetchTEUnemploymentRate(),
+      fetchTESTIRRate(),
     ]);
 
     const teCore     = teCoreMap[currency];
@@ -1134,6 +1135,29 @@ export async function GET(req: NextRequest) {
         lastUpdated: tePPI.refMonth,
         consensus:   parseTeF(teCpiForecast?.ppiMoM) ?? null,
       };
+    }
+
+    // STIR 3M — Taux interbancaire 3 mois (SOFR 3M, EURIBOR 3M, SONIA 3M, TIBOR 3M…)
+    // Signal clé : STIR > policyRate = marché price des hausses (hawkish)
+    //              STIR < policyRate = marché price des baisses (dovish)
+    //              Tendance ↑ = conditions crédit plus restrictives (prêter plus risqué/cher)
+    //              Tendance ↓ = conditions crédit plus souples (prêter plus sûr/moins cher)
+    {
+      const teSTIR = teSTIRMap[currency];
+      if (teSTIR) {
+        const surprise = teSTIR.prev !== null
+          ? parseFloat((teSTIR.value - teSTIR.prev).toFixed(4))
+          : null;
+        indicators.stir3m = {
+          value:       teSTIR.value,
+          prev:        teSTIR.prev,
+          surprise,
+          trend:       teSTIR.prev !== null
+            ? (teSTIR.value > teSTIR.prev ? "up" : teSTIR.value < teSTIR.prev ? "down" : "flat")
+            : null,
+          lastUpdated: teSTIR.refMonth,
+        };
+      }
     }
 
     // GDP Growth Rate QoQ% — TE country-list (source autoritaire, remplace FRED stale)
