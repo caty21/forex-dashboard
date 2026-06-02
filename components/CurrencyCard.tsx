@@ -411,6 +411,9 @@ export default function CurrencyCard({ currency, expectations, yields, sentiment
           <>
             <Row label="Core CPI YoY"      ind={inds?.cpiCore ?? null} unit="%" consensus={fc?.cpiCore ?? fc?.cpi ?? null} surpriseVsCons={fc?.cpiSurprise ?? null} />
             <Row label="Inflation Rate YoY" ind={inds?.cpiYoY ?? null} unit="%" />
+            {inds?.commodityPricesYoY && (
+              <Row label="Commodity Prices YoY" ind={inds.commodityPricesYoY} unit="%" info="AUD — RBA Commodity Price Index (TradingEconomics)" />
+            )}
           </>
         )}
 

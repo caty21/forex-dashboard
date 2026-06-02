@@ -560,3 +560,52 @@ export async function fetchTEInflationYoYPages(): Promise<Partial<Record<Currenc
   for (const e of entries) if (e) result[e[0]] = e[1];
   return result;
 }
+
+// ── AUD Commodity Prices YoY ─────────────────────────────────────────────────
+// Indicateur spécifique AUD : https://tradingeconomics.com/australia/commodity-prices-yoy
+// Format meta : "increased to X.XX percent in [Month] from Y.YY percent in [PrevMonth] of [Year]"
+
+export async function fetchTEAUDCommodityYoY(): Promise<InflationYoYPageEntry | null> {
+  const MONTHS: Record<string, string> = { January:"01",February:"02",March:"03",April:"04",May:"05",June:"06",July:"07",August:"08",September:"09",October:"10",November:"11",December:"12" };
+  try {
+    const res = await fetch("https://tradingeconomics.com/australia/commodity-prices-yoy", {
+      next: { revalidate: 21600 },
+      headers: {
+        "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
+        "Accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+
+    const metaM = html.match(/name=["']description["'][^>]*content=["']([^"']+)["']/i)
+               ?? html.match(/content=["']([^"']+)["'][^>]*name=["']description["']/i);
+    const desc = metaM?.[1] ?? "";
+
+    const p1 = desc.match(/(?:increased|decreased|declined|rose|fell|eased|changed)\s+to\s+([\d.]+)\s+percent[^.]*?from\s+([\d.]+)\s+percent/i);
+    const p2 = !p1 ? desc.match(/(?:remained unchanged at|is unchanged at)\s*([\d.]+)\s+percent/i) : null;
+    const value = p1 ? parseFloat(p1[1]) : p2 ? parseFloat(p2[1]) : null;
+    const prev  = p1 ? parseFloat(p1[2]) : p2 ? parseFloat(p2[1]) : null;
+    if (value === null) return null;
+
+    const dateCurrM = desc.match(/(?:to|at)\s+[\d.]+\s+percent\s+in\s+([A-Za-z]+)/i);
+    const yearM     = desc.match(/\bof\s+(\d{4})\b/);
+    const curYear   = new Date().getFullYear().toString();
+    let refMonth = "";
+    if (dateCurrM) {
+      const mn  = dateCurrM[1];
+      const cap = mn.charAt(0).toUpperCase() + mn.slice(1).toLowerCase();
+      if (MONTHS[cap]) refMonth = `${yearM?.[1] ?? curYear}-${MONTHS[cap]}-01`;
+    }
+
+    let consensus: number | null = null;
+    const fcM = html.match(/TEForecast\s*=\s*\[\s*([\d.,\s]+)\]/);
+    if (fcM) {
+      const first = fcM[1].split(",")[0].trim();
+      if (first) consensus = parseFloat(first);
+    }
+
+    return { value, prev, consensus, refMonth };
+  } catch { return null; }
+}

@@ -5,7 +5,7 @@ import cpiOverridesRaw   from "@/data/cpi_overrides.json";
 import rateDecisionsRaw  from "@/data/rate_decisions.json";
 import { fetchFFThisWeek, fetchFFEvents } from "@/lib/forexfactory";
 import type { FFEvent } from "@/lib/forexfactory";
-import { fetchTECoreInflation, fetchTEMoMInflation, fetchTEInflationYoY, fetchTECoreCPIMoM, fetchTECoreConsumerPricesIndex, fetchTEPPIMoM, fetchTECoreInflationPages, fetchTEInflationYoYPages } from "@/lib/tecpi";
+import { fetchTECoreInflation, fetchTEMoMInflation, fetchTEInflationYoY, fetchTECoreCPIMoM, fetchTECoreConsumerPricesIndex, fetchTEPPIMoM, fetchTECoreInflationPages, fetchTEInflationYoYPages, fetchTEAUDCommodityYoY } from "@/lib/tecpi";
 import { fetchTEInflationForecasts } from "@/lib/tradingeconomics";
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
@@ -1023,15 +1023,16 @@ export async function GET(req: NextRequest) {
   // Remplace séries FRED stale/erronées.
   // Nouvelles données : cpiYoY headline, cpiCoreMoM (pages individuelles), ppiMoM
   {
-    const [teCoreMap, teMoMMap, teYoYMap, teCoreMoMMap, teCoreIdxMap, tePPIMap, teCorePages, teYoYPages] = await Promise.all([
+    const [teCoreMap, teMoMMap, teYoYMap, teCoreMoMMap, teCoreIdxMap, tePPIMap, teCorePages, teYoYPages, teAUDComm] = await Promise.all([
       fetchTECoreInflation(),
       fetchTEMoMInflation(),
       fetchTEInflationYoY(),
       fetchTECoreCPIMoM(),
       fetchTECoreConsumerPricesIndex(),
       fetchTEPPIMoM(),
-      fetchTECoreInflationPages(),   // EUR valeur précise + JPY consensus via TEForecast
-      fetchTEInflationYoYPages(),    // EUR valeur à jour + GBP/JPY consensus
+      fetchTECoreInflationPages(),
+      fetchTEInflationYoYPages(),
+      currency === "AUD" ? fetchTEAUDCommodityYoY() : Promise.resolve(null),
     ]);
 
     const teCore     = teCoreMap[currency];
@@ -1114,6 +1115,21 @@ export async function GET(req: NextRequest) {
         trend:       tePPI.value > 0 ? "up" : tePPI.value < 0 ? "down" : "flat",
         lastUpdated: tePPI.refMonth,
         consensus:   parseTeF(teCpiForecast?.ppiMoM) ?? null,
+      };
+    }
+
+    // AUD Commodity Prices YoY
+    if (teAUDComm) {
+      const surprise = teAUDComm.prev !== null
+        ? parseFloat((teAUDComm.value - teAUDComm.prev).toFixed(3))
+        : null;
+      indicators.commodityPricesYoY = {
+        value:       teAUDComm.value,
+        prev:        teAUDComm.prev,
+        surprise,
+        trend:       teAUDComm.value > 0 ? "up" : teAUDComm.value < 0 ? "down" : "flat",
+        lastUpdated: teAUDComm.refMonth,
+        consensus:   teAUDComm.consensus,
       };
     }
 
