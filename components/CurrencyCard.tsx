@@ -363,13 +363,14 @@ export default function CurrencyCard({ currency, expectations, yields, sentiment
         <Row
           label={(() => {
             const isQoQ = (inds?.cpiCoreMoM as (Ind & { isQoQ?: boolean }) | null)?.isQoQ;
-            return isQoQ ? "Core CPI QoQ (=Core Inflation Rate MoM)" : "Core CPI MoM (=Core Inflation Rate MoM)";
+            return isQoQ ? "Core CPI QoQ" : "Core CPI MoM";
           })()}
           ind={inds?.cpiCoreMoM ?? null}
           unit="%"
           tooltip={(() => {
             const raw = (inds?.cpiCoreMoM as (Ind & { _raw?: { last: number; prev: number; refMonth: string } }) | null)?._raw;
-            return raw ? `Index: last=${raw.last}  prev=${raw.prev}  ref=${raw.refMonth}` : null;
+            const base = "=Core Inflation Rate MoM";
+            return raw ? `${base} — Index: last=${raw.last}  prev=${raw.prev}  ref=${raw.refMonth}` : base;
           })()}
         />
         <Row label="Inflation YoY"  ind={inds?.cpiYoY     ?? null} unit="%" />
