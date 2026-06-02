@@ -214,6 +214,21 @@ export async function fetchAllCBPaths(): Promise<RateProbData> {
     if (snbPath) data["CHF"] = snbPath;
   }
 
+  // Enrichir yearEndImplied avec bpsYearEnd de IL (Giuseppe Dellamotta — source humaine)
+  // pour toutes les devises où IL a une donnée ET rateprobability.com a réussi.
+  // Règle : pour les hikes (bpsYearEnd > 0) et cuts (bpsYearEnd < 0), mettre à jour.
+  // Pour "no change" (bpsYearEnd proche de 0), garder la valeur rateprobability.com.
+  for (const [ccyStr, ilEntry] of Object.entries(ilData)) {
+    const ccy = ccyStr as keyof RateProbData;
+    const path = data[ccy];
+    if (!path) continue;
+    if (typeof ilEntry.bpsYearEnd !== "number") continue;
+    if (ilEntry.nextMeetingIsNoChange && Math.abs(ilEntry.bpsYearEnd) < 10) continue; // garder RP si "no change" + bps résiduel faible
+
+    const ilYearEnd = parseFloat((path.currentRate + ilEntry.bpsYearEnd / 100).toFixed(4));
+    data[ccy] = { ...path, yearEndImplied: ilYearEnd };
+  }
+
   return data;
 }
 

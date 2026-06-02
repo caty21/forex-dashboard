@@ -608,13 +608,21 @@ export default function CurrencyCard({
                     </ResponsiveContainer>
                     {ratePath.peakMeeting && (
                       <div className="flex items-center justify-between mt-1 text-[10px]">
-                        <span className="text-slate-600">Pic : <span className="text-slate-400">{ratePath.peakMeeting.label}</span></span>
+                        <span className="text-slate-600">
+                          Pic : <span className="text-slate-400">{ratePath.peakMeeting.label}</span>
+                        </span>
                         <span className={ratePath.peakMeeting.probIsCut ? "text-sky-400 font-bold" : "text-red-400 font-bold"}>
                           {ratePath.peakMeeting.probMovePct.toFixed(0)}% {ratePath.peakMeeting.probIsCut ? "Cut" : "Hike"}
                         </span>
-                        {ratePath.yearEndImplied !== null && (
-                          <span className="text-slate-600">fin an: {ratePath.yearEndImplied.toFixed(2)}%</span>
-                        )}
+                        {ratePath.yearEndImplied !== null && (() => {
+                          const bps = Math.round((ratePath.yearEndImplied! - ratePath.currentRate) * 100);
+                          const cls = bps < 0 ? "text-sky-400 font-bold" : bps > 0 ? "text-red-400 font-bold" : "text-slate-500";
+                          return (
+                            <span className={cls} title={`Taux actuel: ${ratePath.currentRate.toFixed(2)}% → fin an: ${ratePath.yearEndImplied!.toFixed(2)}%`}>
+                              {bps > 0 ? "+" : ""}{bps}bps fin an
+                            </span>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>

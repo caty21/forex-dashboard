@@ -64,7 +64,12 @@ function parseArticleBody(text: string, publishedDate: string): ILExpectationsMa
 
   // Matches: "RBNZ: 75 bps (79% probability of rate hike at the next meeting)"
   //          "Fed: 13 bps (99% probability of no change at the next meeting)"
-  const linePattern = /([A-Za-z]+)\s*:\s*(\d+)\s*bps\s*\(\s*(\d+)%\s*probability\s+of\s+(rate\s+(?:hike|cut)|no\s+change)\s+at\s+the\s+next\s+meeting\)/gi;
+  //          "ECB: 53 bps (99% probability of rate cut at the next meeting)"
+  // Note: bps value in the article is always unsigned — sign is inferred from direction.
+  //   rate hike  → positive bps (rate going up)
+  //   rate cut   → negative bps (rate going down)
+  //   no change  → keep unsigned (residual expectation for later meetings)
+  const linePattern = /([A-Za-z]+)\s*:\s*(-?\d+)\s*bps\s*\(\s*(\d+)%\s*probability\s+of\s+(rate\s+(?:hike|cut)|no\s+change)\s+at\s+the\s+next\s+meeting\)/gi;
 
   let m: RegExpExecArray | null;
   while ((m = linePattern.exec(text)) !== null) {
@@ -72,11 +77,16 @@ function parseArticleBody(text: string, publishedDate: string): ILExpectationsMa
     const ccy = CB_TO_CCY[cbRaw.toLowerCase()];
     if (!ccy) continue;
 
-    const bpsYearEnd            = parseInt(bpsStr);
     const probPct               = parseInt(probStr);
     const direction             = directionRaw.toLowerCase();
     const nextMeetingIsNoChange = direction === "no change";
     const nextMeetingIsHike     = !nextMeetingIsNoChange && direction.includes("hike");
+    const nextMeetingIsCut      = !nextMeetingIsNoChange && direction.includes("cut");
+
+    // Apply sign: if direction is cut and value is positive, negate it
+    let bpsYearEnd = parseInt(bpsStr);
+    if (nextMeetingIsCut && bpsYearEnd > 0) bpsYearEnd = -bpsYearEnd;
+
     // Probability of change = 100 - probNoChange  OR  directProb if it's a hike/cut
     const nextMeetingProbPct = nextMeetingIsNoChange ? 100 - probPct : probPct;
 
