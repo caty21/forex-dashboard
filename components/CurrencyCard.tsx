@@ -368,16 +368,19 @@ export default function CurrencyCard({
     direction: SignalDir; strength: number; icon: React.ReactNode;
   }[] = [];
 
-  // COT signal — champs disponibles : net, longPct, shortPct, totalLev
+  // COT CFTC — Leveraged Money (hedge funds), source : CFTC FinFutWk.txt
+  // Logique : "follow smart money" — majorité long HF = bullish, majorité short = bearish
+  // ≠ Retail Myfxbook (contrarian) qui est géré séparément dans le signal "sentiment"
   if (cot) {
-    const cotDir: SignalDir = cot.longPct > 60 ? "bearish" // majorité long = contrarian bearish
-      : cot.shortPct > 60 ? "bullish"                       // majorité short = contrarian bullish
+    const cotDir: SignalDir = cot.longPct > 60 ? "bullish"  // HF majoritairement long = bullish
+      : cot.shortPct > 60 ? "bearish"                        // HF majoritairement short = bearish
       : cot.net > 0 ? "bullish" : cot.net < 0 ? "bearish" : "neutral";
     const imbalance = Math.abs(cot.longPct - cot.shortPct);
     mispricingSignals.push({
-      id: "cot", label: "Sentiment Retail (COT)", direction: cotDir,
+      id: "cot", label: "COT Hedge Funds (CFTC)",
+      direction: cotDir,
       value: `${cot.longPct.toFixed(0)}% L / ${cot.shortPct.toFixed(0)}% S`,
-      detail: `Retail ${cot.longPct.toFixed(0)}% long vs ${cot.shortPct.toFixed(0)}% short (imbalance ${imbalance.toFixed(0)}%). ${cotDir === "bullish" ? "Majorité short → signal contrarian haussier." : cotDir === "bearish" ? "Majorité long → signal contrarian baissier." : "Sentiment équilibré."}`,
+      detail: `Leveraged Money CFTC : ${cot.longPct.toFixed(0)}% long vs ${cot.shortPct.toFixed(0)}% short (imbalance ${imbalance.toFixed(0)}%, net ${cot.net > 0 ? "+" : ""}${(cot.net / 1000).toFixed(0)}k). ${cotDir === "bullish" ? "Hedge funds majoritairement longs → signal institutionnel haussier." : cotDir === "bearish" ? "Hedge funds majoritairement shorts → signal institutionnel baissier." : "Positioning institutionnel équilibré."}`,
       strength: Math.min(100, imbalance * 2),
       icon: <BarChart2 size={13} />,
     });
@@ -767,37 +770,6 @@ export default function CurrencyCard({
                     <div className={`text-2xl font-black tabular-nums ${sigColor(mispricDir)}`}>{avgStr}</div>
                   </div>
                 </div>
-
-                {/* COT — positions Long/Short hedge funds */}
-                {cot && (
-                  <div className="bg-slate-800/40 rounded-xl border border-slate-700/30 p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-1.5">
-                        <BarChart2 size={11} className="text-slate-400" />
-                        <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">COT — Positions Hedge Funds</span>
-                      </div>
-                      <span className={`text-xs font-bold tabular-nums ${cot.net > 0 ? "text-emerald-400" : cot.net < 0 ? "text-red-400" : "text-slate-400"}`}>
-                        {cot.net > 0 ? "+" : ""}{(cot.net / 1000).toFixed(0)}k net
-                      </span>
-                    </div>
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-2 text-[10px]">
-                        <span className="text-slate-500 w-8 shrink-0">Long</span>
-                        <div className="flex-1 h-2 bg-slate-700/40 rounded-full overflow-hidden">
-                          <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${cot.longPct}%` }} />
-                        </div>
-                        <span className="text-emerald-400 font-bold w-7 text-right">{cot.longPct}%</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-[10px]">
-                        <span className="text-slate-500 w-8 shrink-0">Short</span>
-                        <div className="flex-1 h-2 bg-slate-700/40 rounded-full overflow-hidden">
-                          <div className="h-full bg-red-500 rounded-full" style={{ width: `${cot.shortPct}%` }} />
-                        </div>
-                        <span className="text-red-400 font-bold w-7 text-right">{cot.shortPct}%</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {/* Signal list */}
                 <div className="space-y-2">
