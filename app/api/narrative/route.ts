@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   }
 
   let body: {
-    mode: "cb_analysis" | "expert_opinion" | "summary" | "divergence";
+    mode: "cb_analysis" | "expert_opinion" | "summary" | "divergence" | "report_ccy";
     currency?: string;
     data?: unknown;
     userInput?: string;
@@ -71,6 +71,28 @@ ${JSON.stringify(data, null, 2)}
 
 Explique en 3 phrases : pourquoi cette configuration est significative et quelle action de trading elle suggère.`;
       break;
+
+    case "report_ccy": {
+      const d = data as {
+        weeklyPct?: string; weekFrom?: string; weekTo?: string;
+        cotNetTff?: number; cotDeltaTff?: number; cotLongPctTff?: number;
+        cotNetLegacy?: number; cotDeltaLegacy?: number;
+        yieldCurrent?: number; yieldDelta?: number;
+        hint?: string;
+      };
+      const weekRange = d.weekFrom && d.weekTo ? `${d.weekFrom} au ${d.weekTo}` : "de la semaine";
+      userMessage = `Rédige le paragraphe d'analyse hebdomadaire pour ${currency} (semaine du ${weekRange}).
+
+Données disponibles :
+- Performance hebdomadaire vs USD : ${d.weeklyPct ?? "N/D"}
+- COT Hedge Funds (TFF) : net ${d.cotNetTff ?? "N/D"} contrats, variation semaine : ${d.cotDeltaTff != null ? (d.cotDeltaTff > 0 ? "+" : "") + d.cotDeltaTff : "N/D"}, % long : ${d.cotLongPctTff ?? "N/D"}%
+- COT Non-Commercial (Legacy) : net ${d.cotNetLegacy ?? "N/D"} contrats, variation : ${d.cotDeltaLegacy != null ? (d.cotDeltaLegacy > 0 ? "+" : "") + d.cotDeltaLegacy : "N/D"}
+- Rendement obligataire : ${d.yieldCurrent != null ? d.yieldCurrent + "%" : "N/D"} (Δ ${d.yieldDelta != null ? (d.yieldDelta > 0 ? "+" : "") + d.yieldDelta + "%" : "N/D"})
+${d.hint ? `- Contexte additionnel : ${d.hint}` : ""}
+
+Rédige un paragraphe fluide de 80 à 120 mots, style analyste macro professionnel. Structure : (1) performance et catalyseurs de la semaine, (2) lecture institutionnelle (COT), (3) niveau ou seuil clé à surveiller. Pas de bullet points — texte continu.`;
+      break;
+    }
 
     case "summary":
     default:

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
   ExternalLink, RefreshCw, TrendingUp, TrendingDown, Minus,
   Loader2, Radio, AlertTriangle, Landmark, Globe, BarChart2, Zap,
@@ -71,21 +71,34 @@ interface Props {
 }
 
 export default function NewsTab({ items, loading, onRefresh }: Props) {
-  const [filterCcy, setFilterCcy] = useState<Currency | "ALL">("ALL");
-  const [filterCat, setFilterCat] = useState<string | "ALL">("ALL");
-  const [filterDir, setFilterDir] = useState<"all" | "bullish" | "bearish">("all");
+  const [filterCcy,      setFilterCcy]      = useState<Currency | "ALL">("ALL");
+  const [filterCat,      setFilterCat]      = useState<string | "ALL">("ALL");
+  const [filterDir,      setFilterDir]      = useState<"all" | "bullish" | "bearish">("all");
+  const [priorityOnly,   setPriorityOnly]   = useState(false);
+  const [autoRefresh,    setAutoRefresh]    = useState(true);
+  const [lastRefreshAt,  setLastRefreshAt]  = useState<Date | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Auto-refresh toutes les 5 minutes
+  useEffect(() => {
+    if (!autoRefresh) { if (intervalRef.current) clearInterval(intervalRef.current); return; }
+    intervalRef.current = setInterval(() => { onRefresh(); setLastRefreshAt(new Date()); }, 5 * 60_000);
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [autoRefresh, onRefresh]);
+
+  const isPriorityItem = (item: NewsItem) =>
+    item.categories.some(c => ["Discours BC", "Décision Taux", "Crise", "Guerre", "Chef d'État", "Probabilités Taux"].includes(c));
 
   const filtered = useMemo(() => items.filter(item => {
+    if (priorityOnly && !isPriorityItem(item)) return false;
     if (filterCcy !== "ALL" && !item.impacts.some(i => i.ccy === filterCcy)) return false;
     if (filterCat !== "ALL" && !item.categories.includes(filterCat)) return false;
-    if (filterDir !== "all") {
-      const hasDir = filterCcy === "ALL"
-        ? item.impacts.some(i => i.direction === filterDir)
-        : item.impacts.some(i => i.ccy === filterCcy && i.direction === filterDir);
-      if (!hasDir) return false;
+    if (filterDir !== "all" && filterCcy !== "ALL") {
+      if (!item.impacts.some(i => i.ccy === filterCcy && i.direction === filterDir)) return false;
     }
     return true;
-  }), [items, filterCcy, filterCat, filterDir]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [items, filterCcy, filterCat, filterDir, priorityOnly]);
 
   // Catégories présentes dans le feed actuel
   const activeCats = useMemo(() => {
@@ -125,15 +138,32 @@ export default function NewsTab({ items, loading, onRefresh }: Props) {
       {/* ── Headline résumé par devise ──────────────────────────────────────── */}
       {!loading && items.length > 0 && (
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
             <span className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold">
               Biais actualités par devise
             </span>
-            <button onClick={onRefresh} disabled={loading}
-              className="flex items-center gap-1 text-[9px] text-slate-600 hover:text-slate-400 disabled:opacity-50">
-              <RefreshCw size={9} className={loading ? "animate-spin" : ""} />
-              Actualiser
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Bouton Prioritaires */}
+              <button onClick={() => setPriorityOnly(p => !p)}
+                className={`flex items-center gap-1 text-[9px] px-2.5 py-1 rounded-full font-semibold border transition-colors ${
+                  priorityOnly ? "bg-amber-500/20 text-amber-400 border-amber-500/30" : "text-slate-500 border-slate-700/40 hover:text-slate-300"
+                }`}>
+                <Zap size={9} /> ⚡ Prioritaires
+              </button>
+              {/* Auto-refresh */}
+              <button onClick={() => setAutoRefresh(a => !a)}
+                className={`flex items-center gap-1 text-[9px] px-2 py-1 rounded-full border transition-colors ${
+                  autoRefresh ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" : "text-slate-600 border-slate-700/30"
+                }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${autoRefresh ? "bg-emerald-500 animate-pulse" : "bg-slate-600"}`} />
+                {autoRefresh ? "Live 5min" : "Pause"}
+              </button>
+              <button onClick={() => { onRefresh(); setLastRefreshAt(new Date()); }} disabled={loading}
+                className="flex items-center gap-1 text-[9px] text-slate-600 hover:text-slate-400 disabled:opacity-50">
+                <RefreshCw size={9} className={loading ? "animate-spin" : ""} />
+                {lastRefreshAt ? lastRefreshAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "Actualiser"}
+              </button>
+            </div>
           </div>
           <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
             {CCY_LIST.map(ccy => {

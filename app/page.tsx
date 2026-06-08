@@ -12,8 +12,11 @@ import CalendarTab from "@/components/CalendarTab";
 import SentimentPairsTab from "@/components/SentimentPairsTab";
 import YieldsTab from "@/components/YieldsTab";
 import NewsTab from "@/components/NewsTab";
+import CotTab from "@/components/CotTab";
+import ReportTab from "@/components/ReportTab";
 import type { CalendarEvent } from "@/app/api/calendar/route";
 import type { NewsItem } from "@/app/api/news/route";
+import type { CotHistory } from "@/app/api/cot-history/route";
 
 const REFRESH_MS = parseInt(process.env.NEXT_PUBLIC_REFRESH_INTERVAL_MS ?? "3600000");
 
@@ -25,10 +28,12 @@ export default function Dashboard() {
   const [cot,          setCot]          = useState<Record<string, CotEntry> | null>(null);
   const [calEvents,    setCalEvents]    = useState<CalendarEvent[]>([]);
   const [nextWeekAvail, setNextWeekAvail] = useState(false);
-  const [activeTab,    setActiveTab]    = useState<"dashboard" | "calendar" | "pairs" | "yields" | "news">("dashboard");
+  const [activeTab,    setActiveTab]    = useState<"dashboard" | "calendar" | "pairs" | "yields" | "news" | "cot" | "report">("dashboard");
   const [newsItems,    setNewsItems]    = useState<NewsItem[]>([]);
   const [newsLoading,  setNewsLoading]  = useState(false);
-  const [rawSymbols,   setRawSymbols]   = useState<Array<{ name: string; longPercentage: number; shortPercentage: number; totalPositions: number }> | null>(null);
+  const [cotHistory,   setCotHistory]   = useState<CotHistory | null>(null);
+  const [cotLoading,   setCotLoading]   = useState(false);
+  const [rawSymbols,   setRawSymbols]   = useState<Array<{ name: string; longPercentage: number; shortPercentage: number; longVolume: number; shortVolume: number; longPositions: number; shortPositions: number; totalPositions: number; avgLongPrice?: number; avgShortPrice?: number }> | null>(null);
   const [rateProbabilities, setRateProbabilities] = useState<RateProbData | null>(null);
   const [lastRefresh,  setLastRefresh]  = useState<Date>(new Date());
   const [loading,      setLoading]      = useState(true);
@@ -174,7 +179,7 @@ export default function Dashboard() {
 
       // ── Sentiment Myfxbook ────────────────────────────────────────────────
       if (sentimentRes.status === "fulfilled" && !sentimentRes.value?.error && sentimentRes.value?.symbols) {
-        const syms = sentimentRes.value.symbols as Array<{ name: string; longPercentage: number; shortPercentage: number; totalPositions: number }>;
+        const syms = sentimentRes.value.symbols as Array<{ name: string; longPercentage: number; shortPercentage: number; longVolume: number; shortVolume: number; longPositions: number; shortPositions: number; totalPositions: number; avgLongPrice?: number; avgShortPrice?: number }>;
         setRawSymbols(syms);
         const mapped = parseSentimentSymbols(syms);
         setSentiment(mapped);
@@ -232,6 +237,23 @@ export default function Dashboard() {
   useEffect(() => {
     if (activeTab === "news" && newsItems.length === 0) refreshNews();
   }, [activeTab, newsItems.length, refreshNews]);
+
+  const refreshCotHistory = useCallback(async () => {
+    setCotLoading(true);
+    try {
+      const res = await fetch("/api/cot-history");
+      if (res.ok) {
+        const json = await res.json();
+        if (!json.error) setCotHistory(json as CotHistory);
+      }
+    } finally {
+      setCotLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "cot" && !cotHistory) refreshCotHistory();
+  }, [activeTab, cotHistory, refreshCotHistory]);
 
   const handleDivergenceUpdate = useCallback((currency: Currency, score: number) => {
     setActiveDivergences((prev) => {
@@ -292,7 +314,7 @@ export default function Dashboard() {
 
       {/* Tab navigation */}
       <div className="flex gap-0 border-b border-slate-800 mb-4">
-        {(["dashboard", "calendar", "pairs", "yields", "news"] as const).map((tab) => (
+        {(["dashboard", "calendar", "pairs", "yields", "news", "cot", "report"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -306,7 +328,9 @@ export default function Dashboard() {
               : tab === "calendar" ? "📅 Calendrier"
               : tab === "pairs"   ? "↕ Paires"
               : tab === "yields"  ? "📈 Yields 10Y"
-              : "📰 Actualités"}
+              : tab === "news"    ? "📰 Actualités"
+              : tab === "cot"    ? "📊 COT"
+              : "📋 Rapport"}
           </button>
         ))}
       </div>
@@ -369,6 +393,14 @@ export default function Dashboard() {
 
       {activeTab === "news" && (
         <NewsTab items={newsItems} loading={newsLoading} onRefresh={refreshNews} />
+      )}
+
+      {activeTab === "cot" && (
+        <CotTab history={cotHistory} loading={cotLoading} />
+      )}
+
+      {activeTab === "report" && (
+        <ReportTab calEvents={calEvents} drivers={drivers} cotHistory={cotHistory} />
       )}
 
       {/* Legend */}

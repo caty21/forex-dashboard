@@ -5,7 +5,7 @@ import type { NewsItem } from "@/lib/newsfeed";
 export type { NewsItem } from "@/lib/newsfeed";
 
 let _cache: { data: NewsItem[]; ts: number } | null = null;
-const TTL = 30 * 60_000; // 30 min
+const TTL = 5 * 60_000; // 5 min — actualités fraîches
 
 export async function GET() {
   if (_cache && Date.now() - _cache.ts < TTL) {
@@ -17,6 +17,6 @@ export async function GET() {
 
   return NextResponse.json(
     { items, fetchedAt: new Date().toISOString() },
-    { headers: { "Cache-Control": "s-maxage=1800, stale-while-revalidate=3600" } }
+    { headers: { "Cache-Control": "s-maxage=300, stale-while-revalidate=600" } }
   );
 }

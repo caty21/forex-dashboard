@@ -485,6 +485,11 @@ const PERSON_RULES: ImpactRule[] = buildPersonRules();
 const ALL_RULES: ImpactRule[] = [...IMPACT_RULES, ...PERSON_RULES];
 
 function applyRules(text: string): { impacts: NewsImpact[]; categories: string[] } {
+  return applyRulesPublic(text);
+}
+
+// Export pour les modules externes (financialjuice.ts, etc.)
+export function applyRulesPublic(text: string): { impacts: NewsImpact[]; categories: string[] } {
   const impacts: NewsImpact[] = [];
   const categories = new Set<string>();
   const seenCcy = new Set<Currency>();
@@ -526,79 +531,35 @@ const TE_HEADERS = {
   "Accept-Language": "en-US,en;q=0.9",
 };
 
-// ── Source 1 : InvestingLive /forex/ ─────────────────────────────────────────
-
-async function fetchInvestingLiveNews(): Promise<NewsItem[]> {
-  try {
-    const res = await fetch("https://investinglive.com/forex/", {
-      next: { revalidate: 1800 },
-      headers: TE_HEADERS,
-    });
-    if (!res.ok) return [];
-    const html = await res.text();
-
-    // Articles listés sous forme <article> ou <div class="...post...">
-    // On cherche les liens + titres + dates dans le HTML
-    const items: NewsItem[] = [];
-
-    // Pattern : <h2 ...><a href="URL">TITLE</a></h2> + datetime="DATE"
-    const articlePattern = /<article[^>]*>([\s\S]*?)<\/article>/gi;
-    let m: RegExpExecArray | null;
-
-    while ((m = articlePattern.exec(html)) !== null && items.length < 15) {
-      const block = m[1];
-
-      const linkM = block.match(/href=["'](https?:\/\/investinglive\.com\/[^"']+)["']/i);
-      const titleM = block.match(/<h[1-4][^>]*>[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/h[1-4]>/i)
-                  ?? block.match(/<a[^>]*class=["'][^"']*title[^"']*["'][^>]*>([\s\S]*?)<\/a>/i);
-      const dateM  = block.match(/datetime=["']([^"']+)["']/i);
-
-      if (!linkM || !titleM) continue;
-
-      const url       = linkM[1];
-      const title     = titleM[1].replace(/<[^>]+>/g, "").trim();
-      const dateStr   = dateM ? dateM[1] : "";
-      const { impacts, categories } = applyRules(title);
-
-      items.push({
-        id:          `il-${Buffer.from(url).toString("base64").slice(0, 12)}`,
-        title,
-        url,
-        source:      "InvestingLive",
-        publishedAt: parseDate(dateStr),
-        impacts,
-        categories,
-      });
-    }
-
-    return items;
-  } catch { return []; }
-}
-
-// ── Source 2 : Reuters RSS (marchés) ─────────────────────────────────────────
-
-const REUTERS_FEEDS = [
-  "https://feeds.reuters.com/reuters/businessNews",
-  "https://feeds.reuters.com/reuters/topNews",
-];
+// ── Parseur RSS générique ─────────────────────────────────────────────────────
 
 function parseRssItems(xml: string, source: string): NewsItem[] {
   const items: NewsItem[] = [];
-  const itemBlocks = xml.match(/<item>([\s\S]*?)<\/item>/g) ?? [];
+  // Support RSS <item> et Atom <entry>
+  const blockPattern = /<(?:item|entry)>([\s\S]*?)<\/(?:item|entry)>/gi;
+  let m: RegExpExecArray | null;
 
-  for (const block of itemBlocks.slice(0, 20)) {
-    const titleM   = block.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i);
-    const linkM    = block.match(/<link>([\s\S]*?)<\/link>/i)
-                  ?? block.match(/<guid[^>]*>([\s\S]*?)<\/guid>/i);
-    const dateM    = block.match(/<pubDate>([\s\S]*?)<\/pubDate>/i);
-    const descM    = block.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/i);
+  while ((m = blockPattern.exec(xml)) !== null && items.length < 25) {
+    const block = m[1];
+
+    // Titre : CDATA ou texte brut
+    const titleM = block.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i);
+    // Lien : <link href="…"/> (Atom) ou <link>…</link> (RSS) ou <guid>
+    const linkM  = block.match(/<link[^>]*href=["']([^"']+)["']/i)
+                ?? block.match(/<link[^>]*>([\s\S]*?)<\/link>/i)
+                ?? block.match(/<guid[^>]*isPermaLink=["']true["'][^>]*>([\s\S]*?)<\/guid>/i)
+                ?? block.match(/<guid[^>]*>(https?:\/\/[^\s<]+)<\/guid>/i);
+    const dateM  = block.match(/<(?:pubDate|published|updated|dc:date)>([\s\S]*?)<\/(?:pubDate|published|updated|dc:date)>/i);
+    const descM  = block.match(/<(?:description|summary|content)>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/(?:description|summary|content)>/i);
 
     if (!titleM || !linkM) continue;
 
-    const title    = titleM[1].replace(/<[^>]+>/g, "").trim();
-    const url      = linkM[1].trim();
-    const dateStr  = dateM?.[1] ?? "";
-    const summary  = descM?.[1].replace(/<[^>]+>/g, "").trim().slice(0, 200);
+    const title   = titleM[1].replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').trim();
+    const url     = linkM[1].trim();
+    const dateStr = dateM?.[1]?.trim() ?? "";
+    const summary = descM?.[1].replace(/<[^>]+>/g, "").trim().slice(0, 300);
+
+    if (!title || !url.startsWith("http")) continue;
 
     const combined = `${title} ${summary ?? ""}`;
     const { impacts, categories } = applyRules(combined);
@@ -618,17 +579,83 @@ function parseRssItems(xml: string, source: string): NewsItem[] {
   return items;
 }
 
-async function fetchReutersNews(): Promise<NewsItem[]> {
+async function fetchRssFeed(url: string, source: string): Promise<NewsItem[]> {
+  try {
+    const res = await fetch(url, {
+      next: { revalidate: 1800 },
+      headers: {
+        ...TE_HEADERS,
+        "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+      },
+    });
+    if (!res.ok) return [];
+    const xml = await res.text();
+    if (!xml.includes("<item>") && !xml.includes("<entry>")) return [];
+    return parseRssItems(xml, source);
+  } catch { return []; }
+}
+
+// ── Source 1 : InvestingLive via WordPress REST API ───────────────────────────
+// Beaucoup plus fiable que le scraping HTML — retourne du JSON structuré
+
+async function fetchInvestingLiveNews(): Promise<NewsItem[]> {
+  try {
+    // WordPress REST API : liste des posts récents, filtrée sur catégorie forex si dispo
+    const res = await fetch(
+      "https://investinglive.com/wp-json/wp/v2/posts?per_page=20&orderby=date&order=desc&_fields=id,title,link,date,excerpt,categories",
+      {
+        next:    { revalidate: 1800 },
+        headers: { ...TE_HEADERS, "Accept": "application/json" },
+      }
+    );
+    if (!res.ok) return [];
+
+    const posts = await res.json() as Array<{
+      id: number;
+      title:   { rendered: string };
+      link:    string;
+      date:    string;
+      excerpt: { rendered: string };
+    }>;
+
+    if (!Array.isArray(posts)) return [];
+
+    return posts.slice(0, 20).map(post => {
+      const title   = post.title?.rendered?.replace(/<[^>]+>/g, "").replace(/&#8217;/g, "'").replace(/&#8220;/g, '"').replace(/&#8221;/g, '"').trim() ?? "";
+      const summary = post.excerpt?.rendered?.replace(/<[^>]+>/g, "").trim().slice(0, 250);
+      const combined = `${title} ${summary ?? ""}`;
+      const { impacts, categories } = applyRules(combined);
+      return {
+        id:          `il-${post.id}`,
+        title,
+        url:         post.link,
+        source:      "InvestingLive",
+        publishedAt: parseDate(post.date),
+        summary,
+        impacts,
+        categories,
+      } as NewsItem;
+    }).filter(i => i.title.length > 5);
+  } catch { return []; }
+}
+
+// ── Source 2 : Flux RSS forex/marchés ────────────────────────────────────────
+// FXStreet : très forex-focused, RSS public
+// ForexLive : commentaires macro en temps réel
+// MarketWatch : marchés généraux
+
+const RSS_FEEDS: { url: string; source: string }[] = [
+  { url: "https://www.fxstreet.com/rss/news",                                    source: "FXStreet" },
+  { url: "https://www.forexlive.com/feed/news",                                   source: "ForexLive" },
+  { url: "https://feeds.content.dowjones.io/public/rss/mw_realtimeheadlines",    source: "MarketWatch" },
+  { url: "https://finance.yahoo.com/rss/topfinstories",                           source: "Yahoo Finance" },
+  { url: "https://feeds.reuters.com/reuters/businessNews",                        source: "Reuters" },
+  { url: "https://www.investing.com/rss/news.rss",                                source: "Investing.com" },
+];
+
+async function fetchRssFeeds(): Promise<NewsItem[]> {
   const results = await Promise.allSettled(
-    REUTERS_FEEDS.map(async (feedUrl) => {
-      const res = await fetch(feedUrl, {
-        next: { revalidate: 1800 },
-        headers: { ...TE_HEADERS, "Accept": "application/rss+xml, application/xml, text/xml, */*" },
-      });
-      if (!res.ok) return [];
-      const xml = await res.text();
-      return parseRssItems(xml, "Reuters");
-    })
+    RSS_FEEDS.map(({ url, source }) => fetchRssFeed(url, source))
   );
 
   const all: NewsItem[] = [];
@@ -716,26 +743,105 @@ async function fetchBloombergMeta(): Promise<NewsItem[]> {
   return items;
 }
 
+// ── Source 5 : ZeroHedge (FeedBurner RSS) ────────────────────────────────────
+// ZeroHedge couvre des dizaines de sujets (crypto, politique, marchés, macro).
+// On filtre : seuls les articles où applyRules trouve au moins une devise ou
+// catégorie macro sont conservés. Ça élimine le bruit (IPO, crypto pures, etc.)
+
+async function fetchZeroHedgeNews(): Promise<NewsItem[]> {
+  const FEED_URL = "https://feeds.feedburner.com/zerohedge/feed";
+  try {
+    const res = await fetch(FEED_URL, {
+      next: { revalidate: 600 }, // 10 min — ZH publie très fréquemment
+      headers: {
+        ...TE_HEADERS,
+        "Accept": "application/rss+xml, application/xml, text/xml, */*",
+      },
+    });
+    if (!res.ok) return [];
+    const xml = await res.text();
+    if (!xml.includes("<item>")) return [];
+
+    const items: NewsItem[] = [];
+    const blockPattern = /<item>([\s\S]*?)<\/item>/gi;
+    let m: RegExpExecArray | null;
+
+    while ((m = blockPattern.exec(xml)) !== null && items.length < 40) {
+      const block = m[1];
+
+      const titleM = block.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i);
+      const linkM  = block.match(/<link>([\s\S]*?)<\/link>/i)
+                  ?? block.match(/<guid[^>]*>(https?:\/\/[^\s<]+)<\/guid>/i);
+      const dateM  = block.match(/<pubDate>([\s\S]*?)<\/pubDate>/i);
+      const descM  = block.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/i);
+
+      if (!titleM || !linkM) continue;
+
+      const title   = titleM[1].replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").trim();
+      const url     = linkM[1].trim();
+      if (!title || !url.startsWith("http")) continue;
+
+      // Décoder les entités HTML puis supprimer les balises (ZH encode son HTML dans CDATA)
+      const rawDesc   = (descM?.[1] ?? "")
+        .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/&quot;/g, '"');
+      const plainText = rawDesc.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+      const summary      = plainText.slice(0, 300);
+      const analysisText = plainText.slice(0, 800);
+
+      // Filtre de pertinence forex : garder seulement si une règle matche
+      const { impacts, categories } = applyRules(`${title} ${analysisText}`);
+      if (impacts.length === 0 && categories.length === 0) continue;
+
+      const dateStr = dateM?.[1]?.trim() ?? "";
+      items.push({
+        id:          `zh-${Buffer.from(url).toString("base64").slice(0, 12)}`,
+        title,
+        url,
+        source:      "ZeroHedge",
+        publishedAt: parseDate(dateStr),
+        summary,
+        impacts,
+        categories,
+      });
+    }
+
+    return items;
+  } catch { return []; }
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 
 export async function fetchAllNews(): Promise<NewsItem[]> {
-  const [ilNews, reutersNews, bbNews] = await Promise.allSettled([
+  // Import dynamique pour éviter les dépendances circulaires
+  const { fetchFinancialJuiceNews } = await import("./financialjuice");
+
+  const [ilNews, rssNews, bbNews, fjNews, zhNews] = await Promise.allSettled([
     fetchInvestingLiveNews(),
-    fetchReutersNews(),
+    fetchRssFeeds(),
     fetchBloombergMeta(),
+    fetchFinancialJuiceNews(),
+    fetchZeroHedgeNews(),
   ]);
 
   const all: NewsItem[] = [
-    ...(ilNews.status      === "fulfilled" ? ilNews.value      : []),
-    ...(reutersNews.status === "fulfilled" ? reutersNews.value : []),
-    ...(bbNews.status      === "fulfilled" ? bbNews.value      : []),
+    ...(fjNews.status  === "fulfilled" ? fjNews.value  : []),  // FJ en priorité
+    ...(zhNews.status  === "fulfilled" ? zhNews.value  : []),  // ZH en 2ème (macro heavy)
+    ...(ilNews.status  === "fulfilled" ? ilNews.value  : []),
+    ...(rssNews.status === "fulfilled" ? rssNews.value : []),
+    ...(bbNews.status  === "fulfilled" ? bbNews.value  : []),
   ];
 
-  // Dédupliquer sur l'URL, trier par date décroissante
+  const EIGHT_DAYS_MS = 8 * 24 * 3600_000;
+  const cutoff = Date.now() - EIGHT_DAYS_MS;
+
+  // Dédupliquer, filtrer > 8 jours, trier par date décroissante
   const seenUrls = new Set<string>();
   const deduped = all.filter(item => {
     if (seenUrls.has(item.url)) return false;
     seenUrls.add(item.url);
+    // Exclure les articles trop anciens (> 8 jours)
+    const t = new Date(item.publishedAt).getTime();
+    if (!isNaN(t) && t < cutoff) return false;
     return true;
   });
 

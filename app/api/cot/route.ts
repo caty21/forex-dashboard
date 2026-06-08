@@ -31,21 +31,38 @@ const IDX_LEV_LONG  = 14;
 const IDX_LEV_SHORT = 15;
 const IDX_DATE     = 2;
 
-// In-memory cache (1 semaine)
-let _cache: { data: Record<string, unknown>; ts: number } | null = null;
-const TTL = 7 * 24 * 3600_000;
+// In-memory cache — expire le vendredi suivant à 15h30 UTC (publication CFTC)
+// TTL max 4 jours pour garantir refresh chaque semaine
+let _cache: { data: Record<string, unknown>; ts: number; weekDate: string } | null = null;
+
+function nextCftcRelease(): number {
+  const now = new Date();
+  const d = new Date(now);
+  // Prochain vendredi 15:30 UTC
+  const daysUntilFriday = (5 - d.getUTCDay() + 7) % 7 || 7;
+  d.setUTCDate(d.getUTCDate() + daysUntilFriday);
+  d.setUTCHours(15, 30, 0, 0);
+  return d.getTime();
+}
+
+function cacheTtl(): number {
+  const ttlToRelease = nextCftcRelease() - Date.now();
+  // max 4 jours pour éviter de bloquer sur de vieilles données
+  return Math.min(ttlToRelease, 4 * 24 * 3600_000);
+}
 
 export type { CotEntry } from "@/lib/types";
 
 export async function GET() {
-  if (_cache && Date.now() - _cache.ts < TTL) {
+  if (_cache && Date.now() - _cache.ts < cacheTtl()) {
     return NextResponse.json(_cache.data);
   }
 
   try {
     const res = await fetch(CFTC_URL, {
-      next: { revalidate: 86400 * 7 },
+      next: { revalidate: 86400 }, // revalidate quotidien — CFTC sort chaque vendredi
       headers: { "User-Agent": "Mozilla/5.0 (compatible; ForexDashboard/1.0)" },
+      cache: "no-store", // forcer fetch frais pour l'in-memory cache ci-dessus
     });
     if (!res.ok) {
       return NextResponse.json({ error: `CFTC fetch failed: ${res.status}` }, { status: 502 });
@@ -54,7 +71,8 @@ export async function GET() {
     const text   = await res.text();
     const result = parseCOT(text);
 
-    _cache = { data: result, ts: Date.now() };
+    const weekDate = Object.values(result as Record<string, CotEntry>)[0]?.weekDate ?? "";
+    _cache = { data: result, ts: Date.now(), weekDate };
     return NextResponse.json(result);
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 502 });
