@@ -9,7 +9,7 @@ import { fetchTECoreInflation, fetchTEMoMInflation, fetchTEInflationYoY, fetchTE
 import { fetchTEInflationForecasts } from "@/lib/tradingeconomics";
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
-const REVALIDATE = 86400; // cache 24h
+const REVALIDATE = 3600; // cache 1h (les données FRED sont disponibles ~1h après publication)
 
 // ── FRED ─────────────────────────────────────────────────────────────────────
 
@@ -428,6 +428,49 @@ async function scrapeTeGdp(country: string): Promise<{ value: number | null; pre
   } catch { return empty; }
 }
 
+// ── Trading Economics — Retail Sales MoM (country-list, toutes devises en une requête) ─────
+// Parse le tableau https://tradingeconomics.com/country-list/retail-sales-mom
+// Valeurs positives : <td data-heatmap-value="N">0.5</td>
+// Valeurs négatives : <td data-heatmap-value="N"><span class='te-value-negative'>-0.4</span></td>
+
+let _teRetailMoMCache: { data: Map<string, { value: number; prev: number | null }>; ts: number } | null = null;
+
+async function fetchTeRetailSalesMoM(): Promise<Map<string, { value: number; prev: number | null }>> {
+  if (_teRetailMoMCache && Date.now() - _teRetailMoMCache.ts < 3_600_000) {
+    return _teRetailMoMCache.data;
+  }
+  const result = new Map<string, { value: number; prev: number | null }>();
+  const slugToCurrency: Record<string, string> = {
+    "united-states": "USD", "euro-area": "EUR", "united-kingdom": "GBP",
+    "japan": "JPY", "switzerland": "CHF", "canada": "CAD",
+    "australia": "AUD", "new-zealand": "NZD",
+  };
+  try {
+    const res = await fetch("https://tradingeconomics.com/country-list/retail-sales-mom", {
+      next: { revalidate: 3600 },
+      headers: {
+        "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+      },
+    });
+    if (!res.ok) return result;
+    const html = await res.text();
+    // Regex robuste : capture slug + valeur courante + valeur précédente
+    // Gère les valeurs négatives wrappées dans <span class='te-value-negative'>
+    const re = /<a href='\/([^']+)\/retail-sales'>\s*[^<]+\s*<\/a><\/td>\s*<td[^>]*>(?:<span[^>]*>)?([-\d.]+)(?:<\/span>)?<\/td>\s*<td>(?:<span[^>]*>)?([-\d.]+)(?:<\/span>)?<\/td>/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(html)) !== null) {
+      const currency = slugToCurrency[m[1]];
+      if (currency) {
+        result.set(currency, { value: parseFloat(m[2]), prev: parseFloat(m[3]) });
+      }
+    }
+  } catch { /* retourner map vide si TE indisponible */ }
+  _teRetailMoMCache = { data: result, ts: Date.now() };
+  return result;
+}
+
 // ── Trading Economics — Balance commerciale (niveau, normalisé en Milliards devise locale)
 // Format meta TE :
 //   "X recorded a trade deficit/surplus of Y.YY EUR/USD/etc. Billion/Million in Month of Year"
@@ -618,14 +661,39 @@ function parseTeF(s: string | null | undefined): number | null {
 
 const _cache = new Map<string, { data: unknown; ts: number }>();
 
+// TTL adaptatif : 15 min si un event à fort/moyen impact vient d'être publié dans les 2h
+// pour cette devise, sinon 1h.
+async function getSmartTtl(currency: string): Promise<number> {
+  const BASE_TTL  = 3_600_000;  // 1h par défaut
+  const HOT_TTL   = 900_000;    // 15min après publication récente
+  const WINDOW_MS = 7_200_000;  // fenêtre de 2h
+  try {
+    const events = await fetchFFThisWeek();
+    const now    = Date.now();
+    const hasRecent = events.some(e => {
+      const t = new Date(e.date).getTime();
+      return (
+        e.country === currency &&
+        e.actual  !== ""       &&  // données publiées (actual rempli)
+        (e.impact === "High" || e.impact === "Medium") &&
+        t <= now               &&  // passé (pas futur)
+        now - t < WINDOW_MS        // dans les 2h
+      );
+    });
+    return hasRecent ? HOT_TTL : BASE_TTL;
+  } catch { return BASE_TTL; }
+}
+
 export async function GET(req: NextRequest) {
   const currency = (new URL(req.url).searchParams.get("currency") ?? "").toUpperCase() as Currency;
   const series   = FRED_SERIES[currency];
   if (!series) return NextResponse.json({ error: "Unknown currency" }, { status: 400 });
 
+  // TTL smart : 15 min si publication récente, sinon 1h
+  const ttl        = await getSmartTtl(currency);
   const cached     = _cache.get(currency);
   const staleCache = cached ?? null;
-  if (cached && Date.now() - cached.ts < 86_400_000) return NextResponse.json(cached.data);
+  if (cached && Date.now() - cached.ts < ttl) return NextResponse.json(cached.data);
 
   const key = process.env.FRED_API_KEY;
   if (!key) return NextResponse.json({ error: "FRED_API_KEY missing" }, { status: 500 });
@@ -954,6 +1022,22 @@ export async function GET(req: NextRequest) {
   // → calculer MoM depuis les obs cpiCore déjà disponibles (Core MoM ou QoQ trimestriel)
   if (!indicators.cpiMoM && _cpiCoreObs.length >= 2) {
     indicators.cpiMoM = toIndicatorPct(_cpiCoreObs);
+  }
+
+  // ── Retail Sales MoM : override depuis Trading Economics (plus à jour que FRED OCDE) ────────
+  {
+    const teRS = await fetchTeRetailSalesMoM();
+    const rs   = teRS.get(currency);
+    if (rs !== undefined) {
+      const surprise = rs.prev !== null ? parseFloat((rs.value - rs.prev).toFixed(2)) : null;
+      indicators.retailSales = {
+        value:       rs.value,
+        prev:        rs.prev,
+        surprise,
+        trend:       surprise !== null ? (surprise > 0 ? "up" : surprise < 0 ? "down" : "flat") : null,
+        lastUpdated: today,
+      };
+    }
   }
 
   // ── PMI (Mfg + Services + Composite) + consensus FF ──────────────────────────

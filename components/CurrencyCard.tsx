@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp, TrendingDown, Minus, Loader2, Database,
@@ -15,7 +15,7 @@ import { CURRENCY_META, COUNTRY_PROFILES } from "@/lib/constants";
 import { biasLabel, calcMacroScore } from "@/lib/scoring";
 import { saveCache, loadCache, formatCacheDate } from "@/lib/localCache";
 import type { Currency, BiasPhase, RateExpectation } from "@/lib/types";
-import type { CBRatePath } from "@/lib/rateprobability";
+import type { CBRatePath, ILWeeklyDelta } from "@/lib/rateprobability";
 import type { SentimentEntry, CotEntry } from "@/lib/types";
 import NarrativeButton from "./NarrativeButton";
 
@@ -74,6 +74,48 @@ function phaseLabel(p: BiasPhase) {
   if (p === "hawkish_pause") return "Pause Hawkish";
   if (p === "dovish_pause")  return "Pause Dovish";
   return "Transition";
+}
+
+// ─── Phase depuis OIS (source primaire) ──────────────────────────────────────
+// Ordre de priorité :
+//  1. Resserrement actif   : proba de hausse >60% ET bps annuels >+15
+//  2. Assouplissement actif: proba de coupe  >60% OU bps annuels <−40
+//  3. Pause dovish         : bps annuels ≤ −15 (coupes attendues, pas imminentes)
+//  4. Pause hawkish        : bps annuels ≥ +20 OU biais sans coupe modérément pricé
+//  5. Transition           : anticipations neutres (fin de cycle, CB en attente)
+function computePhaseFromOIS(ratePath: CBRatePath | null): BiasPhase | null {
+  if (!ratePath?.peakMeeting) return null;
+  const yearEndBps = ratePath.yearEndImplied !== null
+    ? Math.round((ratePath.yearEndImplied - ratePath.currentRate) * 100)
+    : 0;
+  const { probMovePct, probIsCut } = ratePath.peakMeeting;
+  if (!probIsCut && probMovePct > 60 && yearEndBps >= 15) return "tightening";
+  if (probIsCut && (probMovePct > 60 || yearEndBps <= -40))  return "easing";
+  if (yearEndBps <= -15)                                      return "dovish_pause";
+  if (yearEndBps >= 20 || (!probIsCut && probMovePct > 40 && yearEndBps > 5)) return "hawkish_pause";
+  return "transition";
+}
+
+// ─── Description contextuelle de la phase (avec vrais chiffres OIS) ──────────
+function phaseDescription(phase: BiasPhase, ratePath: CBRatePath | null): string {
+  const yearEndBps = (ratePath?.yearEndImplied != null && ratePath?.currentRate != null)
+    ? Math.round((ratePath.yearEndImplied - ratePath.currentRate) * 100)
+    : null;
+  const peak   = ratePath?.peakMeeting;
+  const bpsStr = yearEndBps !== null ? `${yearEndBps > 0 ? "+" : ""}${yearEndBps}bps fin d'an` : "";
+  const probStr = peak ? `${peak.probMovePct.toFixed(0)}% de ${peak.probIsCut ? "coupe" : "hausse"} (${peak.label})` : "";
+  switch (phase) {
+    case "tightening":
+      return `Cycle de resserrement actif — ${probStr}${bpsStr ? ` · ${bpsStr}` : ""}. Surveiller : inflation, emploi solide, PMI > 50.`;
+    case "easing":
+      return `Cycle d'assouplissement — ${probStr}${bpsStr ? ` · ${bpsStr}` : ""}. Surveiller : désinflation, ralentissement emploi, PMI < 50.`;
+    case "dovish_pause":
+      return `Pause dovish${bpsStr ? ` — ${bpsStr} anticipés` : ""}. Prochaine réunion stable mais coupes attendues plus tard. Surveiller : timing désinflation.`;
+    case "hawkish_pause":
+      return `Pause hawkish${bpsStr ? ` — ${bpsStr} anticipés` : ""}. CB en attente. Surveiller : regain d'inflation ou fort ralentissement.`;
+    case "transition":
+      return `Anticipations neutres${bpsStr ? ` (${bpsStr})` : ""}. CB données-dépendantes — tous les indicateurs comptent.`;
+  }
 }
 
 function scoreDir(score: number): SignalDir {
@@ -163,6 +205,29 @@ function trendDir(t: "up"|"down"|"flat"|null): SignalDir {
   if (t === "up")   return "bullish";
   if (t === "down") return "bearish";
   return "neutral";
+}
+
+// ─── RpArrow : flèche de tendance pour probabilités de taux (delta IL hebdo) ──
+// delta         = valeur_actuelle - valeur_précédent_article
+// isBearishIfUp = true si une hausse du delta est baissière pour la devise
+
+function RpArrow({
+  delta, isBearishIfPositive, suffix, strongT, modT,
+}: {
+  delta: number; isBearishIfPositive: boolean; suffix: string; strongT: number; modT: number;
+}) {
+  const abs = Math.abs(delta);
+  if (abs < modT) return null;
+  const strong = abs >= strongT;
+  const up     = delta > 0;
+  const bearish = isBearishIfPositive ? up : !up;
+  const color   = bearish ? "text-sky-400" : "text-amber-400";
+  const arrow   = strong ? (up ? "↑↑" : "↓↓") : (up ? "↑" : "↓");
+  return (
+    <span className={`font-bold ${color}`}>
+      {arrow}{up ? "+" : ""}{Math.abs(Math.round(abs * 10) / 10)}{suffix}
+    </span>
+  );
 }
 
 // ─── Sous-composants ─────────────────────────────────────────────────────────
@@ -260,7 +325,15 @@ export default function CurrencyCard({
 
   // ── State ────────────────────────────────────────────────────────────────────
   const [data, setData]           = useState<MacroData | null>(null);
-  const [phase, setPhase]         = useState<BiasPhase>("hawkish_pause");
+  // Phase dérivée des probabilités OIS (source primaire) ou du trend FRED (fallback)
+  const phase = useMemo<BiasPhase>(() => {
+    const oisPhase = computePhaseFromOIS(ratePath);
+    if (oisPhase) return oisPhase;
+    const rateInd = data?.indicators?.policyRate;
+    if (rateInd?.trend === "up")   return "tightening";
+    if (rateInd?.trend === "down") return "easing";
+    return "hawkish_pause";
+  }, [ratePath, data]);
   const [loading, setLoading]     = useState(true);
   const [rateExp, setRateExp]     = useState<RateExpectation | null>(null);
   const [fromCache, setFromCache] = useState(false);
@@ -293,21 +366,12 @@ export default function CurrencyCard({
       setFromCache(false);
       setCacheAge(null);
       saveCache(cacheKey, merged);
-
-      const rateInd = merged.indicators.policyRate;
-      if (rateInd?.trend === "up")        setPhase("tightening");
-      else if (rateInd?.trend === "down") setPhase("easing");
-      else                                setPhase("hawkish_pause");
     } catch {
       const cached = loadCache<MacroData>(cacheKey);
       if (cached) {
         setData(cached.data);
         setFromCache(true);
         setCacheAge(formatCacheDate(cached.savedAt));
-        const rateInd = cached.data.indicators.policyRate;
-        if (rateInd?.trend === "up")        setPhase("tightening");
-        else if (rateInd?.trend === "down") setPhase("easing");
-        else                                setPhase("hawkish_pause");
       }
     } finally {
       setLoading(false);
@@ -505,7 +569,7 @@ export default function CurrencyCard({
     { label: "PMI Mfg",        value: inds?.pmiMfg?.value      != null ? `${inds.pmiMfg.value.toFixed(1)}`       : "", sig: inds?.pmiMfg?.value      != null ? (inds.pmiMfg.value > 50 ? 1 : -1)      : 0 },
     { label: "PMI Services",   value: inds?.pmiServices?.value  != null ? `${inds.pmiServices.value.toFixed(1)}`  : "", sig: inds?.pmiServices?.value  != null ? (inds.pmiServices.value > 50 ? 1 : -1)  : 0 },
     { label: "PIB QoQ",        value: inds?.gdp?.value         != null ? `${inds.gdp.value > 0 ? "+" : ""}${inds.gdp.value.toFixed(2)}%`         : "", sig: (() => { const s = inds?.gdp?.surprise;         return s == null ? 0 : s > 0.3 ? 1 : s < -0.3 ? -1 : 0; })() },
-    { label: "Retail Sales",   value: inds?.retailSales?.value  != null ? `${inds.retailSales.value > 0 ? "+" : ""}${inds.retailSales.value.toFixed(2)}%` : "", sig: (() => { const s = inds?.retailSales?.surprise;  return s == null ? 0 : s > 0.3 ? 1 : s < -0.3 ? -1 : 0; })() },
+    { label: "Retail Sales MoM", value: inds?.retailSales?.value  != null ? `${inds.retailSales.value > 0 ? "+" : ""}${inds.retailSales.value.toFixed(2)}%` : "", sig: (() => { const s = inds?.retailSales?.surprise;  return s == null ? 0 : s > 0.3 ? 1 : s < -0.3 ? -1 : 0; })() },
     { label: "Chômage",        value: inds?.unemployment?.value != null ? `${inds.unemployment.value.toFixed(2)}%` : "", sig: (() => { const s = inds?.unemployment?.surprise; return s == null ? 0 : s < -0.3 ? 1 : s > 0.3 ? -1 : 0; })() },
     { label: "Emploi",         value: inds?.employment?.value  != null ? `${inds.employment.value > 0 ? "+" : ""}${inds.employment.value.toFixed(1)}k` : "", sig: (() => { const s = inds?.employment?.surprise;  return s == null ? 0 : s > 10 ? 1 : s < -10 ? -1 : 0; })() },
   ].filter(c => c.value !== "");
@@ -641,23 +705,49 @@ export default function CurrencyCard({
                       </LineChart>
                     </ResponsiveContainer>
                     {ratePath.peakMeeting && (
-                      <div className="flex items-center justify-between mt-1 text-[10px]">
-                        <span className="text-slate-600">
-                          Pic : <span className="text-slate-400">{ratePath.peakMeeting.label}</span>
-                        </span>
-                        <span className={ratePath.peakMeeting.probIsCut ? "text-sky-400 font-bold" : "text-red-400 font-bold"}>
-                          {ratePath.peakMeeting.probMovePct.toFixed(0)}% {ratePath.peakMeeting.probIsCut ? "Cut" : "Hike"}
-                        </span>
-                        {ratePath.yearEndImplied !== null && (() => {
-                          const bps = Math.round((ratePath.yearEndImplied! - ratePath.currentRate) * 100);
-                          const cls = bps < 0 ? "text-sky-400 font-bold" : bps > 0 ? "text-red-400 font-bold" : "text-slate-500";
-                          return (
-                            <span className={cls} title={`Taux actuel: ${ratePath.currentRate.toFixed(2)}% → fin an: ${ratePath.yearEndImplied!.toFixed(2)}%`}>
-                              {bps > 0 ? "+" : ""}{bps}bps fin an
+                      <>
+                        <div className="flex items-center justify-between mt-1 text-[10px]">
+                          <span className="text-slate-600">
+                            Pic : <span className="text-slate-400">{ratePath.peakMeeting.label}</span>
+                          </span>
+                          <span className={ratePath.peakMeeting.probIsCut ? "text-sky-400 font-bold" : "text-red-400 font-bold"}>
+                            {ratePath.peakMeeting.probMovePct.toFixed(0)}% {ratePath.peakMeeting.probIsCut ? "Cut" : "Hike"}
+                          </span>
+                          {ratePath.yearEndImplied !== null && (() => {
+                            const bps = Math.round((ratePath.yearEndImplied! - ratePath.currentRate) * 100);
+                            const cls = bps < 0 ? "text-sky-400 font-bold" : bps > 0 ? "text-red-400 font-bold" : "text-slate-500";
+                            return (
+                              <span className={cls} title={`Taux actuel: ${ratePath.currentRate.toFixed(2)}% → fin an: ${ratePath.yearEndImplied!.toFixed(2)}%`}>
+                                {bps > 0 ? "+" : ""}{bps}bps fin an
+                              </span>
+                            );
+                          })()}
+                        </div>
+                        {/* ── Flèches de tendance vs article IL semaine précédente ── */}
+                        {ratePath.ilDelta && (Math.abs(ratePath.ilDelta.probDelta) >= 3 || Math.abs(ratePath.ilDelta.bpsDelta) >= 10) && (
+                          <div className="flex items-center gap-2 mt-0.5 text-[9px] text-slate-600">
+                            <span title={`vs article du ${ratePath.ilDelta.prevDate}`}>
+                              vs sem. préc. :
                             </span>
-                          );
-                        })()}
-                      </div>
+                            <RpArrow
+                              delta={ratePath.ilDelta.probDelta}
+                              isBearishIfPositive={ratePath.ilDelta.isCut}
+                              suffix="%"
+                              strongT={10}
+                              modT={3}
+                            />
+                            {ratePath.ilDelta.bpsDelta !== 0 && (
+                              <RpArrow
+                                delta={ratePath.ilDelta.bpsDelta}
+                                isBearishIfPositive={true}
+                                suffix="bps"
+                                strongT={25}
+                                modT={10}
+                              />
+                            )}
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
@@ -933,7 +1023,7 @@ export default function CurrencyCard({
                 <MacroBlock title="Croissance">
                   <IRow label="PIB (QoQ%)"     ind={inds?.gdp          ?? null} unit="%" consensus={fc?.gdp ?? null} surpriseVsCons={fc?.gdpSurprise ?? null} />
                   <IRow label="PMI Composite"  ind={inds?.pmiComposite ?? null} consensus={fc?.pmiComposite ?? null} surpriseVsCons={fc?.pmiCompositeSurprise ?? null} />
-                  <IRow label="Retail Sales"   ind={inds?.retailSales  ?? null} unit="%" consensus={fc?.retailSales ?? null} surpriseVsCons={fc?.retailSalesSurprise ?? null} />
+                  <IRow label="Retail Sales MoM"   ind={inds?.retailSales  ?? null} unit="%" consensus={fc?.retailSales ?? null} surpriseVsCons={fc?.retailSalesSurprise ?? null} />
                 </MacroBlock>
 
                 {/* Emploi */}
@@ -1025,17 +1115,18 @@ export default function CurrencyCard({
             {/* ════ FOCUS DONNÉES ══════════════════════════════════════════════ */}
             {activeTab === "focus" && (
               <>
-                {/* Context phase */}
+                {/* Context phase — source : OIS / probabilités de taux (fallback : trend FRED) */}
                 <div className={`rounded-xl border p-3 text-[11px] ${sigBg(trendDir(phase === "tightening" ? "up" : phase === "easing" ? "down" : null))}`}>
-                  <div className={`font-semibold mb-1 ${sigColor(trendDir(phase === "tightening" ? "up" : phase === "easing" ? "down" : null))}`}>
-                    Phase {phaseLabel(phase)}
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`font-semibold ${sigColor(trendDir(phase === "tightening" ? "up" : phase === "easing" ? "down" : null))}`}>
+                      Phase {phaseLabel(phase)}
+                    </span>
+                    <span className="text-[9px] text-slate-600 italic">
+                      {ratePath ? "Source : OIS / probabilités" : "Source : trend taux FRED"}
+                    </span>
                   </div>
                   <p className="text-slate-400 leading-relaxed">
-                    {phase === "tightening"    && "Surveiller les données soutenant une poursuite du resserrement : inflation, emploi solide, PMI expansionniste."}
-                    {phase === "easing"        && "Surveiller les données justifiant des baisses : désinflation, ralentissement du marché de l'emploi, PMI en contraction."}
-                    {phase === "hawkish_pause" && "Surveiller les données qui pourraient forcer la main : regain d'inflation ou au contraire fort ralentissement."}
-                    {phase === "dovish_pause"  && "Surveiller les signes de reprise permettant une normalisation de la politique monétaire."}
-                    {phase === "transition"    && "Phase de transition — tous les indicateurs sont importants pour déterminer la direction future."}
+                    {phaseDescription(phase, ratePath)}
                   </p>
                 </div>
 
@@ -1047,7 +1138,7 @@ export default function CurrencyCard({
                         <FocusRow importance="critical"><IRow label="Variation emploi" ind={inds?.employment ?? null} unit="k" consensus={fc?.employment ?? null} /></FocusRow>
                         <FocusRow importance="high"><IRow label="PIB (QoQ%)" ind={inds?.gdp ?? null} unit="%" consensus={fc?.gdp ?? null} /></FocusRow>
                         <FocusRow importance="high"><IRow label="PMI Composite" ind={inds?.pmiComposite ?? null} consensus={fc?.pmiComposite ?? null} /></FocusRow>
-                        <FocusRow importance="medium"><IRow label="Retail Sales" ind={inds?.retailSales ?? null} unit="%" consensus={fc?.retailSales ?? null} /></FocusRow>
+                        <FocusRow importance="medium"><IRow label="Retail Sales MoM" ind={inds?.retailSales ?? null} unit="%" consensus={fc?.retailSales ?? null} /></FocusRow>
                       </>
                     : <>
                         <FocusRow importance="critical"><IRow label="CPI MoM" ind={inds?.cpiMoM ?? null} unit="%" consensus={fc?.cpiMoM ?? null} /></FocusRow>
@@ -1070,7 +1161,7 @@ export default function CurrencyCard({
                     : <>
                         <FocusRow importance="medium"><IRow label="Taux de chômage" ind={inds?.unemployment ?? null} unit="%" invertSurprise /></FocusRow>
                         <FocusRow importance="medium"><IRow label="PIB (QoQ%)" ind={inds?.gdp ?? null} unit="%" /></FocusRow>
-                        <FocusRow importance="medium"><IRow label="Retail Sales" ind={inds?.retailSales ?? null} unit="%" /></FocusRow>
+                        <FocusRow importance="medium"><IRow label="Retail Sales MoM" ind={inds?.retailSales ?? null} unit="%" /></FocusRow>
                       </>
                   }
                 </MacroBlock>

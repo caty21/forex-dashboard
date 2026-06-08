@@ -3,7 +3,7 @@
 // Endpoint pattern: https://rateprobability.com/api/{cb}/latest
 
 import type { Currency } from "./types";
-import { fetchILExpectations } from "./investinglive";
+import { fetchILExpectationsWithHistory } from "./investinglive";
 import type { ILExpectationsMap } from "./investinglive";
 
 // ── Types publics ──────────────────────────────────────────────────────────────
@@ -17,6 +17,13 @@ export interface RateProbMeeting {
   changeBps:   number;   // bps attendus à cette réunion (cumulatif)
 }
 
+export interface ILWeeklyDelta {
+  probDelta:  number;   // Δ nextMeetingProbPct (courant - semaine précédente)
+  bpsDelta:   number;   // Δ bpsYearEnd (courant - semaine précédente)
+  isCut:      boolean;  // contexte : le pic actuel est un cut
+  prevDate:   string;   // date de l'article de référence (semaine précédente)
+}
+
 export interface CBRatePath {
   currency:       Currency;
   asOf:           string;          // "2026-05-31"
@@ -24,6 +31,7 @@ export interface CBRatePath {
   meetings:       RateProbMeeting[];
   peakMeeting:    RateProbMeeting | null;  // réunion avec proba max de mouvement
   yearEndImplied: number | null;           // taux impliqué à la dernière réunion connue
+  ilDelta?:       ILWeeklyDelta;           // delta vs article IL semaine précédente
 }
 
 export type RateProbData = Partial<Record<Currency, CBRatePath>>;
@@ -193,11 +201,14 @@ function buildSNBPath(il: ILExpectationsMap, currentRate: number): CBRatePath | 
 // ── Fetch toutes les CB en parallèle ──────────────────────────────────────────
 
 export async function fetchAllCBPaths(): Promise<RateProbData> {
-  // rateprobability.com (7 CBs) + InvestingLive (tous CBs + CHF) en parallèle
-  const [rpResults, ilData] = await Promise.all([
+  // rateprobability.com (7 CBs) + InvestingLive (article courant + précédent) en parallèle
+  const [rpResults, ilHistory] = await Promise.all([
     Promise.allSettled(CB_KEYS.map(([ccy, slug]) => fetchCBPath(ccy, slug))),
-    fetchILExpectations(),
+    fetchILExpectationsWithHistory(),
   ]);
+  const ilData    = ilHistory.current;
+  const ilPrev    = ilHistory.prev;
+  const prevDate  = ilHistory.prevDate;
 
   const data: RateProbData = {};
 
@@ -215,18 +226,29 @@ export async function fetchAllCBPaths(): Promise<RateProbData> {
   }
 
   // Enrichir yearEndImplied avec bpsYearEnd de IL (Giuseppe Dellamotta — source humaine)
-  // pour toutes les devises où IL a une donnée ET rateprobability.com a réussi.
-  // Règle : pour les hikes (bpsYearEnd > 0) et cuts (bpsYearEnd < 0), mettre à jour.
-  // Pour "no change" (bpsYearEnd proche de 0), garder la valeur rateprobability.com.
+  // + calculer ilDelta (Δ vs article semaine précédente) pour les flèches de tendance.
   for (const [ccyStr, ilEntry] of Object.entries(ilData)) {
     const ccy = ccyStr as keyof RateProbData;
     const path = data[ccy];
     if (!path) continue;
     if (typeof ilEntry.bpsYearEnd !== "number") continue;
-    if (ilEntry.nextMeetingIsNoChange && Math.abs(ilEntry.bpsYearEnd) < 10) continue; // garder RP si "no change" + bps résiduel faible
+    if (ilEntry.nextMeetingIsNoChange && Math.abs(ilEntry.bpsYearEnd) < 10) continue;
 
     const ilYearEnd = parseFloat((path.currentRate + ilEntry.bpsYearEnd / 100).toFixed(4));
-    data[ccy] = { ...path, yearEndImplied: ilYearEnd };
+
+    // Delta semaine/semaine depuis l'article précédent de Giuseppe
+    let ilDelta: import("./rateprobability").ILWeeklyDelta | undefined;
+    const prevEntry = ilPrev[ccy];
+    if (prevEntry && prevDate) {
+      ilDelta = {
+        probDelta: parseFloat((ilEntry.nextMeetingProbPct - prevEntry.nextMeetingProbPct).toFixed(1)),
+        bpsDelta:  ilEntry.bpsYearEnd - prevEntry.bpsYearEnd,
+        isCut:     !ilEntry.nextMeetingIsHike && !ilEntry.nextMeetingIsNoChange,
+        prevDate,
+      };
+    }
+
+    data[ccy] = { ...path, yearEndImplied: ilYearEnd, ...(ilDelta ? { ilDelta } : {}) };
   }
 
   return data;
