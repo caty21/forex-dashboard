@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { RefreshCw, Zap, Database, Activity } from "lucide-react";
+import { RefreshCw, Zap, Database, Activity, Maximize2, Minimize2 } from "lucide-react";
 import { CURRENCIES, CURRENCY_META } from "@/lib/constants";
 import type { Currency, DriverData, SentimentEntry, CotEntry } from "@/lib/types";
 import type { RateProbData } from "@/lib/rateprobability";
@@ -40,6 +40,7 @@ export default function Dashboard() {
   const [activeDivergences, setActiveDivergences] = useState<{ currency: Currency; score: number }[]>([]);
   const [driversFromCache,  setDriversFromCache]  = useState(false);
   const [driversCacheAge,   setDriversCacheAge]   = useState<string | null>(null);
+  const [isFullscreen,      setIsFullscreen]      = useState(false);
 
   // ── Sentiment multi-paires Myfxbook → {CCY: {longPct, shortPct, pair}} ──────
   // Pour chaque devise, on calcule le % "long CCY" en moyenne pondérée (par volume)
@@ -255,6 +256,20 @@ export default function Dashboard() {
     if (activeTab === "cot" && !cotHistory) refreshCotHistory();
   }, [activeTab, cotHistory, refreshCotHistory]);
 
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+    } else {
+      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
+
   const handleDivergenceUpdate = useCallback((currency: Currency, score: number) => {
     setActiveDivergences((prev) => {
       const filtered = prev.filter((d) => d.currency !== currency);
@@ -308,6 +323,14 @@ export default function Dashboard() {
           >
             <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
             {loading ? "Chargement…" : "Rafraîchir"}
+          </button>
+
+          <button
+            onClick={toggleFullscreen}
+            title={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
+            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors border border-slate-800 hover:border-slate-600 rounded-md px-2 py-1"
+          >
+            {isFullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
           </button>
         </div>
       </header>

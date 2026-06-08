@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   }
 
   let body: {
-    mode: "cb_analysis" | "expert_opinion" | "summary" | "divergence" | "report_ccy";
+    mode: "cb_analysis" | "expert_opinion" | "summary" | "divergence" | "report_ccy" | "report_highlights";
     currency?: string;
     data?: unknown;
     userInput?: string;
@@ -94,6 +94,41 @@ Rédige un paragraphe fluide de 80 à 120 mots, style analyste macro professionn
       break;
     }
 
+    case "report_highlights": {
+      const d = data as {
+        events?: Array<{ title: string; currency: string; actual?: string | null; forecast?: string | null; previous?: string | null; impact: string }>;
+        drivers?: { vix?: number | null; brent?: number | null; us10y?: number | null };
+        weekFrom?: string; weekTo?: string;
+      };
+      const published = (d.events ?? [])
+        .filter(e => e.actual && e.impact !== "low")
+        .slice(0, 12)
+        .map(e => `${e.currency} · ${e.title} : actuel=${e.actual ?? "—"} / prévu=${e.forecast ?? "—"} / précédent=${e.previous ?? "—"}`)
+        .join("\n");
+      const weekRange = d.weekFrom && d.weekTo ? `${d.weekFrom} au ${d.weekTo}` : "de la semaine";
+      userMessage = `Génère 3 faits marquants de la semaine du ${weekRange} pour un trader Forex G10.
+
+Données publiées cette semaine :
+${published || "Aucune publication disponible"}
+
+Contexte marché : VIX=${d.drivers?.vix?.toFixed(1) ?? "N/D"}, Brent=$${d.drivers?.brent?.toFixed(1) ?? "N/D"}, US 10Y=${d.drivers?.us10y?.toFixed(2) ?? "N/D"}%
+
+Pour chaque fait marquant, fournis :
+- TITRE (6 mots max, en majuscules)
+- DESCRIPTION (30-40 mots) : chiffre clé, surprise vs consensus, impact sur les devises concernées
+
+Formate ta réponse EXACTEMENT ainsi (3 blocs, séparés par --) :
+TITRE1
+Description1
+--
+TITRE2
+Description2
+--
+TITRE3
+Description3`;
+      break;
+    }
+
     case "summary":
     default:
       userMessage = `Génère une synthèse macro hebdomadaire pour ${currency} basée sur ces données :
@@ -109,7 +144,7 @@ Résumé en 3 points : situation actuelle, signal directionnel, risque principal
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userMessage },
       ],
-      max_tokens: 300,
+      max_tokens: mode === "report_highlights" ? 500 : 300,
       temperature: 0.3,
     });
 

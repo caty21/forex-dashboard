@@ -84,6 +84,69 @@ function Pct({ val }: { val: string }) {
   return <span className={`font-mono font-bold text-sm ${c}`}>{n > 0 ? "+" : ""}{n.toFixed(1)}%</span>;
 }
 
+// ── Bouton Groq "Faits marquants" ─────────────────────────────────────────────
+function AiHighlightsButton({ calEvents, drivers, weekFrom, weekTo, onResult }: {
+  calEvents:  CalendarEvent[];
+  drivers:    DriverData | null;
+  weekFrom:   string;
+  weekTo:     string;
+  onResult:   (themes: Theme[]) => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [done,    setDone]    = useState(false);
+  const [err,     setErr]     = useState("");
+
+  const run = async () => {
+    setLoading(true); setErr(""); setDone(false);
+    try {
+      const prevEvents = calEvents.filter(e => e.week === "prev" || (e.isPublished && e.week === "current"));
+      const res = await fetch("/api/narrative", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "report_highlights",
+          data: {
+            events:  prevEvents.map(e => ({ title: e.title, currency: e.currency, actual: e.actual, forecast: e.forecast, previous: e.previous, impact: e.impact })),
+            drivers: { vix: (drivers as { vix?: number | null } | null)?.vix, brent: (drivers as { brent?: number | null } | null)?.brent, us10y: (drivers as { us10y?: number | null } | null)?.us10y },
+            weekFrom, weekTo,
+          },
+        }),
+      });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      const text: string = json.analysis ?? "";
+      // Parse les 3 blocs séparés par "--"
+      const blocks = text.split(/\n--\n|^--$/m).map(b => b.trim()).filter(Boolean).slice(0, 3);
+      const themes: Theme[] = blocks.map(block => {
+        const lines = block.split("\n").map(l => l.trim()).filter(Boolean);
+        return { title: lines[0] ?? "", body: lines.slice(1).join(" ") };
+      });
+      onResult(themes);
+      setDone(true);
+      setTimeout(() => setDone(false), 3000);
+    } catch (e) {
+      setErr(String(e).replace(/^Error:\s*/i, "").slice(0, 60));
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <button onClick={run} disabled={loading}
+        className={`no-print flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-semibold transition-all ${
+          done    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" :
+          loading ? "bg-sky-500/10 text-sky-400 border border-sky-500/20 cursor-wait" :
+          "bg-sky-500/15 text-sky-400 border border-sky-500/25 hover:bg-sky-500/25"
+        }`}>
+        {loading ? <Loader2 size={10} className="animate-spin" />
+         : done   ? <Check size={10} />
+         : <Sparkles size={10} />}
+        {loading ? "Génération…" : done ? "Injectés !" : "Générer avec IA"}
+      </button>
+      {err && <span className="text-[9px] text-red-400 truncate max-w-[140px]" title={err}>⚠ {err}</span>}
+    </div>
+  );
+}
+
 // ── Bouton Groq par devise ────────────────────────────────────────────────────
 function AiButton({ ccy, weekFrom, weekTo, pct, cotHistory, onResult }: {
   ccy: string; weekFrom: string; weekTo: string; pct: string;
@@ -309,7 +372,16 @@ export default function ReportTab({ calEvents, drivers, cotHistory }: Props) {
 
             {/* Thèmes clés */}
             <div className="space-y-2 mt-4">
-              <p className="text-slate-600 text-[9px] uppercase tracking-widest font-semibold no-print">Faits marquants de la semaine</p>
+              <div className="flex items-center justify-between no-print">
+                <p className="text-slate-600 text-[9px] uppercase tracking-widest font-semibold">Faits marquants de la semaine</p>
+                <AiHighlightsButton
+                  calEvents={calEvents}
+                  drivers={drivers}
+                  weekFrom={state.weekFrom}
+                  weekTo={state.weekTo}
+                  onResult={themes => upd({ themes })}
+                />
+              </div>
               {state.themes.map((theme, i) => (
                 <div key={i} className="group relative flex gap-3 p-3 rounded-lg bg-white/[0.03] border-l-2 border-sky-500/60">
                   <div className="flex-1 space-y-0.5">

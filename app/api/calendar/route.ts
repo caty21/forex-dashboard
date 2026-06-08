@@ -32,7 +32,7 @@ export interface CalendarEvent {
   forecast:      string | null;
   previous:      string | null;
   isPublished:   boolean;
-  week:          "current" | "next" | "next2"; // semaine de l'événement
+  week:          "prev" | "current" | "next" | "next2"; // semaine de l'événement
   source:        "ff" | "fred";   // source de la donnée
   groupKey:      string | null;
   isGroupParent: boolean;
@@ -322,7 +322,17 @@ export async function GET() {
   const fredKey = process.env.FRED_API_KEY;
   const { nextMonday, next2Monday } = getWeekBounds();
 
-  const fromDate  = new Date().toISOString().slice(0, 10);
+  // Fetch depuis le lundi de la semaine précédente pour inclure "Semaine dernière"
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0=dim, 1=lun…6=sam
+  const daysToThisMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const thisMonday = new Date(now);
+  thisMonday.setDate(now.getDate() - daysToThisMonday);
+  thisMonday.setHours(0, 0, 0, 0);
+  const lastMonday = new Date(thisMonday);
+  lastMonday.setDate(thisMonday.getDate() - 7);
+
+  const fromDate  = lastMonday.toISOString().slice(0, 10);
   const toDateObj = new Date();
   toDateObj.setDate(toDateObj.getDate() + 14);
   const toDate = toDateObj.toISOString().slice(0, 10);
@@ -347,9 +357,10 @@ export async function GET() {
 
   const events: CalendarEvent[] = [];
 
-  const weekOf = (date: Date): "current" | "next" | "next2" =>
+  const weekOf = (date: Date): "prev" | "current" | "next" | "next2" =>
     date >= next2Monday ? "next2" :
-    date >= nextMonday  ? "next"  : "current";
+    date >= nextMonday  ? "next"  :
+    date >= thisMonday  ? "current" : "prev";
 
   if (useScraping) {
     // ── BASE : TE HTML ────────────────────────────────────────────────────────

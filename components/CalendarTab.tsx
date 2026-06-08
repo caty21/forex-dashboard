@@ -57,6 +57,8 @@ function nextMonday(): Date {
 
 function getWeekBounds() {
   const nm = nextMonday();
+  const prevStart    = new Date(nm); prevStart.setDate(nm.getDate() - 14);
+  const prevEnd      = new Date(nm); prevEnd.setDate(nm.getDate() - 8);
   const currentStart = new Date(nm); currentStart.setDate(nm.getDate() - 7);
   const currentEnd   = new Date(nm); currentEnd.setDate(nm.getDate() - 1);
   const nextEnd      = new Date(nm); nextEnd.setDate(nm.getDate() + 6);
@@ -64,6 +66,7 @@ function getWeekBounds() {
   const next2End     = new Date(nm); next2End.setDate(nm.getDate() + 13);
   const fmt = (d: Date) => d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
   return {
+    prevWeekLabel:    `${fmt(prevStart)} – ${fmt(prevEnd)}`,
     currentWeekLabel: `${fmt(currentStart)} – ${fmt(currentEnd)}`,
     nextWeekLabel:    `${fmt(nm)} – ${fmt(nextEnd)}`,
     next2WeekLabel:   `${fmt(next2Start)} – ${fmt(next2End)}`,
@@ -151,7 +154,7 @@ function EventRow({ ev, isChild, expanded, onToggle }: {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-type WeekTab = "current" | "next" | "next2" | "all";
+type WeekTab = "prev" | "current" | "next" | "next2" | "all";
 
 export default function CalendarTab({ events, loading, nextWeekAvail }: Props) {
   const [filterCcy, setFilterCcy] = useState<Currency | "ALL">("ALL");
@@ -160,7 +163,7 @@ export default function CalendarTab({ events, loading, nextWeekAvail }: Props) {
   const [weekTab,   setWeekTab]   = useState<WeekTab>("all");
   const [fromDate,  setFromDate]  = useState<string>(todayIso());
 
-  const { currentWeekLabel, nextWeekLabel, next2StartLabel, nextMondayIso } = useMemo(getWeekBounds, []);
+  const { prevWeekLabel, currentWeekLabel, nextWeekLabel, next2StartLabel, nextMondayIso } = useMemo(getWeekBounds, []);
   void nextMondayIso;
 
   const toggle = (groupKey: string) =>
@@ -174,10 +177,12 @@ export default function CalendarTab({ events, loading, nextWeekAvail }: Props) {
     if (filterCcy !== "ALL" && ev.currency !== filterCcy) return false;
     if (!showLow && ev.impact === "low") return false;
     if (ev.isGroupChild && ev.groupKey && !expanded.has(ev.groupKey)) return false;
+    if (weekTab === "prev"    && ev.week !== "prev")    return false;
     if (weekTab === "current" && ev.week !== "current") return false;
     if (weekTab === "next"    && ev.week !== "next")    return false;
     if (weekTab === "next2"   && ev.week !== "next2")   return false;
-    if (isoToLocalDate(ev.date) < fromDate) return false;
+    // Pour "semaine dernière", ne pas filtrer par fromDate (les events sont passés)
+    if (weekTab !== "prev" && isoToLocalDate(ev.date) < fromDate) return false;
     return true;
   }), [events, filterCcy, showLow, expanded, weekTab, fromDate]);
 
@@ -190,6 +195,7 @@ export default function CalendarTab({ events, loading, nextWeekAvail }: Props) {
   }
   days.sort();
 
+  const countPrev    = events.filter(e => e.week === "prev").length;
   const countCurrent = events.filter(e => e.week === "current").length;
   const countNext    = events.filter(e => e.week === "next").length;
   const countNext2   = events.filter(e => e.week === "next2").length;
@@ -219,10 +225,11 @@ export default function CalendarTab({ events, loading, nextWeekAvail }: Props) {
       {/* Onglets semaine */}
       <div className="flex gap-0 border-b border-slate-800 bg-slate-900/40">
         {([
-          ["all",     "Tout",           null,             null],
-          ["current", "Sem. en cours",  currentWeekLabel, countCurrent],
-          ["next",    "Sem. prochaine", nextWeekLabel,    countNext],
-          ["next2",   "Sem. +2 et +",  `${next2StartLabel} et +`, countNext2],
+          ["all",     "Tout",            null,             null],
+          ["prev",    "Sem. dernière",   prevWeekLabel,    countPrev],
+          ["current", "Sem. en cours",   currentWeekLabel, countCurrent],
+          ["next",    "Sem. prochaine",  nextWeekLabel,    countNext],
+          ["next2",   "Sem. +2 et +",   `${next2StartLabel} et +`, countNext2],
         ] as [WeekTab, string, string | null, number | null][]).map(([tab, label, sub, count]) => {
           const isActive = weekTab === tab;
           const disabled = tab === "next" && !nextWeekAvail && countNext === 0;
@@ -353,14 +360,18 @@ export default function CalendarTab({ events, loading, nextWeekAvail }: Props) {
                   if (weekTab === "all" && w !== lastWeek) {
                     lastWeek = w;
                     const weekBanners: Record<string, string> = {
+                      prev:    `Semaine dernière — ${prevWeekLabel}`,
                       current: `Semaine en cours — ${currentWeekLabel}`,
                       next:    `Semaine prochaine — ${nextWeekLabel}`,
                       next2:   `À partir du ${next2StartLabel} — réunions BC + données`,
                     };
                     const isNext2 = w === "next2";
+                    const isPrev  = w === "prev";
+                    const bannerCls = isPrev ? "bg-slate-700/30" : isNext2 ? "bg-amber-500/15" : "bg-indigo-500/15";
+                    const textCls   = isPrev ? "text-slate-500"  : isNext2 ? "text-amber-400"  : "text-indigo-400";
                     rows.push(
-                      <tr key={`wsep_${w}`} className={isNext2 ? "bg-amber-500/15" : "bg-indigo-500/15"}>
-                        <td colSpan={7} className={`px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest ${isNext2 ? "text-amber-400" : "text-indigo-400"}`}>
+                      <tr key={`wsep_${w}`} className={bannerCls}>
+                        <td colSpan={7} className={`px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest ${textCls}`}>
                           📅 {weekBanners[w] ?? w}
                         </td>
                       </tr>
