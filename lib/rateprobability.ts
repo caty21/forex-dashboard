@@ -127,9 +127,13 @@ async function fetchCBPath(ccy: Currency, slug: string): Promise<CBRatePath | nu
       ? meetings.reduce((best, m) => m.probMovePct > best.probMovePct ? m : best, meetings[0])
       : null;
 
-    const yearEndImplied = meetings.length > 0
-      ? meetings[meetings.length - 1].impliedRate
-      : null;
+    // yearEndImplied = taux implicite à la dernière réunion de l'année en cours (pas mid-2027)
+    const currentYear  = new Date().getFullYear();
+    const yearEndIso   = `${currentYear}-12-31`;
+    const meetsThisYear = meetings.filter(m => m.dateIso <= yearEndIso);
+    const yearEndImplied = meetsThisYear.length > 0
+      ? meetsThisYear[meetsThisYear.length - 1].impliedRate
+      : meetings.length > 0 ? meetings[0].impliedRate : null;
 
     return { currency: ccy, asOf, currentRate, meetings, peakMeeting, yearEndImplied };
   } catch { return null; }
@@ -225,8 +229,9 @@ export async function fetchAllCBPaths(): Promise<RateProbData> {
     if (snbPath) data["CHF"] = snbPath;
   }
 
-  // Enrichir yearEndImplied avec bpsYearEnd de IL (Giuseppe Dellamotta — source humaine)
-  // + calculer ilDelta (Δ vs article semaine précédente) pour les flèches de tendance.
+  // IL enrichment : yearEndImplied uniquement pour CHF (RP ne couvre pas la SNB).
+  // Pour les 7 autres devises, on garde yearEndImplied de rateprobability.com (données OIS live).
+  // ilDelta (flèches hebdo) reste calculé pour toutes les devises via l'article IL.
   for (const [ccyStr, ilEntry] of Object.entries(ilData)) {
     const ccy = ccyStr as keyof RateProbData;
     const path = data[ccy];
@@ -234,10 +239,13 @@ export async function fetchAllCBPaths(): Promise<RateProbData> {
     if (typeof ilEntry.bpsYearEnd !== "number") continue;
     if (ilEntry.nextMeetingIsNoChange && Math.abs(ilEntry.bpsYearEnd) < 10) continue;
 
-    const ilYearEnd = parseFloat((path.currentRate + ilEntry.bpsYearEnd / 100).toFixed(4));
+    // CHF only : pas de données RP → IL est la seule source pour yearEndImplied
+    const yearEndImplied = ccy === "CHF"
+      ? parseFloat((path.currentRate + ilEntry.bpsYearEnd / 100).toFixed(4))
+      : path.yearEndImplied;
 
     // Delta semaine/semaine depuis l'article précédent de Giuseppe
-    let ilDelta: import("./rateprobability").ILWeeklyDelta | undefined;
+    let ilDelta: ILWeeklyDelta | undefined;
     const prevEntry = ilPrev[ccy];
     if (prevEntry && prevDate) {
       ilDelta = {
@@ -248,7 +256,7 @@ export async function fetchAllCBPaths(): Promise<RateProbData> {
       };
     }
 
-    data[ccy] = { ...path, yearEndImplied: ilYearEnd, ...(ilDelta ? { ilDelta } : {}) };
+    data[ccy] = { ...path, yearEndImplied, ...(ilDelta ? { ilDelta } : {}) };
   }
 
   return data;
