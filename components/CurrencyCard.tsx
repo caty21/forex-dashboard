@@ -679,78 +679,145 @@ export default function CurrencyCard({
             {/* ════ APERÇU ════════════════════════════════════════════════════ */}
             {activeTab === "overview" && (
               <>
-                {/* OIS mini-chart */}
-                {ratePath && ratePath.meetings.length > 0 && (
-                  <div className="bg-slate-800/40 rounded-xl border border-slate-700/30 p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">OIS · Probabilités de move</span>
-                      <span className="text-[10px] text-slate-600">au {ratePath.asOf}</span>
-                    </div>
-                    <ResponsiveContainer width="100%" height={48}>
-                      <LineChart
-                        data={ratePath.meetings.map(m => ({
-                          label: m.label,
-                          prob:  m.probMovePct,
-                        }))}
-                        margin={{ top: 2, right: 0, left: 0, bottom: 0 }}
-                      >
-                        <Line type="monotone" dataKey="prob" stroke="#f59e0b" strokeWidth={1.5} dot={{ r: 2, fill: "#f59e0b" }} />
-                        <XAxis dataKey="label" tick={{ fontSize: 8, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                        <Tooltip
-                          contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 6, fontSize: 10 }}
-                          labelStyle={{ color: "#94a3b8" }}
-                          itemStyle={{ color: "#f59e0b" }}
-                          formatter={(v: number) => [`${v.toFixed(0)}%`, "Probabilité"]}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                    {ratePath.peakMeeting && (
-                      <>
-                        <div className="flex items-center justify-between mt-1 text-[10px]">
-                          <span className="text-slate-600">
-                            Pic : <span className="text-slate-400">{ratePath.peakMeeting.label}</span>
-                          </span>
-                          <span className={ratePath.peakMeeting.probIsCut ? "text-sky-400 font-bold" : "text-red-400 font-bold"}>
-                            {ratePath.peakMeeting.probMovePct.toFixed(0)}% {ratePath.peakMeeting.probIsCut ? "Cut" : "Hike"}
-                          </span>
-                          {ratePath.yearEndImplied !== null && (() => {
-                            const bps = Math.round((ratePath.yearEndImplied! - ratePath.currentRate) * 100);
-                            const cls = bps < 0 ? "text-sky-400 font-bold" : bps > 0 ? "text-red-400 font-bold" : "text-slate-500";
-                            return (
-                              <span className={cls} title={`Taux actuel: ${ratePath.currentRate.toFixed(2)}% → fin an: ${ratePath.yearEndImplied!.toFixed(2)}%`}>
-                                {bps > 0 ? "+" : ""}{bps}bps fin an
-                              </span>
-                            );
-                          })()}
+                {/* ── OIS block ───────────────────────────────────────────── */}
+                {ratePath && ratePath.meetings.length > 0 && (() => {
+                  const yearEnd2026 = `${new Date().getFullYear()}-12-31`;
+                  const meets2026   = ratePath.meetings.filter(m => m.dateIso <= yearEnd2026);
+                  const bpsYE       = ratePath.yearEndImplied !== null
+                    ? Math.round((ratePath.yearEndImplied - ratePath.currentRate) * 100) : null;
+                  const bpsCls      = bpsYE === null ? "text-slate-400"
+                    : bpsYE < 0 ? "text-sky-400" : bpsYE > 0 ? "text-red-400" : "text-slate-400";
+
+                  return (
+                    <div className="rounded-xl border border-slate-700/30 overflow-hidden">
+
+                      {/* ── SECTION 1 : SOFR / OIS live ─────────────────────── */}
+                      <div className="bg-slate-800/40 p-3">
+                        {/* header */}
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">OIS · SOFR Futures</span>
+                            <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">LIVE</span>
+                          </div>
+                          <span className="text-[9px] text-slate-600">au {ratePath.asOf}</span>
                         </div>
-                        {/* ── Flèches de tendance vs article IL semaine précédente ── */}
-                        {ratePath.ilDelta && (Math.abs(ratePath.ilDelta.probDelta) >= 3 || Math.abs(ratePath.ilDelta.bpsDelta) >= 10) && (
-                          <div className="flex items-center gap-2 mt-0.5 text-[9px] text-slate-600">
-                            <span title={`vs article du ${ratePath.ilDelta.prevDate}`}>
-                              vs sem. préc. :
-                            </span>
-                            <RpArrow
-                              delta={ratePath.ilDelta.probDelta}
-                              isBearishIfPositive={ratePath.ilDelta.isCut}
-                              suffix="%"
-                              strongT={10}
-                              modT={3}
+
+                        {/* taux actuel → fin d'an */}
+                        <div className="flex items-center gap-3 mb-3">
+                          <div>
+                            <div className="text-[9px] text-slate-600 mb-0.5">Taux actuel</div>
+                            <div className="text-[18px] font-bold text-slate-200 tabular-nums">{ratePath.currentRate.toFixed(2)}%</div>
+                          </div>
+                          <div className="text-slate-700 text-lg">→</div>
+                          <div>
+                            <div className="text-[9px] text-slate-600 mb-0.5">Fin d&apos;an (Dec)</div>
+                            <div className={`text-[18px] font-bold tabular-nums ${bpsCls}`}>
+                              {ratePath.yearEndImplied?.toFixed(2) ?? "—"}%
+                            </div>
+                          </div>
+                          {bpsYE !== null && (
+                            <div className={`ml-auto text-right`}>
+                              <div className="text-[9px] text-slate-600 mb-0.5">Δ bps</div>
+                              <div className={`text-[22px] font-black tabular-nums ${bpsCls}`}>
+                                {bpsYE > 0 ? "+" : ""}{bpsYE}
+                                <span className="text-[11px] font-semibold ml-0.5">bps</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* chart probabilités */}
+                        <ResponsiveContainer width="100%" height={44}>
+                          <LineChart
+                            data={ratePath.meetings.map(m => ({ label: m.label, prob: m.probMovePct }))}
+                            margin={{ top: 2, right: 0, left: 0, bottom: 0 }}
+                          >
+                            <Line type="monotone" dataKey="prob" stroke="#f59e0b" strokeWidth={1.5} dot={{ r: 2, fill: "#f59e0b" }} />
+                            <XAxis dataKey="label" tick={{ fontSize: 8, fill: "#64748b" }} axisLine={false} tickLine={false} />
+                            <Tooltip
+                              contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 6, fontSize: 10 }}
+                              labelStyle={{ color: "#94a3b8" }}
+                              itemStyle={{ color: "#f59e0b" }}
+                              formatter={(v: number) => [`${v.toFixed(0)}%`, "Prob. move"]}
                             />
-                            {ratePath.ilDelta.bpsDelta !== 0 && (
-                              <RpArrow
-                                delta={ratePath.ilDelta.bpsDelta}
-                                isBearishIfPositive={true}
-                                suffix="bps"
-                                strongT={25}
-                                modT={10}
-                              />
-                            )}
+                          </LineChart>
+                        </ResponsiveContainer>
+
+                        {/* tableau des réunions 2026 */}
+                        {meets2026.length > 0 && (
+                          <div className="mt-2 space-y-0.5">
+                            {meets2026.map(m => {
+                              const isPeak = m.dateIso === ratePath.peakMeeting?.dateIso;
+                              const dir = m.probMovePct < 20 ? "HOLD"
+                                : m.probIsCut ? (m.probMovePct >= 50 ? "CUT" : "CUT?")
+                                : (m.probMovePct >= 50 ? "HIKE" : "HIKE?");
+                              const dirCls = m.probMovePct < 20 ? "text-slate-600"
+                                : m.probIsCut ? "text-sky-400" : "text-red-400";
+                              return (
+                                <div key={m.dateIso} className={`flex items-center justify-between text-[10px] px-1 rounded ${isPeak ? "bg-amber-500/10" : ""}`}>
+                                  <span className={isPeak ? "text-amber-300 font-semibold" : "text-slate-500"}>
+                                    {isPeak && <span className="mr-1">●</span>}{m.label}
+                                  </span>
+                                  <span className={`font-bold tabular-nums ${dirCls}`}>{dir}</span>
+                                  <span className={`tabular-nums ${m.probMovePct >= 20 ? "text-slate-300" : "text-slate-600"}`}>
+                                    {m.probMovePct.toFixed(0)}%
+                                  </span>
+                                  <span className="text-slate-600 tabular-nums">{m.impliedRate.toFixed(3)}%</span>
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
-                      </>
-                    )}
-                  </div>
-                )}
+                      </div>
+
+                      {/* ── SECTION 2 : Analyste G. Dellamotta ──────────────── */}
+                      {ratePath.ilCurrent && (
+                        <div className="border-t border-slate-700/40 bg-slate-900/40 p-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Analyste · G. Dellamotta</span>
+                            <span className="text-[9px] text-slate-700">{ratePath.ilCurrent.articleDate}</span>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            {/* bps year-end analyste */}
+                            <div>
+                              <div className="text-[9px] text-slate-600 mb-0.5">Fin d&apos;an (IL)</div>
+                              <div className={`text-[15px] font-bold tabular-nums ${
+                                ratePath.ilCurrent.isCut ? "text-sky-400"
+                                : ratePath.ilCurrent.isNoChange ? "text-slate-400"
+                                : "text-red-400"
+                              }`}>
+                                {ratePath.ilCurrent.isCut ? "" : "+"}{ratePath.ilCurrent.bpsYearEnd}
+                                <span className="text-[10px] font-medium ml-0.5">bps</span>
+                              </div>
+                            </div>
+                            {/* prob next meeting analyste */}
+                            <div>
+                              <div className="text-[9px] text-slate-600 mb-0.5">Proch. réunion</div>
+                              <div className="text-[12px] font-semibold text-slate-300 tabular-nums">
+                                {ratePath.ilCurrent.isNoChange
+                                  ? <span className="text-slate-500">{ratePath.ilCurrent.probPct.toFixed(0)}% Hold</span>
+                                  : <span className={ratePath.ilCurrent.isCut ? "text-sky-400" : "text-red-400"}>
+                                      {ratePath.ilCurrent.probPct.toFixed(0)}% {ratePath.ilCurrent.isCut ? "Cut" : "Hike"}
+                                    </span>
+                                }
+                              </div>
+                            </div>
+                            {/* delta hebdo */}
+                            {ratePath.ilDelta && (Math.abs(ratePath.ilDelta.probDelta) >= 3 || Math.abs(ratePath.ilDelta.bpsDelta) >= 5) && (
+                              <div className="ml-auto">
+                                <div className="text-[9px] text-slate-600 mb-0.5">vs sem. préc.</div>
+                                <div className="flex items-center gap-1.5">
+                                  <RpArrow delta={ratePath.ilDelta.probDelta} isBearishIfPositive={ratePath.ilDelta.isCut} suffix="%" strongT={10} modT={3} />
+                                  <RpArrow delta={ratePath.ilDelta.bpsDelta}  isBearishIfPositive={true}                   suffix="bps" strongT={25} modT={5} />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Divergence / convergence signal — expandable */}
                 {divergenceSignal !== "neutral" && (

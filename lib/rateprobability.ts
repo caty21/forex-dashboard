@@ -24,13 +24,22 @@ export interface ILWeeklyDelta {
   prevDate:   string;   // date de l'article de référence (semaine précédente)
 }
 
+export interface ILCurrent {
+  bpsYearEnd:  number;   // bps fin d'an selon l'article IL courant
+  probPct:     number;   // probabilité de move à la prochaine réunion (IL)
+  isNoChange:  boolean;  // l'analyste anticipe un statu quo
+  isCut:       boolean;  // l'analyste anticipe une baisse
+  articleDate: string;   // date de publication de l'article (YYYY-MM-DD)
+}
+
 export interface CBRatePath {
   currency:       Currency;
   asOf:           string;          // "2026-05-31"
   currentRate:    number;
   meetings:       RateProbMeeting[];
   peakMeeting:    RateProbMeeting | null;  // réunion avec proba max de mouvement
-  yearEndImplied: number | null;           // taux impliqué à la dernière réunion connue
+  yearEndImplied: number | null;           // taux impliqué à la dernière réunion connue (SOFR)
+  ilCurrent?:     ILCurrent;               // valeurs absolues de l'article IL courant
   ilDelta?:       ILWeeklyDelta;           // delta vs article IL semaine précédente
 }
 
@@ -256,7 +265,15 @@ export async function fetchAllCBPaths(): Promise<RateProbData> {
       };
     }
 
-    data[ccy] = { ...path, yearEndImplied, ...(ilDelta ? { ilDelta } : {}) };
+    const ilCurrent: ILCurrent = {
+      bpsYearEnd:  ilEntry.bpsYearEnd,
+      probPct:     ilEntry.nextMeetingProbPct,
+      isNoChange:  ilEntry.nextMeetingIsNoChange,
+      isCut:       !ilEntry.nextMeetingIsHike && !ilEntry.nextMeetingIsNoChange,
+      articleDate: ilEntry.publishedDate,
+    };
+
+    data[ccy] = { ...path, yearEndImplied, ilCurrent, ...(ilDelta ? { ilDelta } : {}) };
   }
 
   return data;
