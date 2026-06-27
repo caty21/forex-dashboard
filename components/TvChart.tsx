@@ -2,71 +2,96 @@
 
 import { useEffect, useRef } from "react";
 
-// ── TvMiniChart ───────────────────────────────────────────────────────────────
-// Utilise le script embed TradingView dédié (embed-widget-mini-symbol-overview.js)
-// et NON pas tv.js (qui n'expose pas MiniSymbolOverview).
-// La structure DOM attendue par TradingView :
-//   <div class="tradingview-widget-container">        ← wrapper
-//     <div class="tradingview-widget-container__widget"></div>
-//     <script src="embed-widget-mini-symbol-overview.js">{config}</script>
-//   </div>
+// ── Helpers ───────────────────────────────────────────────────────────────────
+// Chaque instance obtient un identifiant unique injecté dans l'URL du script
+// pour forcer le navigateur à ré-exécuter le script même si l'URL est en cache.
+// Sans ça, les 4 charts simultanés du tab Marchés ne s'initialisent pas tous.
 
-interface TvMiniChartProps {
-  symbol:     string;   // ex: "SP:SPX", "TVC:DXY", "FX:EURUSD"
-  label?:     string;   // titre affiché au-dessus
-  interval?:  "W" | "D" | "M";
-  dateRange?: string;   // "1D","5D","1M","3M","6M","12M","60M","ALL","YTD"
-  height?:    number;
-  showInfo?:  boolean;  // afficher nom + prix sous le graphique
+function mkInstanceId() {
+  return Math.random().toString(36).slice(2);
 }
 
-export function TvMiniChart({
+// ── Structure DOM commune attendue par les widgets embed TradingView ──────────
+//   <div class="tradingview-widget-container">          ← wrapperRef
+//     <div class="tradingview-widget-container__widget"></div>
+//     <script src="embed-widget-*.js?t=INSTANCE_ID">{config JSON}</script>
+//   </div>
+
+function mountEmbedWidget(
+  wrapper: HTMLDivElement,
+  scriptSrc: string,
+  config: Record<string, unknown>,
+  height: number
+) {
+  wrapper.innerHTML = "";
+
+  const widgetDiv = document.createElement("div");
+  widgetDiv.className = "tradingview-widget-container__widget";
+  widgetDiv.style.width  = "100%";
+  widgetDiv.style.height = `${height}px`;
+  wrapper.appendChild(widgetDiv);
+
+  const script = document.createElement("script");
+  script.type  = "text/javascript";
+  script.async = true;
+  script.src   = scriptSrc;
+  script.text  = JSON.stringify(config);
+  wrapper.appendChild(script);
+}
+
+// ── TvAdvancedChart ───────────────────────────────────────────────────────────
+// Graphique avancé (bougies) via embed-widget-advanced-chart.js.
+// Utilise une iframe TradingView → accès aux mêmes symboles que le site web
+// (SP:SPX, TVC:VIX, TVC:DXY, TVC:GOLD, etc.) sans restriction "abonnement".
+
+interface TvAdvancedChartProps {
+  symbol:    string;   // ex: "SP:SPX", "TVC:DXY", "FX:EURUSD"
+  label?:    string;
+  interval?: string;   // "D", "W", "M", "60", etc.
+  height?:   number;
+}
+
+export function TvAdvancedChart({
   symbol,
   label,
-  dateRange = "1M",
-  height    = 180,
-  showInfo  = true,
-}: TvMiniChartProps) {
+  interval = "D",
+  height   = 250,
+}: TvAdvancedChartProps) {
   const wrapperRef  = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
+  const instanceId  = useRef(mkInstanceId());
 
   useEffect(() => {
     if (initialized.current || !wrapperRef.current) return;
     initialized.current = true;
 
-    const wrapper = wrapperRef.current;
-    wrapper.innerHTML = "";
-
-    // Div cible du widget
-    const widgetDiv = document.createElement("div");
-    widgetDiv.className = "tradingview-widget-container__widget";
-    wrapper.appendChild(widgetDiv);
-
-    // Script embed avec config inline (textContent lu par le script au chargement)
-    const script = document.createElement("script");
-    script.type  = "text/javascript";
-    script.async = true;
-    script.src   = "https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js";
-    script.text  = JSON.stringify({
-      symbol,
-      width:                "100%",
-      height,
-      locale:               "fr",
-      dateRange,
-      colorTheme:           "dark",
-      trendLineColor:       "#38bdf8",
-      underLineColor:       "rgba(56,189,248,0.08)",
-      underLineBottomColor: "rgba(56,189,248,0)",
-      isTransparent:        true,
-      autosize:             false,
-      largeChartUrl:        "",
-      noTimeScale:          false,
-      chartOnly:            !showInfo,
-    });
-    wrapper.appendChild(script);
+    mountEmbedWidget(
+      wrapperRef.current,
+      `https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js?t=${instanceId.current}`,
+      {
+        autosize:             false,
+        width:                "100%",
+        height,
+        symbol,
+        interval,
+        timezone:             "Europe/Paris",
+        theme:                "dark",
+        style:                "1",       // bougies japonaises
+        locale:               "fr",
+        backgroundColor:      "rgba(8,12,20,0)",
+        gridColor:            "rgba(30,45,61,0.5)",
+        hide_top_toolbar:     true,
+        hide_legend:          false,
+        allow_symbol_change:  false,
+        calendar:             false,
+        hide_volume:          true,
+        isTransparent:        true,
+      },
+      height
+    );
 
     return () => {
-      wrapper.innerHTML   = "";
+      if (wrapperRef.current) wrapperRef.current.innerHTML = "";
       initialized.current = false;
     };
   }, []); // eslint-disable-line
@@ -87,85 +112,59 @@ export function TvMiniChart({
   );
 }
 
-// ── TvAdvancedChart ───────────────────────────────────────────────────────────
-// Graphique avancé plein format via tv.js (TradingView.widget).
-// Note : certains symboles affichent une popup "disponible uniquement sur TradingView".
+// ── TvMiniChart ───────────────────────────────────────────────────────────────
+// Graphique léger (ligne/area) via embed-widget-mini-symbol-overview.js.
+// Idéal pour les aperçus compacts (CurrencyCard, sidebar, etc.).
 
-declare global {
-  interface Window {
-    TradingView?: {
-      widget: new (config: Record<string, unknown>) => void;
-    };
-  }
+interface TvMiniChartProps {
+  symbol:     string;
+  label?:     string;
+  dateRange?: string;   // "1D","5D","1M","3M","6M","12M","60M","ALL","YTD"
+  height?:    number;
+  showInfo?:  boolean;
 }
 
-let tvScriptLoaded  = false;
-let tvScriptLoading = false;
-const tvCallbacks: (() => void)[] = [];
-
-function loadTvScript(cb: () => void) {
-  if (tvScriptLoaded) { cb(); return; }
-  tvCallbacks.push(cb);
-  if (tvScriptLoading) return;
-  tvScriptLoading = true;
-  const s = document.createElement("script");
-  s.src   = "https://s3.tradingview.com/tv.js";
-  s.async = true;
-  s.onload = () => {
-    tvScriptLoaded = true;
-    tvCallbacks.forEach(f => f());
-    tvCallbacks.length = 0;
-  };
-  document.head.appendChild(s);
-}
-
-interface TvAdvancedChartProps {
-  symbol:    string;
-  label?:    string;
-  interval?: string;
-  height?:   number;
-}
-
-export function TvAdvancedChart({
+export function TvMiniChart({
   symbol,
   label,
-  interval = "W",
-  height   = 250,
-}: TvAdvancedChartProps) {
-  const uid  = useRef(`tv_adv_${Math.random().toString(36).slice(2)}`);
-  const ref  = useRef<HTMLDivElement>(null);
-  const init = useRef(false);
+  dateRange = "1M",
+  height    = 180,
+  showInfo  = true,
+}: TvMiniChartProps) {
+  const wrapperRef  = useRef<HTMLDivElement>(null);
+  const initialized = useRef(false);
+  const instanceId  = useRef(mkInstanceId());
 
   useEffect(() => {
-    if (init.current) return;
-    init.current = true;
+    if (initialized.current || !wrapperRef.current) return;
+    initialized.current = true;
 
-    loadTvScript(() => {
-      if (!window.TradingView || !ref.current) return;
-      try {
-        new window.TradingView.widget({
-          autosize:          false,
-          width:             "100%",
-          height,
-          symbol,
-          interval,
-          timezone:          "Europe/Paris",
-          theme:             "dark",
-          style:             "1",
-          locale:            "fr",
-          toolbar_bg:        "#0f1623",
-          enable_publishing: false,
-          hide_top_toolbar:  true,
-          hide_legend:       false,
-          save_image:        false,
-          container_id:      uid.current,
-          backgroundColor:   "rgba(8,12,20,0)",
-          gridColor:         "rgba(30,45,61,0.5)",
-          hide_volume:       false,
-          studies:           [],
-        });
-      } catch { /* TradingView indisponible */ }
-    });
+    mountEmbedWidget(
+      wrapperRef.current,
+      `https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js?t=${instanceId.current}`,
+      {
+        symbol,
+        width:                "100%",
+        height,
+        locale:               "fr",
+        dateRange,
+        colorTheme:           "dark",
+        trendLineColor:       "#38bdf8",
+        underLineColor:       "rgba(56,189,248,0.08)",
+        underLineBottomColor: "rgba(56,189,248,0)",
+        isTransparent:        true,
+        autosize:             false,
+        largeChartUrl:        "",
+        noTimeScale:          false,
+        chartOnly:            !showInfo,
+      },
+      height
+    );
+
+    return () => {
+      if (wrapperRef.current) wrapperRef.current.innerHTML = "";
+      initialized.current = false;
+    };
   }, []); // eslint-disable-line
 
   return (
@@ -176,9 +175,8 @@ export function TvAdvancedChart({
         </p>
       )}
       <div
-        ref={ref}
-        id={uid.current}
-        className="rounded-lg overflow-hidden bg-[#0f1623] border border-white/[0.05]"
+        ref={wrapperRef}
+        className="tradingview-widget-container rounded-lg overflow-hidden bg-[#0f1623]"
         style={{ height }}
       />
     </div>

@@ -10,6 +10,7 @@ const CB_KEYS = [
   ["CAD", "boc"],
   ["AUD", "rba"],
   ["NZD", "rbnz"],
+  ["CHF", "snb"],   // BNS — essai, null si l'endpoint n'existe pas sur rateprobability.com
 ];
 
 const HEADERS = {

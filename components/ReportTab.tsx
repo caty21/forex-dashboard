@@ -523,7 +523,7 @@ export default function ReportTab({ calEvents, drivers, cotHistory }: Props) {
               <div className="h-px flex-1 bg-sky-500/30" />
             </div>
 
-            {/* 8 currency mini charts */}
+            {/* 8 currency charts — bougie hebdomadaire */}
             <div className="grid grid-cols-4 gap-3">
               {[
                 { sym: "TVC:DXY",      label: "🇺🇸 USD · DXY" },
@@ -535,7 +535,7 @@ export default function ReportTab({ calEvents, drivers, cotHistory }: Props) {
                 { sym: "FX:AUDUSD",    label: "🇦🇺 AUD/USD" },
                 { sym: "FX:NZDUSD",    label: "🇳🇿 NZD/USD" },
               ].map(({ sym, label }) => (
-                <TvMiniChart key={sym} symbol={sym} label={label} height={160} showInfo={false} />
+                <TvAdvancedChart key={sym} symbol={sym} label={label} interval="W" height={160} />
               ))}
             </div>
 
