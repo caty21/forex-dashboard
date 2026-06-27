@@ -16,22 +16,22 @@ const CCY_FLAGS: Record<Currency, string> = {
 };
 
 const CATEGORY_META: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
-  "Discours BC":       { icon: <Landmark size={11} />,     color: "bg-blue-500/20 text-blue-400 border-blue-500/30",       label: "Discours BC" },
-  "Chef d'État":       { icon: <Globe size={11} />,         color: "bg-violet-500/20 text-violet-400 border-violet-500/30", label: "Chef d'État" },
-  "Décision Taux":     { icon: <Radio size={11} />,         color: "bg-amber-500/20 text-amber-400 border-amber-500/30",   label: "Décision Taux" },
-  "Probabilités Taux": { icon: <BarChart2 size={11} />,     color: "bg-sky-500/20 text-sky-400 border-sky-500/30",         label: "OIS / Proba Taux" },
-  "Données Clés":      { icon: <BarChart2 size={11} />,     color: "bg-slate-400/20 text-slate-300 border-slate-500/30",   label: "Données Clés" },
-  "Emploi":            { icon: <BarChart2 size={11} />,     color: "bg-slate-400/20 text-slate-300 border-slate-500/30",   label: "Emploi" },
-  "Inflation":         { icon: <Zap size={11} />,           color: "bg-orange-500/20 text-orange-400 border-orange-500/30",label: "Inflation" },
-  "Crise":             { icon: <AlertTriangle size={11} />,  color: "bg-red-600/20 text-red-400 border-red-500/30",         label: "Crise" },
-  "Guerre":            { icon: <AlertTriangle size={11} />,  color: "bg-red-700/20 text-red-400 border-red-600/30",         label: "Guerre" },
-  "Géopolitique":      { icon: <Globe size={11} />,         color: "bg-purple-500/20 text-purple-400 border-purple-500/30",label: "Géopolitique" },
-  "Risk-Off":          { icon: <TrendingDown size={11} />,  color: "bg-red-500/20 text-red-400 border-red-500/30",         label: "Risk-Off" },
-  "Risk-On":           { icon: <TrendingUp size={11} />,    color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", label: "Risk-On" },
-  "Énergie":           { icon: <Zap size={11} />,           color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",label: "Énergie" },
-  "Banque Centrale":   { icon: <Landmark size={11} />,      color: "bg-blue-500/20 text-blue-400 border-blue-500/30",      label: "Banque Centrale" },
-  "Commodités":        { icon: <BarChart2 size={11} />,     color: "bg-orange-500/20 text-orange-400 border-orange-500/30",label: "Commodités" },
-  "Chine":             { icon: <Globe size={11} />,         color: "bg-red-600/20 text-red-400 border-red-600/30",         label: "Chine" },
+  "Discours BC":       { icon: <Landmark size={11} />,      color: "bg-blue-500/20 text-blue-400 border-blue-500/30",        label: "Discours BC" },
+  "Chef d'État":       { icon: <Globe size={11} />,          color: "bg-violet-500/20 text-violet-400 border-violet-500/30",  label: "Chef d'État" },
+  "Décision Taux":     { icon: <Radio size={11} />,          color: "bg-amber-500/20 text-amber-400 border-amber-500/30",    label: "Décision Taux" },
+  "Probabilités Taux": { icon: <BarChart2 size={11} />,      color: "bg-sky-500/20 text-sky-400 border-sky-500/30",          label: "OIS / Proba Taux" },
+  "Données Clés":      { icon: <BarChart2 size={11} />,      color: "bg-slate-400/20 text-slate-300 border-slate-500/30",    label: "Données Clés" },
+  "Emploi":            { icon: <BarChart2 size={11} />,      color: "bg-slate-400/20 text-slate-300 border-slate-500/30",    label: "Emploi" },
+  "Inflation":         { icon: <Zap size={11} />,            color: "bg-orange-500/20 text-orange-400 border-orange-500/30", label: "Inflation" },
+  "Crise":             { icon: <AlertTriangle size={11} />,  color: "bg-red-600/20 text-red-400 border-red-500/30",          label: "Crise" },
+  "Guerre":            { icon: <AlertTriangle size={11} />,  color: "bg-red-700/20 text-red-400 border-red-600/30",          label: "Guerre" },
+  "Géopolitique":      { icon: <Globe size={11} />,          color: "bg-purple-500/20 text-purple-400 border-purple-500/30", label: "Géopolitique" },
+  "Risk-Off":          { icon: <TrendingDown size={11} />,   color: "bg-red-500/20 text-red-400 border-red-500/30",          label: "Risk-Off" },
+  "Risk-On":           { icon: <TrendingUp size={11} />,     color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", label: "Risk-On" },
+  "Énergie":           { icon: <Zap size={11} />,            color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30", label: "Énergie" },
+  "Banque Centrale":   { icon: <Landmark size={11} />,       color: "bg-blue-500/20 text-blue-400 border-blue-500/30",       label: "Banque Centrale" },
+  "Commodités":        { icon: <BarChart2 size={11} />,      color: "bg-orange-500/20 text-orange-400 border-orange-500/30", label: "Commodités" },
+  "Chine":             { icon: <Globe size={11} />,          color: "bg-red-600/20 text-red-400 border-red-600/30",          label: "Chine" },
 };
 
 const PRIORITY_CATS = [
@@ -40,6 +40,11 @@ const PRIORITY_CATS = [
   "Crise", "Guerre", "Géopolitique", "Risk-Off", "Risk-On",
   "Énergie", "Commodités", "Chine",
 ];
+
+// Catégories "haute priorité" : reçoivent un boost de tri
+const HIGH_PRIO = new Set([
+  "Discours BC", "Décision Taux", "Crise", "Guerre", "Chef d'État", "Probabilités Taux",
+]);
 
 const SOURCE_COLORS: Record<string, string> = {
   "InvestingLive":       "bg-amber-500/20 text-amber-400",
@@ -52,11 +57,23 @@ const SOURCE_COLORS: Record<string, string> = {
 function formatRelativeTime(isoDate: string): string {
   const diff = Date.now() - new Date(isoDate).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1)   return "à l'instant";
-  if (mins < 60)  return `il y a ${mins}min`;
+  if (mins < 1)  return "à l'instant";
+  if (mins < 60) return `il y a ${mins}min`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24)   return `il y a ${hrs}h`;
+  if (hrs < 24)  return `il y a ${hrs}h`;
   return `il y a ${Math.floor(hrs / 24)}j`;
+}
+
+// ── Tri ───────────────────────────────────────────────────────────────────────
+// Score plus élevé = apparaît en premier dans la liste.
+// Ordre : récence (primaire) → haute priorité (+3h) → article catégorisé (+1h)
+// Les articles sans catégorie ni impact (bruit boursier Yahoo etc.) restent en bas.
+
+function scoreItem(item: NewsItem): number {
+  const t      = new Date(item.publishedAt).getTime();
+  const isPrio = item.categories.some(c => HIGH_PRIO.has(c));
+  const hasCat = item.categories.length > 0 || item.impacts.length > 0;
+  return t + (isPrio ? 3 * 3_600_000 : hasCat ? 1 * 3_600_000 : 0);
 }
 
 // ── Composant principal ───────────────────────────────────────────────────────
@@ -68,39 +85,54 @@ interface Props {
 }
 
 export default function NewsTab({ items, loading, onRefresh }: Props) {
-  const [filterCat,    setFilterCat]    = useState<string | "ALL">("ALL");
-  const [filterDir,    setFilterDir]    = useState<"all" | "bullish" | "bearish">("all");
-  const [priorityOnly, setPriorityOnly] = useState(false);
-  const [autoRefresh,  setAutoRefresh]  = useState(true);
+  // Multi-sélection : Set vide = "Toutes" (aucun filtre actif)
+  const [selectedCats,  setSelectedCats]  = useState<Set<string>>(new Set());
+  const [filterDir,     setFilterDir]     = useState<"all" | "bullish" | "bearish">("all");
+  const [priorityOnly,  setPriorityOnly]  = useState(false);
+  const [autoRefresh,   setAutoRefresh]   = useState(true);
   const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Auto-refresh toutes les 1 minute quand actif
   useEffect(() => {
     if (!autoRefresh) { if (intervalRef.current) clearInterval(intervalRef.current); return; }
     intervalRef.current = setInterval(() => { onRefresh(); setLastRefreshAt(new Date()); }, 60_000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [autoRefresh, onRefresh]);
 
-  const isPriorityItem = (item: NewsItem) =>
-    item.categories.some(c => ["Discours BC", "Décision Taux", "Crise", "Guerre", "Chef d'État", "Probabilités Taux"].includes(c));
+  // Bascule une catégorie dans la sélection (OR logic — plusieurs peuvent être actives)
+  const toggleCat = (cat: string) => {
+    setSelectedCats(prev => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  };
 
-  const filtered = useMemo(() => items.filter(item => {
-    if (priorityOnly && !isPriorityItem(item)) return false;
-    if (filterCat !== "ALL" && !item.categories.includes(filterCat)) return false;
-    if (filterDir !== "all" && !item.impacts.some(i => i.direction === filterDir)) return false;
-    return true;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [items, filterCat, filterDir, priorityOnly]);
+  // Filtre + tri client
+  const filtered = useMemo(() => {
+    const result = items.filter(item => {
+      // Filtre "Prioritaire"
+      if (priorityOnly && !item.categories.some(c => HIGH_PRIO.has(c))) return false;
+      // Filtre catégories multi-select (OR) : l'article doit matcher AU MOINS UNE cat sélectionnée
+      if (selectedCats.size > 0 && !item.categories.some(c => selectedCats.has(c))) return false;
+      // Filtre direction
+      if (filterDir !== "all" && !item.impacts.some(i => i.direction === filterDir)) return false;
+      return true;
+    });
+    // Tri côté client : récence → priorité → catégorie présente
+    return result.sort((a, b) => scoreItem(b) - scoreItem(a));
+  }, [items, selectedCats, filterDir, priorityOnly]);
 
+  // Catégories présentes dans les articles actuels (pour afficher les boutons pertinents)
   const activeCats = useMemo(() => {
     const set = new Set<string>();
     for (const item of items) item.categories.forEach(c => set.add(c));
     return PRIORITY_CATS.filter(c => set.has(c));
   }, [items]);
 
-  const anyFilter = filterCat !== "ALL" || filterDir !== "all" || priorityOnly;
-  const clearFilters = () => { setFilterCat("ALL"); setFilterDir("all"); setPriorityOnly(false); };
+  const anyFilter = selectedCats.size > 0 || filterDir !== "all" || priorityOnly;
+  const clearFilters = () => { setSelectedCats(new Set()); setFilterDir("all"); setPriorityOnly(false); };
 
   return (
     <div className="space-y-3">
@@ -131,12 +163,10 @@ export default function NewsTab({ items, loading, onRefresh }: Props) {
 
           <div className="w-px h-3 bg-slate-700/60 shrink-0" />
 
-          {/* Label Direction */}
           <span className="text-[9px] text-amber-400 uppercase tracking-wider font-semibold shrink-0">
             Direction
           </span>
 
-          {/* Boutons direction */}
           {(["all", "bullish", "bearish"] as const).map(d => (
             <button key={d} onClick={() => setFilterDir(d)}
               className={`text-[10px] px-2 py-0.5 rounded-full font-semibold transition-colors border shrink-0 ${
@@ -152,7 +182,6 @@ export default function NewsTab({ items, loading, onRefresh }: Props) {
 
           <div className="w-px h-3 bg-slate-700/60 shrink-0" />
 
-          {/* Prioritaire toggle */}
           <button onClick={() => setPriorityOnly(p => !p)}
             className={`flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full font-semibold border transition-colors shrink-0 ${
               priorityOnly
@@ -162,7 +191,6 @@ export default function NewsTab({ items, loading, onRefresh }: Props) {
             <Zap size={9} /> Prioritaire
           </button>
 
-          {/* Compteur + effacer */}
           <div className="ml-auto flex items-center gap-2 shrink-0">
             <span className="text-[10px] text-slate-600">
               {loading ? "…" : `${filtered.length} article${filtered.length !== 1 ? "s" : ""}`}
@@ -176,25 +204,26 @@ export default function NewsTab({ items, loading, onRefresh }: Props) {
           </div>
         </div>
 
-        {/* Ligne 2 : catégories */}
+        {/* Ligne 2 : catégories multi-select */}
         {activeCats.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[9px] text-amber-400 uppercase tracking-wider font-semibold shrink-0">
               Catégorie
             </span>
-            <button onClick={() => setFilterCat("ALL")}
+            {/* "Toutes" remet la sélection à zéro */}
+            <button onClick={() => setSelectedCats(new Set())}
               className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border transition-colors shrink-0 ${
-                filterCat === "ALL"
+                selectedCats.size === 0
                   ? "bg-slate-700 text-slate-300 border-slate-600"
                   : "text-slate-500 border-slate-700/40 hover:text-slate-300"
               }`}>
               Toutes
             </button>
             {activeCats.map(cat => {
-              const meta = CATEGORY_META[cat];
-              const isActive = filterCat === cat;
+              const meta     = CATEGORY_META[cat];
+              const isActive = selectedCats.has(cat);
               return (
-                <button key={cat} onClick={() => setFilterCat(isActive ? "ALL" : cat)}
+                <button key={cat} onClick={() => toggleCat(cat)}
                   className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-semibold border transition-colors shrink-0 ${
                     isActive
                       ? (meta?.color ?? "bg-slate-700 text-slate-300 border-slate-600")
