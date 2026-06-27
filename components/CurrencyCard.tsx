@@ -1500,11 +1500,12 @@ export default function CurrencyCard({
               <>
                 {/* ── Slider : OIS / COT / Sentiment ──────────────────────── */}
                 {(() => {
-                  const sigTabs: { id: SignauxSlide; label: string }[] = [];
-                  if (ratePath && ratePath.meetings.length > 0) sigTabs.push({ id: "ois",  label: "OIS" });
+                  // OIS est toujours présent (même si données indisponibles)
+                  const sigTabs: { id: SignauxSlide; label: string }[] = [
+                    { id: "ois", label: "OIS" },
+                  ];
                   if (cot)       sigTabs.push({ id: "cot",  label: "COT" });
                   if (sentiment) sigTabs.push({ id: "sent", label: "Sentiment" });
-                  if (!sigTabs.length) return <div className="text-center text-slate-600 text-[11px] py-4">Données insuffisantes</div>;
                   return (
                     <div className="space-y-1.5">
                       {sigTabs.length > 1 && (
@@ -1534,6 +1535,16 @@ export default function CurrencyCard({
                             {/* OIS — nouveau bloc enrichi */}
                             {signauxSlide === "ois" && ratePath && ratePath.meetings.length > 0 && (
                               <OISEnhancedBlock ratePath={ratePath} />
+                            )}
+                            {/* OIS — état indisponible */}
+                            {signauxSlide === "ois" && (!ratePath || !ratePath.meetings.length) && (
+                              <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-700">
+                                <Target size={24} />
+                                <div className="text-center">
+                                  <p className="text-[11px] text-slate-500">Données OIS indisponibles</p>
+                                  <p className="text-[10px] text-slate-600 mt-1">Cache actualisé par GitHub Actions (24–48h)</p>
+                                </div>
+                              </div>
                             )}
 
                             {/* COT */}

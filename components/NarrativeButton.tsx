@@ -45,9 +45,9 @@ export default function NarrativeButton({ currency, phase, macroScore }: Props) 
       <button
         onClick={run}
         disabled={loading}
-        style={{ color: '#f59e0b' }}
-        onMouseEnter={e => (e.currentTarget.style.color = '#fcd34d')}
-        onMouseLeave={e => (e.currentTarget.style.color = '#f59e0b')}
+        style={{ color: '#ffffff' }}
+        onMouseEnter={e => (e.currentTarget.style.color = '#e2e8f0')}
+        onMouseLeave={e => (e.currentTarget.style.color = '#ffffff')}
         className="flex items-center gap-1 text-[10px] disabled:opacity-50 transition-colors px-2 py-1"
       >
         <Sparkles size={11} />
