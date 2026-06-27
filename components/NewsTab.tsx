@@ -14,29 +14,26 @@ const CCY_FLAGS: Record<Currency, string> = {
   USD: "🇺🇸", EUR: "🇪🇺", GBP: "🇬🇧", JPY: "🇯🇵",
   CHF: "🇨🇭", CAD: "🇨🇦", AUD: "🇦🇺", NZD: "🇳🇿",
 };
-const CCY_LIST: Currency[] = ["USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "NZD"];
 
-// Catégories prioritaires avec icône et couleur
 const CATEGORY_META: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
-  "Discours BC":       { icon: <Landmark size={11} />,    color: "bg-blue-500/20 text-blue-400 border-blue-500/30",    label: "Discours BC" },
-  "Chef d'État":       { icon: <Globe size={11} />,        color: "bg-violet-500/20 text-violet-400 border-violet-500/30", label: "Chef d'État" },
-  "Décision Taux":     { icon: <Radio size={11} />,        color: "bg-amber-500/20 text-amber-400 border-amber-500/30",  label: "Décision Taux" },
-  "Probabilités Taux": { icon: <BarChart2 size={11} />,    color: "bg-sky-500/20 text-sky-400 border-sky-500/30",       label: "OIS / Proba Taux" },
-  "Données Clés":      { icon: <BarChart2 size={11} />,    color: "bg-slate-400/20 text-slate-300 border-slate-500/30", label: "Données Clés" },
-  "Emploi":            { icon: <BarChart2 size={11} />,    color: "bg-slate-400/20 text-slate-300 border-slate-500/30", label: "Emploi" },
-  "Inflation":         { icon: <Zap size={11} />,          color: "bg-orange-500/20 text-orange-400 border-orange-500/30", label: "Inflation" },
-  "Crise":             { icon: <AlertTriangle size={11} />, color: "bg-red-600/20 text-red-400 border-red-500/30",      label: "Crise" },
-  "Guerre":            { icon: <AlertTriangle size={11} />, color: "bg-red-700/20 text-red-400 border-red-600/30",      label: "Guerre" },
-  "Géopolitique":      { icon: <Globe size={11} />,        color: "bg-purple-500/20 text-purple-400 border-purple-500/30", label: "Géopolitique" },
-  "Risk-Off":          { icon: <TrendingDown size={11} />, color: "bg-red-500/20 text-red-400 border-red-500/30",       label: "Risk-Off" },
-  "Risk-On":           { icon: <TrendingUp size={11} />,   color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", label: "Risk-On" },
-  "Énergie":           { icon: <Zap size={11} />,          color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30", label: "Énergie" },
-  "Banque Centrale":   { icon: <Landmark size={11} />,     color: "bg-blue-500/20 text-blue-400 border-blue-500/30",   label: "Banque Centrale" },
-  "Commodités":        { icon: <BarChart2 size={11} />,    color: "bg-orange-500/20 text-orange-400 border-orange-500/30", label: "Commodités" },
-  "Chine":             { icon: <Globe size={11} />,        color: "bg-red-600/20 text-red-400 border-red-600/30",      label: "Chine" },
+  "Discours BC":       { icon: <Landmark size={11} />,     color: "bg-blue-500/20 text-blue-400 border-blue-500/30",       label: "Discours BC" },
+  "Chef d'État":       { icon: <Globe size={11} />,         color: "bg-violet-500/20 text-violet-400 border-violet-500/30", label: "Chef d'État" },
+  "Décision Taux":     { icon: <Radio size={11} />,         color: "bg-amber-500/20 text-amber-400 border-amber-500/30",   label: "Décision Taux" },
+  "Probabilités Taux": { icon: <BarChart2 size={11} />,     color: "bg-sky-500/20 text-sky-400 border-sky-500/30",         label: "OIS / Proba Taux" },
+  "Données Clés":      { icon: <BarChart2 size={11} />,     color: "bg-slate-400/20 text-slate-300 border-slate-500/30",   label: "Données Clés" },
+  "Emploi":            { icon: <BarChart2 size={11} />,     color: "bg-slate-400/20 text-slate-300 border-slate-500/30",   label: "Emploi" },
+  "Inflation":         { icon: <Zap size={11} />,           color: "bg-orange-500/20 text-orange-400 border-orange-500/30",label: "Inflation" },
+  "Crise":             { icon: <AlertTriangle size={11} />,  color: "bg-red-600/20 text-red-400 border-red-500/30",         label: "Crise" },
+  "Guerre":            { icon: <AlertTriangle size={11} />,  color: "bg-red-700/20 text-red-400 border-red-600/30",         label: "Guerre" },
+  "Géopolitique":      { icon: <Globe size={11} />,         color: "bg-purple-500/20 text-purple-400 border-purple-500/30",label: "Géopolitique" },
+  "Risk-Off":          { icon: <TrendingDown size={11} />,  color: "bg-red-500/20 text-red-400 border-red-500/30",         label: "Risk-Off" },
+  "Risk-On":           { icon: <TrendingUp size={11} />,    color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", label: "Risk-On" },
+  "Énergie":           { icon: <Zap size={11} />,           color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",label: "Énergie" },
+  "Banque Centrale":   { icon: <Landmark size={11} />,      color: "bg-blue-500/20 text-blue-400 border-blue-500/30",      label: "Banque Centrale" },
+  "Commodités":        { icon: <BarChart2 size={11} />,     color: "bg-orange-500/20 text-orange-400 border-orange-500/30",label: "Commodités" },
+  "Chine":             { icon: <Globe size={11} />,         color: "bg-red-600/20 text-red-400 border-red-600/30",         label: "Chine" },
 };
 
-// Ordre d'affichage des filtres catégorie (par priorité signal)
 const PRIORITY_CATS = [
   "Discours BC", "Décision Taux", "Probabilités Taux",
   "Chef d'État", "Données Clés", "Emploi", "Inflation",
@@ -71,18 +68,17 @@ interface Props {
 }
 
 export default function NewsTab({ items, loading, onRefresh }: Props) {
-  const [filterCcy,      setFilterCcy]      = useState<Currency | "ALL">("ALL");
-  const [filterCat,      setFilterCat]      = useState<string | "ALL">("ALL");
-  const [filterDir,      setFilterDir]      = useState<"all" | "bullish" | "bearish">("all");
-  const [priorityOnly,   setPriorityOnly]   = useState(false);
-  const [autoRefresh,    setAutoRefresh]    = useState(true);
-  const [lastRefreshAt,  setLastRefreshAt]  = useState<Date | null>(null);
+  const [filterCat,    setFilterCat]    = useState<string | "ALL">("ALL");
+  const [filterDir,    setFilterDir]    = useState<"all" | "bullish" | "bearish">("all");
+  const [priorityOnly, setPriorityOnly] = useState(false);
+  const [autoRefresh,  setAutoRefresh]  = useState(true);
+  const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Auto-refresh toutes les 5 minutes
+  // Auto-refresh toutes les 1 minute quand actif
   useEffect(() => {
     if (!autoRefresh) { if (intervalRef.current) clearInterval(intervalRef.current); return; }
-    intervalRef.current = setInterval(() => { onRefresh(); setLastRefreshAt(new Date()); }, 5 * 60_000);
+    intervalRef.current = setInterval(() => { onRefresh(); setLastRefreshAt(new Date()); }, 60_000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [autoRefresh, onRefresh]);
 
@@ -91,175 +87,125 @@ export default function NewsTab({ items, loading, onRefresh }: Props) {
 
   const filtered = useMemo(() => items.filter(item => {
     if (priorityOnly && !isPriorityItem(item)) return false;
-    if (filterCcy !== "ALL" && !item.impacts.some(i => i.ccy === filterCcy)) return false;
     if (filterCat !== "ALL" && !item.categories.includes(filterCat)) return false;
-    if (filterDir !== "all") {
-      if (filterCcy !== "ALL") {
-        if (!item.impacts.some(i => i.ccy === filterCcy && i.direction === filterDir)) return false;
-      } else {
-        if (!item.impacts.some(i => i.direction === filterDir)) return false;
-      }
-    }
+    if (filterDir !== "all" && !item.impacts.some(i => i.direction === filterDir)) return false;
     return true;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [items, filterCcy, filterCat, filterDir, priorityOnly]);
+  }), [items, filterCat, filterDir, priorityOnly]);
 
-  // Catégories présentes dans le feed actuel
   const activeCats = useMemo(() => {
     const set = new Set<string>();
     for (const item of items) item.categories.forEach(c => set.add(c));
     return PRIORITY_CATS.filter(c => set.has(c));
   }, [items]);
 
-  // Comptage par devise
-  const ccyCount = useMemo(() => {
-    const counts: Partial<Record<Currency, { bull: number; bear: number; total: number }>> = {};
-    for (const item of items) {
-      for (const imp of item.impacts) {
-        if (!counts[imp.ccy]) counts[imp.ccy] = { bull: 0, bear: 0, total: 0 };
-        counts[imp.ccy]!.total++;
-        if (imp.direction === "bullish") counts[imp.ccy]!.bull++;
-        if (imp.direction === "bearish") counts[imp.ccy]!.bear++;
-      }
-    }
-    return counts;
-  }, [items]);
-
-  // Résumé par devise (pour headline)
-  const ccySummary = useMemo(() => {
-    const summary: Partial<Record<Currency, "bullish" | "bearish" | "mixed" | "neutral">> = {};
-    for (const [ccy, cnt] of Object.entries(ccyCount) as [Currency, { bull: number; bear: number }][]) {
-      if (cnt.bull > cnt.bear * 1.5) summary[ccy] = "bullish";
-      else if (cnt.bear > cnt.bull * 1.5) summary[ccy] = "bearish";
-      else if (cnt.bull > 0 && cnt.bear > 0) summary[ccy] = "mixed";
-      else summary[ccy] = "neutral";
-    }
-    return summary;
-  }, [ccyCount]);
+  const anyFilter = filterCat !== "ALL" || filterDir !== "all" || priorityOnly;
+  const clearFilters = () => { setFilterCat("ALL"); setFilterDir("all"); setPriorityOnly(false); };
 
   return (
     <div className="space-y-3">
-      {/* ── Headline résumé par devise ──────────────────────────────────────── */}
-      {!loading && items.length > 0 && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
-          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-            <span className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold">
-              Biais actualités par devise
+      {/* ── Barre filtres ──────────────────────────────────────────────────── */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 space-y-2">
+
+        {/* Ligne 1 : contrôles + direction + prioritaire */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Live 1min */}
+          <button onClick={() => setAutoRefresh(a => !a)}
+            className={`flex items-center gap-1.5 text-[9px] px-2 py-1 rounded-full border transition-colors shrink-0 ${
+              autoRefresh
+                ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
+                : "text-slate-600 border-slate-700/30 hover:text-slate-400"
+            }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${autoRefresh ? "bg-emerald-500 animate-pulse" : "bg-slate-600"}`} />
+            {autoRefresh ? "Live 1min" : "Pause"}
+          </button>
+
+          {/* Actualiser */}
+          <button onClick={() => { onRefresh(); setLastRefreshAt(new Date()); }} disabled={loading}
+            className="flex items-center gap-1 text-[9px] text-slate-500 hover:text-slate-300 disabled:opacity-40 shrink-0 transition-colors">
+            <RefreshCw size={9} className={loading ? "animate-spin" : ""} />
+            {lastRefreshAt
+              ? lastRefreshAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
+              : "Actualiser"}
+          </button>
+
+          <div className="w-px h-3 bg-slate-700/60 shrink-0" />
+
+          {/* Label Direction */}
+          <span className="text-[9px] text-amber-400 uppercase tracking-wider font-semibold shrink-0">
+            Direction
+          </span>
+
+          {/* Boutons direction */}
+          {(["all", "bullish", "bearish"] as const).map(d => (
+            <button key={d} onClick={() => setFilterDir(d)}
+              className={`text-[10px] px-2 py-0.5 rounded-full font-semibold transition-colors border shrink-0 ${
+                filterDir === d
+                  ? d === "bullish" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                    : d === "bearish" ? "bg-red-500/20 text-red-400 border-red-500/30"
+                    : "bg-slate-700 text-slate-300 border-slate-600"
+                  : "text-slate-500 border-slate-700/40 hover:text-slate-300"
+              }`}>
+              {d === "all" ? "Tous" : d === "bullish" ? "↑ Haussier" : "↓ Baissier"}
+            </button>
+          ))}
+
+          <div className="w-px h-3 bg-slate-700/60 shrink-0" />
+
+          {/* Prioritaire toggle */}
+          <button onClick={() => setPriorityOnly(p => !p)}
+            className={`flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full font-semibold border transition-colors shrink-0 ${
+              priorityOnly
+                ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                : "text-slate-500 border-slate-700/40 hover:text-slate-300"
+            }`}>
+            <Zap size={9} /> Prioritaire
+          </button>
+
+          {/* Compteur + effacer */}
+          <div className="ml-auto flex items-center gap-2 shrink-0">
+            <span className="text-[10px] text-slate-600">
+              {loading ? "…" : `${filtered.length} article${filtered.length !== 1 ? "s" : ""}`}
             </span>
-            <div className="flex items-center gap-2">
-              {/* Bouton Prioritaires */}
-              <button onClick={() => setPriorityOnly(p => !p)}
-                className={`flex items-center gap-1 text-[9px] px-2.5 py-1 rounded-full font-semibold border transition-colors ${
-                  priorityOnly ? "bg-amber-500/20 text-amber-400 border-amber-500/30" : "text-slate-500 border-slate-700/40 hover:text-slate-300"
-                }`}>
-                <Zap size={9} /> ⚡ Prioritaires
+            {anyFilter && (
+              <button onClick={clearFilters}
+                className="text-[9px] text-slate-600 hover:text-slate-400 transition-colors">
+                × Effacer
               </button>
-              {/* Auto-refresh */}
-              <button onClick={() => setAutoRefresh(a => !a)}
-                className={`flex items-center gap-1 text-[9px] px-2 py-1 rounded-full border transition-colors ${
-                  autoRefresh ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" : "text-slate-600 border-slate-700/30"
-                }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${autoRefresh ? "bg-emerald-500 animate-pulse" : "bg-slate-600"}`} />
-                {autoRefresh ? "Live 5min" : "Pause"}
-              </button>
-              <button onClick={() => { onRefresh(); setLastRefreshAt(new Date()); }} disabled={loading}
-                className="flex items-center gap-1 text-[9px] text-slate-600 hover:text-slate-400 disabled:opacity-50">
-                <RefreshCw size={9} className={loading ? "animate-spin" : ""} />
-                {lastRefreshAt ? lastRefreshAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "Actualiser"}
-              </button>
-            </div>
+            )}
           </div>
-          <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
-            {CCY_LIST.map(ccy => {
-              const cnt     = ccyCount[ccy];
-              const summary = ccySummary[ccy] ?? "neutral";
-              const bgCls   = summary === "bullish" ? "bg-emerald-500/10 border-emerald-500/20"
-                            : summary === "bearish" ? "bg-red-500/10 border-red-500/20"
-                            : summary === "mixed"   ? "bg-amber-500/10 border-amber-500/20"
-                            : "bg-slate-800/40 border-slate-700/30";
-              const arrow   = summary === "bullish" ? "↑" : summary === "bearish" ? "↓"
-                            : summary === "mixed"   ? "↕" : "→";
-              const arrowCls = summary === "bullish" ? "text-emerald-400" : summary === "bearish" ? "text-red-400"
-                             : summary === "mixed" ? "text-amber-400" : "text-slate-600";
+        </div>
+
+        {/* Ligne 2 : catégories */}
+        {activeCats.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[9px] text-amber-400 uppercase tracking-wider font-semibold shrink-0">
+              Catégorie
+            </span>
+            <button onClick={() => setFilterCat("ALL")}
+              className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border transition-colors shrink-0 ${
+                filterCat === "ALL"
+                  ? "bg-slate-700 text-slate-300 border-slate-600"
+                  : "text-slate-500 border-slate-700/40 hover:text-slate-300"
+              }`}>
+              Toutes
+            </button>
+            {activeCats.map(cat => {
+              const meta = CATEGORY_META[cat];
+              const isActive = filterCat === cat;
               return (
-                <button key={ccy} onClick={() => setFilterCcy(filterCcy === ccy ? "ALL" : ccy)}
-                  className={`flex flex-col items-center gap-0.5 p-2 rounded-lg border transition-all ${bgCls} ${filterCcy === ccy ? "ring-1 ring-amber-500/50" : ""}`}>
-                  <span className="text-base">{CCY_FLAGS[ccy]}</span>
-                  <span className="text-[10px] font-bold text-slate-300">{ccy}</span>
-                  <span className={`text-[11px] font-bold ${arrowCls}`}>{arrow}</span>
-                  {cnt && (
-                    <span className="text-[8px] text-slate-600">{cnt.bull}↑ {cnt.bear}↓</span>
-                  )}
+                <button key={cat} onClick={() => setFilterCat(isActive ? "ALL" : cat)}
+                  className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-semibold border transition-colors shrink-0 ${
+                    isActive
+                      ? (meta?.color ?? "bg-slate-700 text-slate-300 border-slate-600")
+                      : "text-slate-500 border-slate-700/40 hover:text-slate-300"
+                  }`}>
+                  {meta?.icon}
+                  {meta?.label ?? cat}
                 </button>
               );
             })}
           </div>
-        </div>
-      )}
-
-      {/* ── Filtres ─────────────────────────────────────────────────────────── */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2">
-        {/* Direction */}
-        <div className="flex items-center gap-2">
-          <span className="text-[9px] text-slate-600 uppercase tracking-wider w-16 shrink-0">Direction</span>
-          <div className="flex gap-1.5">
-            {(["all", "bullish", "bearish"] as const).map(d => (
-              <button key={d} onClick={() => setFilterDir(d)}
-                className={`text-[10px] px-2.5 py-1 rounded-full font-semibold transition-colors border ${
-                  filterDir === d
-                    ? d === "bullish" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                      : d === "bearish" ? "bg-red-500/20 text-red-400 border-red-500/30"
-                      : "bg-slate-700 text-slate-300 border-slate-600"
-                    : "text-slate-500 border-slate-700/40 hover:text-slate-300"
-                }`}>
-                {d === "all" ? "Tous" : d === "bullish" ? "↑ Haussier" : "↓ Baissier"}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Catégories */}
-        {activeCats.length > 0 && (
-          <div className="flex items-start gap-2">
-            <span className="text-[9px] text-slate-600 uppercase tracking-wider w-16 shrink-0 pt-1">Catégorie</span>
-            <div className="flex gap-1.5 flex-wrap">
-              <button onClick={() => setFilterCat("ALL")}
-                className={`text-[10px] px-2.5 py-1 rounded-full font-semibold border transition-colors ${
-                  filterCat === "ALL" ? "bg-slate-700 text-slate-300 border-slate-600" : "text-slate-600 border-slate-700/40 hover:text-slate-400"
-                }`}>
-                Toutes
-              </button>
-              {activeCats.map(cat => {
-                const meta = CATEGORY_META[cat];
-                const isActive = filterCat === cat;
-                return (
-                  <button key={cat} onClick={() => setFilterCat(filterCat === cat ? "ALL" : cat)}
-                    className={`flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full font-semibold border transition-colors ${
-                      isActive ? (meta?.color ?? "bg-slate-700 text-slate-300 border-slate-600")
-                               : "text-slate-600 border-slate-700/40 hover:text-slate-400"
-                    }`}>
-                    {meta?.icon}
-                    {meta?.label ?? cat}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ── Compteur résultats ──────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-1">
-        <span className="text-[11px] text-slate-600">
-          {loading ? "Chargement…" : `${filtered.length} article${filtered.length > 1 ? "s" : ""}`}
-          {filterCcy !== "ALL" && ` · ${CCY_FLAGS[filterCcy]} ${filterCcy}`}
-          {filterCat !== "ALL" && ` · ${filterCat}`}
-        </span>
-        {(filterCcy !== "ALL" || filterCat !== "ALL" || filterDir !== "all" || priorityOnly) && (
-          <button onClick={() => { setFilterCcy("ALL"); setFilterCat("ALL"); setFilterDir("all"); setPriorityOnly(false); }}
-            className="text-[10px] text-slate-600 hover:text-slate-400">
-            Effacer filtres ×
-          </button>
         )}
       </div>
 
@@ -277,11 +223,7 @@ export default function NewsTab({ items, loading, onRefresh }: Props) {
       ) : (
         <div className="space-y-2">
           {filtered.map(item => (
-            <NewsCard
-              key={item.id}
-              item={item}
-              activeCcy={filterCcy === "ALL" ? null : filterCcy}
-            />
+            <NewsCard key={item.id} item={item} />
           ))}
         </div>
       )}
@@ -291,20 +233,15 @@ export default function NewsTab({ items, loading, onRefresh }: Props) {
 
 // ── NewsCard ──────────────────────────────────────────────────────────────────
 
-function NewsCard({ item, activeCcy }: { item: NewsItem; activeCcy: Currency | null }) {
+function NewsCard({ item }: { item: NewsItem }) {
   const [expanded, setExpanded] = useState(false);
 
-  const visibleImpacts = activeCcy
-    ? item.impacts.filter(i => i.ccy === activeCcy)
-    : item.impacts;
-
   const overallDir =
-    visibleImpacts.some(i => i.direction === "bullish") && visibleImpacts.some(i => i.direction === "bearish") ? "mixed"
-    : visibleImpacts.some(i => i.direction === "bullish") ? "bullish"
-    : visibleImpacts.some(i => i.direction === "bearish") ? "bearish"
+    item.impacts.some(i => i.direction === "bullish") && item.impacts.some(i => i.direction === "bearish") ? "mixed"
+    : item.impacts.some(i => i.direction === "bullish") ? "bullish"
+    : item.impacts.some(i => i.direction === "bearish") ? "bearish"
     : "neutral";
 
-  // Détecter les catégories prioritaires
   const isPriority = item.categories.some(c =>
     ["Discours BC", "Décision Taux", "Crise", "Guerre", "Chef d'État"].includes(c)
   );
@@ -320,8 +257,7 @@ function NewsCard({ item, activeCcy }: { item: NewsItem; activeCcy: Currency | n
     overallDir === "bearish" ? "bg-red-500/5" :
     "bg-slate-800/30";
 
-  // Catégorie la plus prioritaire
-  const topCat = PRIORITY_CATS.find(p => item.categories.includes(p));
+  const topCat  = PRIORITY_CATS.find(p => item.categories.includes(p));
   const topMeta = topCat ? CATEGORY_META[topCat] : null;
 
   return (
@@ -359,10 +295,10 @@ function NewsCard({ item, activeCcy }: { item: NewsItem; activeCcy: Currency | n
           </p>
         )}
 
-        {/* Impact badges + bouton détail */}
-        {visibleImpacts.length > 0 && (
+        {/* Impact badges + heure + bouton analyse */}
+        {item.impacts.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">
-            {visibleImpacts.map(imp => (
+            {item.impacts.map(imp => (
               <div key={imp.ccy} title={imp.reason}
                 className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-semibold ${
                   imp.direction === "bullish" ? "bg-emerald-500/15 text-emerald-400" :
@@ -378,7 +314,7 @@ function NewsCard({ item, activeCcy }: { item: NewsItem; activeCcy: Currency | n
             <div className="ml-auto flex items-center gap-1.5 shrink-0">
               <span className="text-[10px] text-slate-600">{formatRelativeTime(item.publishedAt)}</span>
               <button onClick={() => setExpanded(e => !e)}
-                className="text-[9px] text-slate-500 hover:text-slate-300 px-1.5 py-0.5 rounded-full border border-slate-700/30">
+                className="text-[9px] text-slate-500 hover:text-slate-300 px-1.5 py-0.5 rounded-full border border-slate-700/30 transition-colors">
                 {expanded ? "▲" : "▼ Analyse"}
               </button>
             </div>
@@ -386,9 +322,9 @@ function NewsCard({ item, activeCcy }: { item: NewsItem; activeCcy: Currency | n
         )}
 
         {/* Détail des raisons */}
-        {expanded && visibleImpacts.length > 0 && (
+        {expanded && item.impacts.length > 0 && (
           <div className="mt-2 space-y-1.5 border-t border-slate-700/30 pt-2">
-            {visibleImpacts.map(imp => (
+            {item.impacts.map(imp => (
               <div key={imp.ccy} className="flex items-start gap-2 text-[10px]">
                 <span className={`shrink-0 font-bold whitespace-nowrap ${
                   imp.direction === "bullish" ? "text-emerald-400" :
