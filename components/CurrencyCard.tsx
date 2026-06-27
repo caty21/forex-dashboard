@@ -246,7 +246,7 @@ function MacroBlock({ title, children, action }: { title: string; children: Reac
   return (
     <div className="bg-slate-800/40 rounded-xl border border-slate-700/30 p-3 space-y-1.5">
       <div className="flex items-center justify-between mb-2">
-        <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">{title}</div>
+        <div className="text-[10px] text-slate-300 uppercase tracking-wider font-semibold">{title}</div>
         {action}
       </div>
       {children}
@@ -486,7 +486,7 @@ function OISEnhancedBlock({ ratePath }: { ratePath: CBRatePath }) {
               className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border transition-all ${
                 chartTab === t.id
                   ? "bg-slate-700 border-slate-500 text-white"
-                  : "border-slate-700/60 text-slate-500 hover:text-slate-300"
+                  : "border-slate-700/60 text-slate-400 hover:text-white"
               }`}
             >
               {t.label}
@@ -1290,7 +1290,7 @@ export default function CurrencyCard({
             className={`flex items-center gap-1.5 px-3 py-2 text-[11px] font-medium rounded-t-lg transition-all ${
               activeTab === t.id
                 ? "text-white bg-slate-800"
-                : "text-slate-500 hover:text-slate-300"
+                : "text-slate-400 hover:text-white"
             }`}
           >
             {t.icon}
@@ -1386,7 +1386,7 @@ export default function CurrencyCard({
                             className={`text-[9px] font-semibold px-2.5 py-0.5 rounded-full border transition-all ${
                               macroSlide === t.id
                                 ? "bg-slate-700 border-slate-500 text-white"
-                                : "bg-transparent border-slate-700/60 text-slate-500 hover:text-slate-300 hover:border-slate-500"
+                                : "bg-transparent border-slate-700/60 text-slate-400 hover:text-white hover:border-slate-500"
                             }`}
                           >
                             {t.label}
@@ -1498,7 +1498,7 @@ export default function CurrencyCard({
                       {sigTabs.length > 1 && (
                         <div className="flex gap-1">
                           {sigTabs.map(t => (
-                            <button key={t.id} onClick={() => goToSignauxSlide(t.id)} className={`text-[9px] font-semibold px-2.5 py-0.5 rounded-full border transition-all ${signauxSlide === t.id ? "bg-slate-700 border-slate-500 text-white" : "bg-transparent border-slate-700/60 text-slate-500 hover:text-slate-300 hover:border-slate-500"}`}>{t.label}</button>
+                            <button key={t.id} onClick={() => goToSignauxSlide(t.id)} className={`text-[9px] font-semibold px-2.5 py-0.5 rounded-full border transition-all ${signauxSlide === t.id ? "bg-slate-700 border-slate-500 text-white" : "bg-transparent border-slate-700/60 text-slate-400 hover:text-white hover:border-slate-500"}`}>{t.label}</button>
                           ))}
                         </div>
                       )}
@@ -1556,7 +1556,7 @@ export default function CurrencyCard({
                     <div className="rounded-xl border border-slate-700/40 bg-slate-800/20 p-3 space-y-2">
                       {/* ① Header */}
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 text-[9px] text-slate-600 uppercase tracking-widest">
+                        <div className="flex items-center gap-1.5 text-[9px] text-slate-300 uppercase tracking-widest">
                           <BarChart2 size={9} />
                           COT CFTC · {cot.weekDate}
                           <button
@@ -1567,7 +1567,7 @@ export default function CurrencyCard({
                             <Info size={10} />
                           </button>
                         </div>
-                        <span className="text-[9px] text-slate-600">{cot.prevWeekDate ? `vs ${cot.prevWeekDate}` : ""}</span>
+                        <span className="text-[9px] text-slate-400">{cot.prevWeekDate ? `vs ${cot.prevWeekDate}` : ""}</span>
                       </div>
 
                       {/* ⓘ Tooltip explicatif */}
@@ -1604,10 +1604,10 @@ export default function CurrencyCard({
 
                       {/* ③ Flux hebdomadaire HF — ΔL/ΔS en priorité */}
                       <div className="bg-slate-900/40 rounded-lg px-3 py-2 space-y-1.5">
-                        <div className="text-[8px] text-slate-600 uppercase tracking-wider text-center">Mouvement HF · semaine</div>
+                        <div className="text-[8px] text-slate-300 uppercase tracking-wider text-center">Mouvement HF · semaine</div>
                         <div className="flex justify-center items-stretch gap-8">
                           <div className="space-y-0.5 text-center">
-                            <div className="text-[8px] text-slate-600">Δ Longs</div>
+                            <div className="text-[8px] text-slate-400">Δ Longs</div>
                             <div className={`text-[13px] font-black tabular-nums leading-none ${
                               cot.longsDelta === null ? "text-slate-600"
                               : cot.longsDelta > 0 ? "text-emerald-400" : "text-red-400"
@@ -1617,11 +1617,11 @@ export default function CurrencyCard({
                                 : "—"
                               }
                             </div>
-                            <div className="text-[9px] text-slate-600">{(cot.hfLongs/1000).toFixed(1)}k acc.</div>
+                            <div className="text-[9px] text-slate-400">{(cot.hfLongs/1000).toFixed(1)}k acc.</div>
                           </div>
                           <div className="w-px bg-slate-700/50" />
                           <div className="space-y-0.5 text-center">
-                            <div className="text-[8px] text-slate-600">Δ Shorts</div>
+                            <div className="text-[8px] text-slate-400">Δ Shorts</div>
                             <div className={`text-[13px] font-black tabular-nums leading-none ${
                               cot.shortsDelta === null ? "text-slate-600"
                               : cot.shortsDelta > 0 ? "text-red-400" : "text-emerald-400"
@@ -1631,7 +1631,7 @@ export default function CurrencyCard({
                                 : "—"
                               }
                             </div>
-                            <div className="text-[9px] text-slate-600">{(cot.hfShorts/1000).toFixed(1)}k acc.</div>
+                            <div className="text-[9px] text-slate-400">{(cot.hfShorts/1000).toFixed(1)}k acc.</div>
                           </div>
                         </div>
                       </div>
@@ -1654,7 +1654,7 @@ export default function CurrencyCard({
                               {dFmt(cot.amNet)}
                             </span>
                             {cot.amNetDelta !== null && (
-                              <span className="text-slate-600">Δ{dFmt(cot.amNetDelta)}{cot.amNetDelta > 0 ? "↑" : "↓"}</span>
+                              <span className="text-slate-400">Δ{dFmt(cot.amNetDelta)}{cot.amNetDelta > 0 ? "↑" : "↓"}</span>
                             )}
                           </span>
                         </div>
@@ -1669,7 +1669,7 @@ export default function CurrencyCard({
                               {dFmt(cot.net)}
                             </span>
                             {cot.netDelta !== null && (
-                              <span className="text-slate-600">Δ{dFmt(cot.netDelta)}{cot.netDelta > 0 ? "↑" : "↓"}</span>
+                              <span className="text-slate-400">Δ{dFmt(cot.netDelta)}{cot.netDelta > 0 ? "↑" : "↓"}</span>
                             )}
                           </span>
                         </div>
@@ -1685,13 +1685,13 @@ export default function CurrencyCard({
                               const sentBg  = sentDir === "bullish" ? "border-emerald-500/20 bg-emerald-500/5" : sentDir === "bearish" ? "border-red-500/20 bg-red-500/5" : "border-slate-700/40 bg-slate-800/20";
                               return (
                                 <div className="rounded-xl border border-slate-700/40 bg-slate-800/20 p-3 h-full space-y-3">
-                                  <div className="flex items-center gap-1.5 text-[9px] text-slate-600 uppercase tracking-widest">
+                                  <div className="flex items-center gap-1.5 text-[9px] text-slate-300 uppercase tracking-widest">
                                     <Activity size={9} />
-                                    Sentiment Retail (DXM) · {sentiment.pair}
+                                    Sentiment Retail (DXM)
                                   </div>
                                   <div className="flex items-center gap-4">
                                     <div className="text-center shrink-0">
-                                      <div className="text-[9px] text-slate-600 mb-0.5">Long</div>
+                                      <div className="text-[9px] text-slate-400 mb-0.5">Long</div>
                                       <div className="text-[26px] font-black tabular-nums text-emerald-400 leading-none">{sentiment.longPct.toFixed(0)}%</div>
                                     </div>
                                     <div className="flex-1 space-y-1">
@@ -1699,10 +1699,10 @@ export default function CurrencyCard({
                                         <div className="bg-emerald-500/70 transition-all" style={{ width: `${sentiment.longPct}%` }} />
                                         <div className="bg-red-500/60 transition-all" style={{ width: `${sentiment.shortPct}%` }} />
                                       </div>
-                                      <div className="flex justify-between text-[8px] text-slate-600"><span>Long</span><span>Short</span></div>
+                                      <div className="flex justify-between text-[8px] text-slate-400"><span>Long</span><span>Short</span></div>
                                     </div>
                                     <div className="text-center shrink-0">
-                                      <div className="text-[9px] text-slate-600 mb-0.5">Short</div>
+                                      <div className="text-[9px] text-slate-400 mb-0.5">Short</div>
                                       <div className="text-[26px] font-black tabular-nums text-red-400 leading-none">{sentiment.shortPct.toFixed(0)}%</div>
                                     </div>
                                   </div>
