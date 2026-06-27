@@ -52,19 +52,18 @@ async function tryUrl(daysAgo: number): Promise<ArticleRef | null> {
   const dateStr  = `${yyyymmdd.slice(0,4)}-${yyyymmdd.slice(4,6)}-${yyyymmdd.slice(6,8)}`;
   const url = `https://investinglive.com/news/how-have-interest-rate-expectations-changed-after-this-weeks-event-${yyyymmdd}/`;
   try {
-    // GET au lieu de HEAD — certains serveurs WordPress refusent HEAD (405/404 même si la page existe)
     const res = await fetch(url, {
       method:  "GET",
       headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36" },
       cache:   "no-store",
     });
     if (!res.ok) return null;
-    await res.body?.cancel(); // libère la connexion sans télécharger le body
+    // Cancel séparé pour ne pas masquer le succès en cas d'erreur de libération
+    res.body?.cancel().catch(() => {});
     return { url, dateStr, daysAgo };
   } catch { return null; }
 }
 
-// Find current article (last 14 days) + previous article (14 days before current, up to 21 days)
 async function findArticleRefs(): Promise<{ current: ArticleRef | null; previous: ArticleRef | null }> {
   let current: ArticleRef | null = null;
 
@@ -73,15 +72,18 @@ async function findArticleRefs(): Promise<{ current: ArticleRef | null; previous
     if (found) { current = found; break; }
   }
 
+  console.log(`[IL] article courant : ${current ? `day=${current.daysAgo} url=${current.url}` : "introuvable (0–14 jours)"}`);
   if (!current) return { current: null, previous: null };
 
   let previous: ArticleRef | null = null;
-  // Start the day after the current article and look up to 28 days further back
-  for (let d = current.daysAgo + 1; d <= current.daysAgo + 28; d++) {
+  const searchFrom = current.daysAgo + 1;
+  const searchTo   = current.daysAgo + 28;
+  for (let d = searchFrom; d <= searchTo; d++) {
     const found = await tryUrl(d);
     if (found) { previous = found; break; }
   }
 
+  console.log(`[IL] article précédent : ${previous ? `day=${previous.daysAgo} url=${previous.url}` : `introuvable (day ${searchFrom}–${searchTo})`}`);
   return { current, previous };
 }
 

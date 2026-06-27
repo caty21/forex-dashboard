@@ -45,7 +45,10 @@ export default function NarrativeButton({ currency, phase, macroScore }: Props) 
       <button
         onClick={run}
         disabled={loading}
-        className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-200 disabled:opacity-50 transition-colors px-2 py-1"
+        style={{ color: '#94a3b8' }}
+        onMouseEnter={e => (e.currentTarget.style.color = '#e2e8f0')}
+        onMouseLeave={e => (e.currentTarget.style.color = '#94a3b8')}
+        className="flex items-center gap-1 text-[10px] disabled:opacity-50 transition-colors px-2 py-1"
       >
         <Sparkles size={11} />
         {loading ? "Analyse…" : "Résumé IA"}
