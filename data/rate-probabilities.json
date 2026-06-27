@@ -1,0 +1,4064 @@
+{
+  "data": {
+    "USD": {
+      "today": {
+        "as_of": "2026-06-26",
+        "run_date": "2026-06-27T08:00:59",
+        "run_date_tz": "America/New_York",
+        "current band": "3.50 - 3.75",
+        "midpoint": 3.625,
+        "most_recent_effr": 3.63,
+        "last_sofr": 3.64,
+        "sofr_effective_date": "2026-06-25",
+        "effr_target_spread_bps": -0.5,
+        "spread_is_frozen": false,
+        "effr_is_stale": false,
+        "assumed_move_bps": 25,
+        "rows": [
+          {
+            "meeting": "Jul 29, 2026",
+            "meeting_iso": "2026-07-29",
+            "implied_rate_post_meeting": 3.643,
+            "prob_move_pct": 7.38,
+            "prob_is_cut": false,
+            "num_moves": 0.07,
+            "num_moves_is_cut": false,
+            "change_bps": 1.8
+          },
+          {
+            "meeting": "Sep 16, 2026",
+            "meeting_iso": "2026-09-16",
+            "implied_rate_post_meeting": 3.726,
+            "prob_move_pct": 32.94,
+            "prob_is_cut": false,
+            "num_moves": 0.4,
+            "num_moves_is_cut": false,
+            "change_bps": 10.1
+          },
+          {
+            "meeting": "Oct 28, 2026",
+            "meeting_iso": "2026-10-28",
+            "implied_rate_post_meeting": 3.804,
+            "prob_move_pct": 31.4,
+            "prob_is_cut": false,
+            "num_moves": 0.72,
+            "num_moves_is_cut": false,
+            "change_bps": 17.9
+          },
+          {
+            "meeting": "Dec 09, 2026",
+            "meeting_iso": "2026-12-09",
+            "implied_rate_post_meeting": 3.887,
+            "prob_move_pct": 33.04,
+            "prob_is_cut": false,
+            "num_moves": 1.05,
+            "num_moves_is_cut": false,
+            "change_bps": 26.2
+          },
+          {
+            "meeting": "Jan 27, 2027",
+            "meeting_iso": "2027-01-27",
+            "implied_rate_post_meeting": 3.938,
+            "prob_move_pct": 20.3,
+            "prob_is_cut": false,
+            "num_moves": 1.25,
+            "num_moves_is_cut": false,
+            "change_bps": 31.3
+          },
+          {
+            "meeting": "Mar 17, 2027",
+            "meeting_iso": "2027-03-17",
+            "implied_rate_post_meeting": 3.977,
+            "prob_move_pct": 15.89,
+            "prob_is_cut": false,
+            "num_moves": 1.41,
+            "num_moves_is_cut": false,
+            "change_bps": 35.2
+          },
+          {
+            "meeting": "Apr 28, 2027",
+            "meeting_iso": "2027-04-28",
+            "implied_rate_post_meeting": 3.995,
+            "prob_move_pct": 6.88,
+            "prob_is_cut": false,
+            "num_moves": 1.48,
+            "num_moves_is_cut": false,
+            "change_bps": 37
+          },
+          {
+            "meeting": "Jun 09, 2027",
+            "meeting_iso": "2027-06-09",
+            "implied_rate_post_meeting": 3.958,
+            "prob_move_pct": 14.47,
+            "prob_is_cut": true,
+            "num_moves": 1.33,
+            "num_moves_is_cut": false,
+            "change_bps": 33.3
+          },
+          {
+            "meeting": "Jul 28, 2027",
+            "meeting_iso": "2027-07-28",
+            "implied_rate_post_meeting": 3.932,
+            "prob_move_pct": 10.62,
+            "prob_is_cut": true,
+            "num_moves": 1.23,
+            "num_moves_is_cut": false,
+            "change_bps": 30.7
+          },
+          {
+            "meeting": "Sep 15, 2027",
+            "meeting_iso": "2027-09-15",
+            "implied_rate_post_meeting": 3.93,
+            "prob_move_pct": 0.86,
+            "prob_is_cut": true,
+            "num_moves": 1.22,
+            "num_moves_is_cut": false,
+            "change_bps": 30.5
+          }
+        ],
+        "debug": {
+          "today_local": "2026-06-27",
+          "tz": "America/New_York",
+          "should_drop_first_meeting": false,
+          "decision_confirmed": false,
+          "first_upcoming_meeting": "2026-07-29",
+          "meetings_computed": 10,
+          "df_pillars_built": 26,
+          "segments_approach": "df-window: DF from f(0,1M) anchor + monthly chain, log-linear interp (ACT/360)",
+          "effective_date_rule": "next business day after FOMC announcement",
+          "r0_source": "last_effr",
+          "mw_policy_override_active": false,
+          "mw_policy_implied_rate": null,
+          "mw_anchor_overridden": false,
+          "mw_anchor_original": 3.64,
+          "mw_fwd_overrides_count": 0,
+          "mw_next_meeting_iso": "2026-07-29"
+        }
+      },
+      "targets": {
+        "ago_1w": {
+          "date": "2026-06-19"
+        },
+        "ago_3w": {
+          "date": "2026-06-05"
+        },
+        "ago_6w": {
+          "date": "2026-05-15"
+        },
+        "ago_10w": {
+          "date": "2026-04-17"
+        }
+      },
+      "ago_1w": {
+        "rows": [
+          {
+            "meeting": "Jul 29, 2026",
+            "meeting_iso": "2026-07-29",
+            "implied_rate_post_meeting": 3.651,
+            "change_bps": 2.6,
+            "prob_move_pct": 10.45,
+            "prob_is_cut": false,
+            "num_moves": 0.1,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 16, 2026",
+            "meeting_iso": "2026-09-16",
+            "implied_rate_post_meeting": 3.738,
+            "change_bps": 11.3,
+            "prob_move_pct": 34.83,
+            "prob_is_cut": false,
+            "num_moves": 0.45,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Oct 28, 2026",
+            "meeting_iso": "2026-10-28",
+            "implied_rate_post_meeting": 3.87,
+            "change_bps": 24.5,
+            "prob_move_pct": 52.71,
+            "prob_is_cut": false,
+            "num_moves": 0.98,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Dec 09, 2026",
+            "meeting_iso": "2026-12-09",
+            "implied_rate_post_meeting": 3.938,
+            "change_bps": 31.3,
+            "prob_move_pct": 27.28,
+            "prob_is_cut": false,
+            "num_moves": 1.25,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jan 27, 2027",
+            "meeting_iso": "2027-01-27",
+            "implied_rate_post_meeting": 4.027,
+            "change_bps": 40.2,
+            "prob_move_pct": 35.35,
+            "prob_is_cut": false,
+            "num_moves": 1.61,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Mar 17, 2027",
+            "meeting_iso": "2027-03-17",
+            "implied_rate_post_meeting": 4.06,
+            "change_bps": 43.5,
+            "prob_move_pct": 13.53,
+            "prob_is_cut": false,
+            "num_moves": 1.74,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Apr 28, 2027",
+            "meeting_iso": "2027-04-28",
+            "implied_rate_post_meeting": 4.101,
+            "change_bps": 47.6,
+            "prob_move_pct": 16.05,
+            "prob_is_cut": false,
+            "num_moves": 1.9,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jun 09, 2027",
+            "meeting_iso": "2027-06-09",
+            "implied_rate_post_meeting": 4.085,
+            "change_bps": 46,
+            "prob_move_pct": 6.24,
+            "prob_is_cut": true,
+            "num_moves": 1.84,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jul 28, 2027",
+            "meeting_iso": "2027-07-28",
+            "implied_rate_post_meeting": 4.046,
+            "change_bps": 42.1,
+            "prob_move_pct": 15.75,
+            "prob_is_cut": true,
+            "num_moves": 1.68,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 15, 2027",
+            "meeting_iso": "2027-09-15",
+            "implied_rate_post_meeting": 4.057,
+            "change_bps": 43.2,
+            "prob_move_pct": 4.65,
+            "prob_is_cut": false,
+            "num_moves": 1.73,
+            "num_moves_is_cut": false
+          }
+        ],
+        "requested_date": "2026-06-19",
+        "used_date": "2026-06-19",
+        "policy_rate": 3.625,
+        "current_target": 3.625,
+        "midpoint": 3.625,
+        "current band": "3.50 - 3.75",
+        "most_recent_effr": 3.63,
+        "assumed_move_bps": 25,
+        "label": "1w ago (2026-06-19)"
+      },
+      "ago_3w": {
+        "rows": [
+          {
+            "meeting": "Jun 17, 2026",
+            "meeting_iso": "2026-06-17",
+            "implied_rate_post_meeting": 3.637,
+            "change_bps": 1.2,
+            "prob_move_pct": 4.87,
+            "prob_is_cut": false,
+            "num_moves": 0.05,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jul 29, 2026",
+            "meeting_iso": "2026-07-29",
+            "implied_rate_post_meeting": 3.662,
+            "change_bps": 3.7,
+            "prob_move_pct": 9.93,
+            "prob_is_cut": false,
+            "num_moves": 0.15,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 16, 2026",
+            "meeting_iso": "2026-09-16",
+            "implied_rate_post_meeting": 3.766,
+            "change_bps": 14.1,
+            "prob_move_pct": 41.41,
+            "prob_is_cut": false,
+            "num_moves": 0.56,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Oct 28, 2026",
+            "meeting_iso": "2026-10-28",
+            "implied_rate_post_meeting": 3.766,
+            "change_bps": 14.1,
+            "prob_move_pct": 0,
+            "prob_is_cut": false,
+            "num_moves": 0.56,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Dec 09, 2026",
+            "meeting_iso": "2026-12-09",
+            "implied_rate_post_meeting": 3.912,
+            "change_bps": 28.7,
+            "prob_move_pct": 58.44,
+            "prob_is_cut": false,
+            "num_moves": 1.15,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jan 27, 2027",
+            "meeting_iso": "2027-01-27",
+            "implied_rate_post_meeting": 3.909,
+            "change_bps": 28.4,
+            "prob_move_pct": 1.03,
+            "prob_is_cut": true,
+            "num_moves": 1.14,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Mar 17, 2027",
+            "meeting_iso": "2027-03-17",
+            "implied_rate_post_meeting": 4.043,
+            "change_bps": 41.8,
+            "prob_move_pct": 53.71,
+            "prob_is_cut": false,
+            "num_moves": 1.67,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Apr 28, 2027",
+            "meeting_iso": "2027-04-28",
+            "implied_rate_post_meeting": 4.043,
+            "change_bps": 41.8,
+            "prob_move_pct": 0,
+            "prob_is_cut": false,
+            "num_moves": 1.67,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jun 09, 2027",
+            "meeting_iso": "2027-06-09",
+            "implied_rate_post_meeting": 4.037,
+            "change_bps": 41.2,
+            "prob_move_pct": 2.48,
+            "prob_is_cut": true,
+            "num_moves": 1.65,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jul 28, 2027",
+            "meeting_iso": "2027-07-28",
+            "implied_rate_post_meeting": 4.095,
+            "change_bps": 47,
+            "prob_move_pct": 23.26,
+            "prob_is_cut": false,
+            "num_moves": 1.88,
+            "num_moves_is_cut": false
+          }
+        ],
+        "requested_date": "2026-06-05",
+        "used_date": "2026-06-05",
+        "policy_rate": 3.625,
+        "current_target": 3.625,
+        "midpoint": 3.625,
+        "current band": "3.50 - 3.75",
+        "most_recent_effr": 3.62,
+        "assumed_move_bps": 25,
+        "label": "3w ago (2026-06-05)"
+      },
+      "ago_6w": {
+        "rows": [
+          {
+            "meeting": "Jun 17, 2026",
+            "meeting_iso": "2026-06-17",
+            "implied_rate_post_meeting": 3.615,
+            "change_bps": -1,
+            "prob_move_pct": 4,
+            "prob_is_cut": true,
+            "num_moves": 0.04,
+            "num_moves_is_cut": true
+          },
+          {
+            "meeting": "Jul 29, 2026",
+            "meeting_iso": "2026-07-29",
+            "implied_rate_post_meeting": 3.63,
+            "change_bps": 0.5,
+            "prob_move_pct": 6,
+            "prob_is_cut": false,
+            "num_moves": 0.02,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 16, 2026",
+            "meeting_iso": "2026-09-16",
+            "implied_rate_post_meeting": 3.67,
+            "change_bps": 4.5,
+            "prob_move_pct": 16,
+            "prob_is_cut": false,
+            "num_moves": 0.18,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Oct 28, 2026",
+            "meeting_iso": "2026-10-28",
+            "implied_rate_post_meeting": 3.67,
+            "change_bps": 4.5,
+            "prob_move_pct": 0,
+            "prob_is_cut": false,
+            "num_moves": 0.18,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Dec 09, 2026",
+            "meeting_iso": "2026-12-09",
+            "implied_rate_post_meeting": 3.785,
+            "change_bps": 16,
+            "prob_move_pct": 46,
+            "prob_is_cut": false,
+            "num_moves": 0.64,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jan 27, 2027",
+            "meeting_iso": "2027-01-27",
+            "implied_rate_post_meeting": 3.785,
+            "change_bps": 16,
+            "prob_move_pct": 0,
+            "prob_is_cut": false,
+            "num_moves": 0.64,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Mar 17, 2027",
+            "meeting_iso": "2027-03-17",
+            "implied_rate_post_meeting": 3.895,
+            "change_bps": 27,
+            "prob_move_pct": 44,
+            "prob_is_cut": false,
+            "num_moves": 1.08,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Apr 28, 2027",
+            "meeting_iso": "2027-04-28",
+            "implied_rate_post_meeting": 3.895,
+            "change_bps": 27,
+            "prob_move_pct": 0,
+            "prob_is_cut": false,
+            "num_moves": 1.08,
+            "num_moves_is_cut": false
+          }
+        ],
+        "requested_date": "2026-05-15",
+        "used_date": "2026-05-15",
+        "policy_rate": 3.625,
+        "current_target": 3.625,
+        "midpoint": 3.625,
+        "current band": "3.50 - 3.75",
+        "most_recent_effr": 3.63,
+        "assumed_move_bps": 25,
+        "label": "6w ago (2026-05-15)"
+      },
+      "ago_10w": {
+        "rows": [
+          {
+            "meeting": "Apr 29, 2026",
+            "meeting_iso": "2026-04-29",
+            "implied_rate_post_meeting": 3.63,
+            "change_bps": 0.5,
+            "prob_move_pct": 2,
+            "prob_is_cut": false,
+            "num_moves": 0.02,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jun 17, 2026",
+            "meeting_iso": "2026-06-17",
+            "implied_rate_post_meeting": 3.618,
+            "change_bps": -0.7,
+            "prob_move_pct": 4.62,
+            "prob_is_cut": true,
+            "num_moves": 0.03,
+            "num_moves_is_cut": true
+          },
+          {
+            "meeting": "Jul 29, 2026",
+            "meeting_iso": "2026-07-29",
+            "implied_rate_post_meeting": 3.585,
+            "change_bps": -4,
+            "prob_move_pct": 13.38,
+            "prob_is_cut": true,
+            "num_moves": 0.16,
+            "num_moves_is_cut": true
+          },
+          {
+            "meeting": "Sep 16, 2026",
+            "meeting_iso": "2026-09-16",
+            "implied_rate_post_meeting": 3.542,
+            "change_bps": -8.3,
+            "prob_move_pct": 17.14,
+            "prob_is_cut": true,
+            "num_moves": 0.33,
+            "num_moves_is_cut": true
+          },
+          {
+            "meeting": "Oct 28, 2026",
+            "meeting_iso": "2026-10-28",
+            "implied_rate_post_meeting": 3.51,
+            "change_bps": -11.5,
+            "prob_move_pct": 12.86,
+            "prob_is_cut": true,
+            "num_moves": 0.46,
+            "num_moves_is_cut": true
+          },
+          {
+            "meeting": "Dec 09, 2026",
+            "meeting_iso": "2026-12-09",
+            "implied_rate_post_meeting": 3.465,
+            "change_bps": -16,
+            "prob_move_pct": 18,
+            "prob_is_cut": true,
+            "num_moves": 0.64,
+            "num_moves_is_cut": true
+          },
+          {
+            "meeting": "Jan 27, 2027",
+            "meeting_iso": "2027-01-27",
+            "implied_rate_post_meeting": 3.465,
+            "change_bps": -16,
+            "prob_move_pct": 0,
+            "prob_is_cut": false,
+            "num_moves": 0.64,
+            "num_moves_is_cut": true
+          },
+          {
+            "meeting": "Mar 17, 2027",
+            "meeting_iso": "2027-03-17",
+            "implied_rate_post_meeting": 3.43,
+            "change_bps": -19.5,
+            "prob_move_pct": 14,
+            "prob_is_cut": true,
+            "num_moves": 0.78,
+            "num_moves_is_cut": true
+          }
+        ],
+        "requested_date": "2026-04-17",
+        "used_date": "2026-04-17",
+        "policy_rate": 3.625,
+        "current_target": 3.625,
+        "midpoint": 3.625,
+        "current band": "3.50 - 3.75",
+        "most_recent_effr": 3.64,
+        "assumed_move_bps": 25,
+        "label": "10w ago (2026-04-17)"
+      },
+      "compare": {
+        "x": [
+          "2026-07-29",
+          "2026-09-16",
+          "2026-10-28",
+          "2026-12-09",
+          "2027-01-27",
+          "2027-03-17",
+          "2027-04-28",
+          "2027-06-09",
+          "2027-07-28",
+          "2027-09-15"
+        ],
+        "x_labels": [
+          "Jul 29, 2026",
+          "Sep 16, 2026",
+          "Oct 28, 2026",
+          "Dec 09, 2026",
+          "Jan 27, 2027",
+          "Mar 17, 2027",
+          "Apr 28, 2027",
+          "Jun 09, 2027",
+          "Jul 28, 2027",
+          "Sep 15, 2027"
+        ],
+        "as_of": "2026-06-26",
+        "midpoint": 3.625,
+        "current band": "3.50 - 3.75",
+        "most_recent_effr": 3.63,
+        "last_sofr": 3.64,
+        "assumed_move_bps": 25,
+        "lines": [
+          {
+            "key": "1w",
+            "label": "1w ago (2026-06-19)",
+            "current": 3.625,
+            "values": [
+              3.651,
+              3.738,
+              3.87,
+              3.938,
+              4.027,
+              4.06,
+              4.101,
+              4.085,
+              4.046,
+              4.057
+            ],
+            "used_date": "2026-06-19",
+            "requested_date": "2026-06-19"
+          },
+          {
+            "key": "3w",
+            "label": "3w ago (2026-06-05)",
+            "current": 3.625,
+            "values": [
+              3.662,
+              3.766,
+              3.766,
+              3.912,
+              3.909,
+              4.043,
+              4.043,
+              4.037,
+              4.095,
+              null
+            ],
+            "used_date": "2026-06-05",
+            "requested_date": "2026-06-05"
+          },
+          {
+            "key": "6w",
+            "label": "6w ago (2026-05-15)",
+            "current": 3.625,
+            "values": [
+              3.63,
+              3.67,
+              3.67,
+              3.785,
+              3.785,
+              3.895,
+              3.895,
+              null,
+              null,
+              null
+            ],
+            "used_date": "2026-05-15",
+            "requested_date": "2026-05-15"
+          },
+          {
+            "key": "10w",
+            "label": "10w ago (2026-04-17)",
+            "current": 3.625,
+            "values": [
+              3.585,
+              3.542,
+              3.51,
+              3.465,
+              3.465,
+              3.43,
+              null,
+              null,
+              null,
+              null
+            ],
+            "used_date": "2026-04-17",
+            "requested_date": "2026-04-17"
+          }
+        ]
+      },
+      "api_version": 1,
+      "generated_at_utc": "2026-06-27T12:01:03.046Z"
+    },
+    "EUR": {
+      "today": {
+        "as_of": "2026-06-26T12:30:01",
+        "run_date": "2026-06-27T08:00:19",
+        "timezone": "EDT",
+        "ecb_deposit_facility": 2.25,
+        "ecb_main_refinancing": 2.4,
+        "ecb_marginal_lending": 2.65,
+        "estr_last_rate": 2.183,
+        "depo_spread_bps": 6.7,
+        "spread_is_frozen": false,
+        "estr_is_stale": false,
+        "assumed_move_bps": 25,
+        "rows": [
+          {
+            "meeting": "Jul 23, 2026",
+            "meeting_iso": "2026-07-23",
+            "implied_rate_post_meeting": 2.256,
+            "prob_move_pct": 2.36,
+            "prob_is_cut": false,
+            "num_moves": 0.02,
+            "num_moves_is_cut": false,
+            "change_bps": 0.6,
+            "effective_iso": "2026-07-29",
+            "effective_is_estimated": false
+          },
+          {
+            "meeting": "Sep 10, 2026",
+            "meeting_iso": "2026-09-10",
+            "implied_rate_post_meeting": 2.295,
+            "prob_move_pct": 15.71,
+            "prob_is_cut": false,
+            "num_moves": 0.18,
+            "num_moves_is_cut": false,
+            "change_bps": 4.5,
+            "effective_iso": "2026-09-16",
+            "effective_is_estimated": false
+          },
+          {
+            "meeting": "Oct 29, 2026",
+            "meeting_iso": "2026-10-29",
+            "implied_rate_post_meeting": 2.402,
+            "prob_move_pct": 42.62,
+            "prob_is_cut": false,
+            "num_moves": 0.61,
+            "num_moves_is_cut": false,
+            "change_bps": 15.2,
+            "effective_iso": "2026-11-04",
+            "effective_is_estimated": false
+          },
+          {
+            "meeting": "Dec 17, 2026",
+            "meeting_iso": "2026-12-17",
+            "implied_rate_post_meeting": 2.449,
+            "prob_move_pct": 18.81,
+            "prob_is_cut": false,
+            "num_moves": 0.79,
+            "num_moves_is_cut": false,
+            "change_bps": 19.9,
+            "effective_iso": "2026-12-23",
+            "effective_is_estimated": false
+          },
+          {
+            "meeting": "Feb 04, 2027",
+            "meeting_iso": "2027-02-04",
+            "implied_rate_post_meeting": 2.486,
+            "prob_move_pct": 14.96,
+            "prob_is_cut": false,
+            "num_moves": 0.94,
+            "num_moves_is_cut": false,
+            "change_bps": 23.6,
+            "effective_iso": "2027-02-10",
+            "effective_is_estimated": true
+          },
+          {
+            "meeting": "Mar 18, 2027",
+            "meeting_iso": "2027-03-18",
+            "implied_rate_post_meeting": 2.516,
+            "prob_move_pct": 11.91,
+            "prob_is_cut": false,
+            "num_moves": 1.06,
+            "num_moves_is_cut": false,
+            "change_bps": 26.6,
+            "effective_iso": "2027-03-24",
+            "effective_is_estimated": true
+          },
+          {
+            "meeting": "Apr 29, 2027",
+            "meeting_iso": "2027-04-29",
+            "implied_rate_post_meeting": 2.517,
+            "prob_move_pct": 0.38,
+            "prob_is_cut": false,
+            "num_moves": 1.07,
+            "num_moves_is_cut": false,
+            "change_bps": 26.7,
+            "effective_iso": "2027-05-05",
+            "effective_is_estimated": true
+          },
+          {
+            "meeting": "Jun 10, 2027",
+            "meeting_iso": "2027-06-10",
+            "implied_rate_post_meeting": 2.518,
+            "prob_move_pct": 0.36,
+            "prob_is_cut": false,
+            "num_moves": 1.07,
+            "num_moves_is_cut": false,
+            "change_bps": 26.8,
+            "effective_iso": "2027-06-16",
+            "effective_is_estimated": true
+          },
+          {
+            "meeting": "Jul 22, 2027",
+            "meeting_iso": "2027-07-22",
+            "implied_rate_post_meeting": 2.5,
+            "prob_move_pct": 6.94,
+            "prob_is_cut": true,
+            "num_moves": 1,
+            "num_moves_is_cut": false,
+            "change_bps": 25,
+            "effective_iso": "2027-07-28",
+            "effective_is_estimated": true
+          },
+          {
+            "meeting": "Sep 09, 2027",
+            "meeting_iso": "2027-09-09",
+            "implied_rate_post_meeting": 2.51,
+            "prob_move_pct": 3.74,
+            "prob_is_cut": false,
+            "num_moves": 1.04,
+            "num_moves_is_cut": false,
+            "change_bps": 26,
+            "effective_iso": "2027-09-15",
+            "effective_is_estimated": true
+          }
+        ],
+        "debug": {
+          "today_local": "2026-06-27",
+          "tz": "Europe/Paris",
+          "should_drop_first_meeting": false,
+          "decision_confirmed": false,
+          "first_upcoming_meeting": "2026-07-23",
+          "meetings_computed": 10,
+          "df_pillars_built": 32,
+          "segments_approach": "df-window: DF from f(0,1M) anchor + monthly chain, log-linear interp (ACT/360)",
+          "rmp_effective_dates_available": 5,
+          "effective_date_rule": "RMP start_iso (from ecb_rmp_schedule), fallback: next Wednesday after meeting",
+          "r0_source": "last_estr",
+          "mw_policy_override_active": false,
+          "mw_policy_implied_rate": null,
+          "mw_anchor_overridden": false,
+          "mw_anchor_original": 2.188,
+          "mw_fwd_overrides_count": 0,
+          "mw_next_meeting_iso": "2026-07-23"
+        }
+      },
+      "targets": {
+        "ago_1w": {
+          "date": "2026-06-19"
+        },
+        "ago_3w": {
+          "date": "2026-06-05"
+        },
+        "ago_6w": {
+          "date": "2026-05-15"
+        },
+        "ago_10w": {
+          "date": "2026-04-17"
+        }
+      },
+      "ago_1w": {
+        "rows": [
+          {
+            "meeting": "Jul 23, 2026",
+            "meeting_iso": "2026-07-23",
+            "implied_rate_post_meeting": 2.265,
+            "change_bps": 1.5,
+            "prob_move_pct": 6.07,
+            "prob_is_cut": false,
+            "num_moves": 0.06,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 10, 2026",
+            "meeting_iso": "2026-09-10",
+            "implied_rate_post_meeting": 2.318,
+            "change_bps": 6.8,
+            "prob_move_pct": 21.19,
+            "prob_is_cut": false,
+            "num_moves": 0.27,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Oct 29, 2026",
+            "meeting_iso": "2026-10-29",
+            "implied_rate_post_meeting": 2.479,
+            "change_bps": 22.9,
+            "prob_move_pct": 64.41,
+            "prob_is_cut": false,
+            "num_moves": 0.92,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Dec 17, 2026",
+            "meeting_iso": "2026-12-17",
+            "implied_rate_post_meeting": 2.536,
+            "change_bps": 28.6,
+            "prob_move_pct": 22.73,
+            "prob_is_cut": false,
+            "num_moves": 1.14,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Feb 04, 2027",
+            "meeting_iso": "2027-02-04",
+            "implied_rate_post_meeting": 2.636,
+            "change_bps": 38.6,
+            "prob_move_pct": 39.81,
+            "prob_is_cut": false,
+            "num_moves": 1.54,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Mar 18, 2027",
+            "meeting_iso": "2027-03-18",
+            "implied_rate_post_meeting": 2.653,
+            "change_bps": 40.3,
+            "prob_move_pct": 6.98,
+            "prob_is_cut": false,
+            "num_moves": 1.61,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Apr 29, 2027",
+            "meeting_iso": "2027-04-29",
+            "implied_rate_post_meeting": 2.683,
+            "change_bps": 43.3,
+            "prob_move_pct": 12.06,
+            "prob_is_cut": false,
+            "num_moves": 1.73,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jun 10, 2027",
+            "meeting_iso": "2027-06-10",
+            "implied_rate_post_meeting": 2.683,
+            "change_bps": 43.3,
+            "prob_move_pct": 0.12,
+            "prob_is_cut": false,
+            "num_moves": 1.73,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jul 22, 2027",
+            "meeting_iso": "2027-07-22",
+            "implied_rate_post_meeting": 2.664,
+            "change_bps": 41.4,
+            "prob_move_pct": 7.68,
+            "prob_is_cut": true,
+            "num_moves": 1.66,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 09, 2027",
+            "meeting_iso": "2027-09-09",
+            "implied_rate_post_meeting": 2.689,
+            "change_bps": 43.9,
+            "prob_move_pct": 9.91,
+            "prob_is_cut": false,
+            "num_moves": 1.76,
+            "num_moves_is_cut": false
+          }
+        ],
+        "requested_date": "2026-06-19",
+        "used_date": "2026-06-19",
+        "policy_rate": null,
+        "current_target": null,
+        "midpoint": null,
+        "current band": null,
+        "most_recent_effr": null,
+        "assumed_move_bps": 25,
+        "label": "1w ago (2026-06-19)"
+      },
+      "ago_3w": {
+        "rows": [
+          {
+            "meeting": "Jun 11, 2026",
+            "meeting_iso": "2026-06-11",
+            "implied_rate_post_meeting": 2.286,
+            "change_bps": 28.6,
+            "prob_move_pct": 100,
+            "prob_is_cut": false,
+            "num_moves": 1.14,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jul 23, 2026",
+            "meeting_iso": "2026-07-23",
+            "implied_rate_post_meeting": 2.286,
+            "change_bps": 28.6,
+            "prob_move_pct": 0,
+            "prob_is_cut": false,
+            "num_moves": 1.14,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 10, 2026",
+            "meeting_iso": "2026-09-10",
+            "implied_rate_post_meeting": 2.535,
+            "change_bps": 53.5,
+            "prob_move_pct": 99.75,
+            "prob_is_cut": false,
+            "num_moves": 2.14,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Oct 29, 2026",
+            "meeting_iso": "2026-10-29",
+            "implied_rate_post_meeting": 2.535,
+            "change_bps": 53.5,
+            "prob_move_pct": 0,
+            "prob_is_cut": false,
+            "num_moves": 2.14,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Dec 17, 2026",
+            "meeting_iso": "2026-12-17",
+            "implied_rate_post_meeting": 2.683,
+            "change_bps": 68.3,
+            "prob_move_pct": 59.11,
+            "prob_is_cut": false,
+            "num_moves": 2.73,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Feb 04, 2027",
+            "meeting_iso": "2027-02-04",
+            "implied_rate_post_meeting": 2.742,
+            "change_bps": 74.2,
+            "prob_move_pct": 23.4,
+            "prob_is_cut": false,
+            "num_moves": 2.97,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Mar 18, 2027",
+            "meeting_iso": "2027-03-18",
+            "implied_rate_post_meeting": 2.761,
+            "change_bps": 76.1,
+            "prob_move_pct": 7.84,
+            "prob_is_cut": false,
+            "num_moves": 3.04,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Apr 29, 2027",
+            "meeting_iso": "2027-04-29",
+            "implied_rate_post_meeting": 2.77,
+            "change_bps": 77,
+            "prob_move_pct": 3.42,
+            "prob_is_cut": false,
+            "num_moves": 3.08,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jun 10, 2027",
+            "meeting_iso": "2027-06-10",
+            "implied_rate_post_meeting": 2.738,
+            "change_bps": 73.8,
+            "prob_move_pct": 12.83,
+            "prob_is_cut": true,
+            "num_moves": 2.95,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jul 22, 2027",
+            "meeting_iso": "2027-07-22",
+            "implied_rate_post_meeting": 2.789,
+            "change_bps": 78.9,
+            "prob_move_pct": 20.61,
+            "prob_is_cut": false,
+            "num_moves": 3.16,
+            "num_moves_is_cut": false
+          }
+        ],
+        "requested_date": "2026-06-05",
+        "used_date": "2026-06-05",
+        "policy_rate": null,
+        "current_target": null,
+        "midpoint": null,
+        "current band": null,
+        "most_recent_effr": null,
+        "assumed_move_bps": 25,
+        "label": "3w ago (2026-06-05)"
+      },
+      "ago_6w": {
+        "rows": [
+          {
+            "meeting": "Jun 11, 2026",
+            "meeting_iso": "2026-06-11",
+            "implied_rate_post_meeting": 2.183,
+            "change_bps": 18.3,
+            "prob_move_pct": 73.25,
+            "prob_is_cut": false,
+            "num_moves": 0.73,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jul 23, 2026",
+            "meeting_iso": "2026-07-23",
+            "implied_rate_post_meeting": 2.341,
+            "change_bps": 34.1,
+            "prob_move_pct": 63.21,
+            "prob_is_cut": false,
+            "num_moves": 1.36,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 10, 2026",
+            "meeting_iso": "2026-09-10",
+            "implied_rate_post_meeting": 2.511,
+            "change_bps": 51.1,
+            "prob_move_pct": 68.07,
+            "prob_is_cut": false,
+            "num_moves": 2.05,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Oct 29, 2026",
+            "meeting_iso": "2026-10-29",
+            "implied_rate_post_meeting": 2.595,
+            "change_bps": 59.5,
+            "prob_move_pct": 33.51,
+            "prob_is_cut": false,
+            "num_moves": 2.38,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Dec 17, 2026",
+            "meeting_iso": "2026-12-17",
+            "implied_rate_post_meeting": 2.694,
+            "change_bps": 69.4,
+            "prob_move_pct": 39.76,
+            "prob_is_cut": false,
+            "num_moves": 2.78,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Feb 04, 2027",
+            "meeting_iso": "2027-02-04",
+            "implied_rate_post_meeting": 2.694,
+            "change_bps": 69.4,
+            "prob_move_pct": 0,
+            "prob_is_cut": false,
+            "num_moves": 2.78,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Mar 18, 2027",
+            "meeting_iso": "2027-03-18",
+            "implied_rate_post_meeting": 2.753,
+            "change_bps": 75.3,
+            "prob_move_pct": 23.29,
+            "prob_is_cut": false,
+            "num_moves": 3.01,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Apr 29, 2027",
+            "meeting_iso": "2027-04-29",
+            "implied_rate_post_meeting": 2.753,
+            "change_bps": 75.3,
+            "prob_move_pct": 0,
+            "prob_is_cut": false,
+            "num_moves": 3.01,
+            "num_moves_is_cut": false
+          }
+        ],
+        "requested_date": "2026-05-15",
+        "used_date": "2026-05-15",
+        "policy_rate": null,
+        "current_target": null,
+        "midpoint": null,
+        "current band": null,
+        "most_recent_effr": null,
+        "assumed_move_bps": 25,
+        "label": "6w ago (2026-05-15)"
+      },
+      "ago_10w": {
+        "rows": [
+          {
+            "meeting": "Apr 30, 2026",
+            "meeting_iso": "2026-04-30",
+            "implied_rate_post_meeting": 2.039,
+            "change_bps": 3.9,
+            "prob_move_pct": 15.67,
+            "prob_is_cut": false,
+            "num_moves": 0.16,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jun 11, 2026",
+            "meeting_iso": "2026-06-11",
+            "implied_rate_post_meeting": 2.198,
+            "change_bps": 19.8,
+            "prob_move_pct": 63.44,
+            "prob_is_cut": false,
+            "num_moves": 0.79,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jul 23, 2026",
+            "meeting_iso": "2026-07-23",
+            "implied_rate_post_meeting": 2.345,
+            "change_bps": 34.5,
+            "prob_move_pct": 58.87,
+            "prob_is_cut": false,
+            "num_moves": 1.38,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 10, 2026",
+            "meeting_iso": "2026-09-10",
+            "implied_rate_post_meeting": 2.447,
+            "change_bps": 44.7,
+            "prob_move_pct": 40.82,
+            "prob_is_cut": false,
+            "num_moves": 1.79,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Oct 29, 2026",
+            "meeting_iso": "2026-10-29",
+            "implied_rate_post_meeting": 2.508,
+            "change_bps": 50.8,
+            "prob_move_pct": 24.3,
+            "prob_is_cut": false,
+            "num_moves": 2.03,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Dec 17, 2026",
+            "meeting_iso": "2026-12-17",
+            "implied_rate_post_meeting": 2.559,
+            "change_bps": 55.9,
+            "prob_move_pct": 20.64,
+            "prob_is_cut": false,
+            "num_moves": 2.24,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Feb 04, 2027*",
+            "meeting_iso": "2027-02-04",
+            "implied_rate_post_meeting": 2.561,
+            "change_bps": 56.1,
+            "prob_move_pct": 0.53,
+            "prob_is_cut": false,
+            "num_moves": 2.24,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Mar 25, 2027*",
+            "meeting_iso": "2027-03-25",
+            "implied_rate_post_meeting": 2.588,
+            "change_bps": 58.8,
+            "prob_move_pct": 10.77,
+            "prob_is_cut": false,
+            "num_moves": 2.35,
+            "num_moves_is_cut": false
+          }
+        ],
+        "requested_date": "2026-04-17",
+        "used_date": "2026-04-17",
+        "policy_rate": null,
+        "current_target": null,
+        "midpoint": null,
+        "current band": null,
+        "most_recent_effr": null,
+        "assumed_move_bps": 25,
+        "label": "10w ago (2026-04-17)"
+      },
+      "compare": {
+        "x": [
+          "2026-07-23",
+          "2026-09-10",
+          "2026-10-29",
+          "2026-12-17",
+          "2027-02-04",
+          "2027-03-18",
+          "2027-04-29",
+          "2027-06-10",
+          "2027-07-22",
+          "2027-09-09"
+        ],
+        "x_labels": [
+          "Jul 23, 2026",
+          "Sep 10, 2026",
+          "Oct 29, 2026",
+          "Dec 17, 2026",
+          "Feb 04, 2027",
+          "Mar 18, 2027",
+          "Apr 29, 2027",
+          "Jun 10, 2027",
+          "Jul 22, 2027",
+          "Sep 09, 2027"
+        ],
+        "as_of": "2026-06-26T12:30:01",
+        "as_of_iso": null,
+        "run_date": "2026-06-27T08:00:19",
+        "timezone": "EDT",
+        "ecb_deposit_facility": 2.25,
+        "ecb_main_refinancing": 2.4,
+        "ecb_marginal_lending": 2.65,
+        "estr_last_rate": 2.183,
+        "depo_spread_bps": 6.7,
+        "assumed_move_bps": 25,
+        "lines": [
+          {
+            "key": "1w",
+            "label": "1w ago (2026-06-19)",
+            "current": 0,
+            "values": [
+              2.265,
+              2.318,
+              2.479,
+              2.536,
+              2.636,
+              2.653,
+              2.683,
+              2.683,
+              2.664,
+              2.689
+            ],
+            "used_date": "2026-06-19",
+            "requested_date": "2026-06-19"
+          },
+          {
+            "key": "3w",
+            "label": "3w ago (2026-06-05)",
+            "current": 0,
+            "values": [
+              2.286,
+              2.535,
+              2.535,
+              2.683,
+              2.742,
+              2.761,
+              2.77,
+              2.738,
+              2.789,
+              null
+            ],
+            "used_date": "2026-06-05",
+            "requested_date": "2026-06-05"
+          },
+          {
+            "key": "6w",
+            "label": "6w ago (2026-05-15)",
+            "current": 0,
+            "values": [
+              2.341,
+              2.511,
+              2.595,
+              2.694,
+              2.694,
+              2.753,
+              2.753,
+              null,
+              null,
+              null
+            ],
+            "used_date": "2026-05-15",
+            "requested_date": "2026-05-15"
+          },
+          {
+            "key": "10w",
+            "label": "10w ago (2026-04-17)",
+            "current": 0,
+            "values": [
+              2.345,
+              2.447,
+              2.508,
+              2.559,
+              2.561,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            "used_date": "2026-04-17",
+            "requested_date": "2026-04-17"
+          }
+        ]
+      },
+      "api_version": 1,
+      "generated_at_utc": "2026-06-27T12:00:23.168Z"
+    },
+    "GBP": {
+      "today": {
+        "as_of": "2026-06-26 11:59:55 EDT",
+        "rundate": "2026-06-27 08:00:45",
+        "timezone": "EDT",
+        "current_target": 3.75,
+        "last_sonia": 3.729,
+        "sonia_target_spread_bps": 2.1,
+        "spread_is_frozen": false,
+        "sonia_is_stale": false,
+        "assumed_move_bps": 25,
+        "rows": [
+          {
+            "meeting": "Jul 30, 2026",
+            "meeting_iso": "2026-07-30",
+            "implied_rate_post_meeting": 3.762,
+            "prob_move_pct": 4.86,
+            "prob_is_cut": false,
+            "num_moves": 0.05,
+            "num_moves_is_cut": false,
+            "change_bps": 1.2
+          },
+          {
+            "meeting": "Sep 17, 2026",
+            "meeting_iso": "2026-09-17",
+            "implied_rate_post_meeting": 3.793,
+            "prob_move_pct": 12.45,
+            "prob_is_cut": false,
+            "num_moves": 0.17,
+            "num_moves_is_cut": false,
+            "change_bps": 4.3
+          },
+          {
+            "meeting": "Nov 05, 2026",
+            "meeting_iso": "2026-11-05",
+            "implied_rate_post_meeting": 3.849,
+            "prob_move_pct": 22.29,
+            "prob_is_cut": false,
+            "num_moves": 0.4,
+            "num_moves_is_cut": false,
+            "change_bps": 9.9
+          },
+          {
+            "meeting": "Dec 17, 2026",
+            "meeting_iso": "2026-12-17",
+            "implied_rate_post_meeting": 3.93,
+            "prob_move_pct": 32.48,
+            "prob_is_cut": false,
+            "num_moves": 0.72,
+            "num_moves_is_cut": false,
+            "change_bps": 18
+          },
+          {
+            "meeting": "Feb 04, 2027",
+            "meeting_iso": "2027-02-04",
+            "implied_rate_post_meeting": 3.972,
+            "prob_move_pct": 16.72,
+            "prob_is_cut": false,
+            "num_moves": 0.89,
+            "num_moves_is_cut": false,
+            "change_bps": 22.2
+          },
+          {
+            "meeting": "Mar 18, 2027",
+            "meeting_iso": "2027-03-18",
+            "implied_rate_post_meeting": 4.023,
+            "prob_move_pct": 20.32,
+            "prob_is_cut": false,
+            "num_moves": 1.09,
+            "num_moves_is_cut": false,
+            "change_bps": 27.3
+          },
+          {
+            "meeting": "Apr 29, 2027",
+            "meeting_iso": "2027-04-29",
+            "implied_rate_post_meeting": 4.02,
+            "prob_move_pct": 1.19,
+            "prob_is_cut": true,
+            "num_moves": 1.08,
+            "num_moves_is_cut": false,
+            "change_bps": 27
+          },
+          {
+            "meeting": "Jun 17, 2027",
+            "meeting_iso": "2027-06-17",
+            "implied_rate_post_meeting": 4.049,
+            "prob_move_pct": 11.86,
+            "prob_is_cut": false,
+            "num_moves": 1.2,
+            "num_moves_is_cut": false,
+            "change_bps": 29.9
+          },
+          {
+            "meeting": "Jul 29, 2027",
+            "meeting_iso": "2027-07-29",
+            "implied_rate_post_meeting": 4.022,
+            "prob_move_pct": 11.14,
+            "prob_is_cut": true,
+            "num_moves": 1.09,
+            "num_moves_is_cut": false,
+            "change_bps": 27.2
+          },
+          {
+            "meeting": "Sep 16, 2027",
+            "meeting_iso": "2027-09-16",
+            "implied_rate_post_meeting": 4.029,
+            "prob_move_pct": 2.89,
+            "prob_is_cut": false,
+            "num_moves": 1.12,
+            "num_moves_is_cut": false,
+            "change_bps": 27.9
+          }
+        ],
+        "debug": {
+          "today_local": "2026-06-27",
+          "tz": "Europe/London",
+          "should_drop_first_meeting": false,
+          "drop_applied": false,
+          "first_upcoming_meeting": "2026-07-30",
+          "meetings_computed": 10,
+          "df_pillars_built": 26,
+          "segments_approach": "df-window: DF from f(0,1M) anchor + monthly chain, log-linear interp (ACT/365)",
+          "effective_date_rule": "T+0 (same day as announcement)",
+          "r0_source": "last_sonia",
+          "mw_policy_override_active": false,
+          "mw_policy_implied_rate": null,
+          "mw_anchor_overridden": false,
+          "mw_anchor_original": 3.739,
+          "mw_fwd_overrides_count": 0,
+          "mw_next_meeting_iso": "2026-07-30"
+        }
+      },
+      "targets": {
+        "ago_1w": {
+          "date": "2026-06-19"
+        },
+        "ago_3w": {
+          "date": "2026-06-05"
+        },
+        "ago_6w": {
+          "date": "2026-05-15"
+        },
+        "ago_10w": {
+          "date": "2026-04-17"
+        }
+      },
+      "ago_1w": {
+        "rows": [
+          {
+            "meeting": "Jul 30, 2026",
+            "meeting_iso": "2026-07-30",
+            "implied_rate_post_meeting": 3.762,
+            "change_bps": 1.2,
+            "prob_move_pct": 4.66,
+            "prob_is_cut": false,
+            "num_moves": 0.05,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 17, 2026",
+            "meeting_iso": "2026-09-17",
+            "implied_rate_post_meeting": 3.806,
+            "change_bps": 5.6,
+            "prob_move_pct": 17.75,
+            "prob_is_cut": false,
+            "num_moves": 0.22,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Nov 05, 2026",
+            "meeting_iso": "2026-11-05",
+            "implied_rate_post_meeting": 3.907,
+            "change_bps": 15.7,
+            "prob_move_pct": 40.5,
+            "prob_is_cut": false,
+            "num_moves": 0.63,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Dec 17, 2026",
+            "meeting_iso": "2026-12-17",
+            "implied_rate_post_meeting": 3.999,
+            "change_bps": 24.9,
+            "prob_move_pct": 36.87,
+            "prob_is_cut": false,
+            "num_moves": 1,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Feb 04, 2027",
+            "meeting_iso": "2027-02-04",
+            "implied_rate_post_meeting": 4.099,
+            "change_bps": 34.9,
+            "prob_move_pct": 39.79,
+            "prob_is_cut": false,
+            "num_moves": 1.4,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Mar 18, 2027",
+            "meeting_iso": "2027-03-18",
+            "implied_rate_post_meeting": 4.149,
+            "change_bps": 39.9,
+            "prob_move_pct": 19.89,
+            "prob_is_cut": false,
+            "num_moves": 1.59,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Apr 29, 2027",
+            "meeting_iso": "2027-04-29",
+            "implied_rate_post_meeting": 4.21,
+            "change_bps": 46,
+            "prob_move_pct": 24.36,
+            "prob_is_cut": false,
+            "num_moves": 1.84,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jun 17, 2027",
+            "meeting_iso": "2027-06-17",
+            "implied_rate_post_meeting": 4.239,
+            "change_bps": 48.9,
+            "prob_move_pct": 11.74,
+            "prob_is_cut": false,
+            "num_moves": 1.96,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jul 29, 2027",
+            "meeting_iso": "2027-07-29",
+            "implied_rate_post_meeting": 4.207,
+            "change_bps": 45.7,
+            "prob_move_pct": 12.61,
+            "prob_is_cut": true,
+            "num_moves": 1.83,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 16, 2027",
+            "meeting_iso": "2027-09-16",
+            "implied_rate_post_meeting": 4.241,
+            "change_bps": 49.1,
+            "prob_move_pct": 13.49,
+            "prob_is_cut": false,
+            "num_moves": 1.96,
+            "num_moves_is_cut": false
+          }
+        ],
+        "requested_date": "2026-06-19",
+        "used_date": "2026-06-19",
+        "current_target": 3.75,
+        "policy_rate": 3.75,
+        "last_sonia": 3.73,
+        "assumed_move_bps": 25,
+        "label": "1w ago (2026-06-19)"
+      },
+      "ago_3w": {
+        "rows": [
+          {
+            "meeting": "Jun 18, 2026",
+            "meeting_iso": "2026-06-18",
+            "implied_rate_post_meeting": 3.769,
+            "change_bps": 1.9,
+            "prob_move_pct": 7.69,
+            "prob_is_cut": false,
+            "num_moves": 0.08,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jul 30, 2026",
+            "meeting_iso": "2026-07-30",
+            "implied_rate_post_meeting": 3.849,
+            "change_bps": 9.9,
+            "prob_move_pct": 32.04,
+            "prob_is_cut": false,
+            "num_moves": 0.4,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 17, 2026",
+            "meeting_iso": "2026-09-17",
+            "implied_rate_post_meeting": 4.008,
+            "change_bps": 25.8,
+            "prob_move_pct": 63.34,
+            "prob_is_cut": false,
+            "num_moves": 1.03,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Nov 05, 2026",
+            "meeting_iso": "2026-11-05",
+            "implied_rate_post_meeting": 4.152,
+            "change_bps": 40.2,
+            "prob_move_pct": 57.76,
+            "prob_is_cut": false,
+            "num_moves": 1.61,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Dec 17, 2026",
+            "meeting_iso": "2026-12-17",
+            "implied_rate_post_meeting": 4.176,
+            "change_bps": 42.6,
+            "prob_move_pct": 9.7,
+            "prob_is_cut": false,
+            "num_moves": 1.71,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Feb 04, 2027",
+            "meeting_iso": "2027-02-04",
+            "implied_rate_post_meeting": 4.27,
+            "change_bps": 52,
+            "prob_move_pct": 37.56,
+            "prob_is_cut": false,
+            "num_moves": 2.08,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Mar 18, 2027",
+            "meeting_iso": "2027-03-18",
+            "implied_rate_post_meeting": 4.305,
+            "change_bps": 55.5,
+            "prob_move_pct": 13.8,
+            "prob_is_cut": false,
+            "num_moves": 2.22,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Apr 29, 2027",
+            "meeting_iso": "2027-04-29",
+            "implied_rate_post_meeting": 4.323,
+            "change_bps": 57.3,
+            "prob_move_pct": 7.36,
+            "prob_is_cut": false,
+            "num_moves": 2.29,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jun 17, 2027",
+            "meeting_iso": "2027-06-17",
+            "implied_rate_post_meeting": 4.289,
+            "change_bps": 53.9,
+            "prob_move_pct": 13.71,
+            "prob_is_cut": true,
+            "num_moves": 2.16,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jul 29, 2027",
+            "meeting_iso": "2027-07-29",
+            "implied_rate_post_meeting": 4.346,
+            "change_bps": 59.6,
+            "prob_move_pct": 23.03,
+            "prob_is_cut": false,
+            "num_moves": 2.39,
+            "num_moves_is_cut": false
+          }
+        ],
+        "requested_date": "2026-06-05",
+        "used_date": "2026-06-05",
+        "current_target": 3.75,
+        "policy_rate": 3.75,
+        "last_sonia": 3.731,
+        "assumed_move_bps": 25,
+        "label": "3w ago (2026-06-05)"
+      },
+      "ago_6w": {
+        "rows": [
+          {
+            "meeting": "Jun 18, 2026",
+            "meeting_iso": "2026-06-18",
+            "implied_rate_post_meeting": 3.802,
+            "change_bps": 5.2,
+            "prob_move_pct": 20.89,
+            "prob_is_cut": false,
+            "num_moves": 0.21,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jul 30, 2026",
+            "meeting_iso": "2026-07-30",
+            "implied_rate_post_meeting": 3.954,
+            "change_bps": 20.4,
+            "prob_move_pct": 60.76,
+            "prob_is_cut": false,
+            "num_moves": 0.82,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 17, 2026",
+            "meeting_iso": "2026-09-17",
+            "implied_rate_post_meeting": 4.062,
+            "change_bps": 31.2,
+            "prob_move_pct": 43.08,
+            "prob_is_cut": false,
+            "num_moves": 1.25,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Nov 05, 2026",
+            "meeting_iso": "2026-11-05",
+            "implied_rate_post_meeting": 4.19,
+            "change_bps": 44,
+            "prob_move_pct": 51.16,
+            "prob_is_cut": false,
+            "num_moves": 1.76,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Dec 17, 2026",
+            "meeting_iso": "2026-12-17",
+            "implied_rate_post_meeting": 4.231,
+            "change_bps": 48.1,
+            "prob_move_pct": 16.69,
+            "prob_is_cut": false,
+            "num_moves": 1.93,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Feb 04, 2027",
+            "meeting_iso": "2027-02-04",
+            "implied_rate_post_meeting": 4.313,
+            "change_bps": 56.3,
+            "prob_move_pct": 32.56,
+            "prob_is_cut": false,
+            "num_moves": 2.25,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Mar 18, 2027",
+            "meeting_iso": "2027-03-18",
+            "implied_rate_post_meeting": 4.292,
+            "change_bps": 54.2,
+            "prob_move_pct": 8.24,
+            "prob_is_cut": true,
+            "num_moves": 2.17,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Apr 29, 2027",
+            "meeting_iso": "2027-04-29",
+            "implied_rate_post_meeting": 4.305,
+            "change_bps": 55.5,
+            "prob_move_pct": 5.24,
+            "prob_is_cut": false,
+            "num_moves": 2.22,
+            "num_moves_is_cut": false
+          }
+        ],
+        "requested_date": "2026-05-15",
+        "used_date": "2026-05-15",
+        "current_target": 3.75,
+        "policy_rate": 3.75,
+        "last_sonia": 3.729,
+        "assumed_move_bps": 25,
+        "label": "6w ago (2026-05-15)"
+      },
+      "ago_10w": {
+        "rows": [
+          {
+            "meeting": "Apr 30, 2026",
+            "meeting_iso": "2026-04-30",
+            "implied_rate_post_meeting": 3.765,
+            "change_bps": 1.5,
+            "prob_move_pct": 5.8,
+            "prob_is_cut": false,
+            "num_moves": 0.06,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jun 18, 2026",
+            "meeting_iso": "2026-06-18",
+            "implied_rate_post_meeting": 3.833,
+            "change_bps": 8.3,
+            "prob_move_pct": 27.3,
+            "prob_is_cut": false,
+            "num_moves": 0.33,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jul 30, 2026",
+            "meeting_iso": "2026-07-30",
+            "implied_rate_post_meeting": 3.924,
+            "change_bps": 17.4,
+            "prob_move_pct": 36.67,
+            "prob_is_cut": false,
+            "num_moves": 0.7,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 17, 2026",
+            "meeting_iso": "2026-09-17",
+            "implied_rate_post_meeting": 3.978,
+            "change_bps": 22.8,
+            "prob_move_pct": 21.47,
+            "prob_is_cut": false,
+            "num_moves": 0.91,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Nov 05, 2026",
+            "meeting_iso": "2026-11-05",
+            "implied_rate_post_meeting": 4.014,
+            "change_bps": 26.4,
+            "prob_move_pct": 14.35,
+            "prob_is_cut": false,
+            "num_moves": 1.06,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Dec 17, 2026",
+            "meeting_iso": "2026-12-17",
+            "implied_rate_post_meeting": 4.012,
+            "change_bps": 26.2,
+            "prob_move_pct": 0.69,
+            "prob_is_cut": true,
+            "num_moves": 1.05,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Feb 04, 2027",
+            "meeting_iso": "2027-02-04",
+            "implied_rate_post_meeting": 4.01,
+            "change_bps": 26,
+            "prob_move_pct": 0.79,
+            "prob_is_cut": true,
+            "num_moves": 1.04,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Mar 18, 2027",
+            "meeting_iso": "2027-03-18",
+            "implied_rate_post_meeting": 3.994,
+            "change_bps": 24.4,
+            "prob_move_pct": 6.52,
+            "prob_is_cut": true,
+            "num_moves": 0.98,
+            "num_moves_is_cut": false
+          }
+        ],
+        "requested_date": "2026-04-17",
+        "used_date": "2026-04-17",
+        "current_target": 3.75,
+        "policy_rate": 3.75,
+        "last_sonia": 3.73,
+        "assumed_move_bps": 25,
+        "label": "10w ago (2026-04-17)"
+      },
+      "compare": {
+        "x": [
+          "2026-07-30",
+          "2026-09-17",
+          "2026-11-05",
+          "2026-12-17",
+          "2027-02-04",
+          "2027-03-18",
+          "2027-04-29",
+          "2027-06-17",
+          "2027-07-29",
+          "2027-09-16"
+        ],
+        "x_labels": [
+          "Jul 30, 2026",
+          "Sep 17, 2026",
+          "Nov 05, 2026",
+          "Dec 17, 2026",
+          "Feb 04, 2027",
+          "Mar 18, 2027",
+          "Apr 29, 2027",
+          "Jun 17, 2027",
+          "Jul 29, 2027",
+          "Sep 16, 2027"
+        ],
+        "as_of": "2026-06-26 11:59:55 EDT",
+        "current_target": 3.75,
+        "last_sonia": 3.729,
+        "assumed_move_bps": 25,
+        "lines": [
+          {
+            "key": "1w",
+            "label": "1w ago (2026-06-19)",
+            "current": 3.75,
+            "values": [
+              3.762,
+              3.806,
+              3.907,
+              3.999,
+              4.099,
+              4.149,
+              4.21,
+              4.239,
+              4.207,
+              4.241
+            ],
+            "used_date": "2026-06-19",
+            "requested_date": "2026-06-19"
+          },
+          {
+            "key": "3w",
+            "label": "3w ago (2026-06-05)",
+            "current": 3.75,
+            "values": [
+              3.849,
+              4.008,
+              4.152,
+              4.176,
+              4.27,
+              4.305,
+              4.323,
+              4.289,
+              4.346,
+              null
+            ],
+            "used_date": "2026-06-05",
+            "requested_date": "2026-06-05"
+          },
+          {
+            "key": "6w",
+            "label": "6w ago (2026-05-15)",
+            "current": 3.75,
+            "values": [
+              3.954,
+              4.062,
+              4.19,
+              4.231,
+              4.313,
+              4.292,
+              4.305,
+              null,
+              null,
+              null
+            ],
+            "used_date": "2026-05-15",
+            "requested_date": "2026-05-15"
+          },
+          {
+            "key": "10w",
+            "label": "10w ago (2026-04-17)",
+            "current": 3.75,
+            "values": [
+              3.924,
+              3.978,
+              4.014,
+              4.012,
+              4.01,
+              3.994,
+              null,
+              null,
+              null,
+              null
+            ],
+            "used_date": "2026-04-17",
+            "requested_date": "2026-04-17"
+          }
+        ]
+      },
+      "api_version": 1,
+      "generated_at_utc": "2026-06-27T12:00:49.102Z"
+    },
+    "JPY": {
+      "today": {
+        "as_of": "2026-06-26 15:59:29 EDT",
+        "rundate": "2026-06-27 08:00:17",
+        "timezone": "EDT",
+        "current_target": 1,
+        "last_tona": 0.977,
+        "tona_target_spread_bps": 2.3,
+        "spread_is_frozen": false,
+        "tona_is_stale": false,
+        "assumed_move_bps": 25,
+        "rows": [
+          {
+            "meeting": "Jul 31, 2026",
+            "meeting_iso": "2026-07-31",
+            "implied_rate_post_meeting": 1.001,
+            "prob_move_pct": 0.23,
+            "prob_is_cut": false,
+            "num_moves": 0,
+            "num_moves_is_cut": false,
+            "change_bps": 0.1
+          },
+          {
+            "meeting": "Sep 18, 2026",
+            "meeting_iso": "2026-09-18",
+            "implied_rate_post_meeting": 1.008,
+            "prob_move_pct": 2.86,
+            "prob_is_cut": false,
+            "num_moves": 0.03,
+            "num_moves_is_cut": false,
+            "change_bps": 0.8
+          },
+          {
+            "meeting": "Oct 30, 2026",
+            "meeting_iso": "2026-10-30",
+            "implied_rate_post_meeting": 1.056,
+            "prob_move_pct": 19.35,
+            "prob_is_cut": false,
+            "num_moves": 0.22,
+            "num_moves_is_cut": false,
+            "change_bps": 5.6
+          },
+          {
+            "meeting": "Dec 18, 2026",
+            "meeting_iso": "2026-12-18",
+            "implied_rate_post_meeting": 1.152,
+            "prob_move_pct": 38.44,
+            "prob_is_cut": false,
+            "num_moves": 0.61,
+            "num_moves_is_cut": false,
+            "change_bps": 15.2
+          },
+          {
+            "meeting": "Jan 22, 2027*",
+            "meeting_iso": "2027-01-22",
+            "implied_rate_post_meeting": 1.216,
+            "prob_move_pct": 25.54,
+            "prob_is_cut": false,
+            "num_moves": 0.86,
+            "num_moves_is_cut": false,
+            "change_bps": 21.6
+          },
+          {
+            "meeting": "Mar 19, 2027*",
+            "meeting_iso": "2027-03-19",
+            "implied_rate_post_meeting": 1.287,
+            "prob_move_pct": 28.42,
+            "prob_is_cut": false,
+            "num_moves": 1.15,
+            "num_moves_is_cut": false,
+            "change_bps": 28.7
+          },
+          {
+            "meeting": "Apr 30, 2027*",
+            "meeting_iso": "2027-04-30",
+            "implied_rate_post_meeting": 1.343,
+            "prob_move_pct": 22.22,
+            "prob_is_cut": false,
+            "num_moves": 1.37,
+            "num_moves_is_cut": false,
+            "change_bps": 34.3
+          },
+          {
+            "meeting": "Jun 18, 2027*",
+            "meeting_iso": "2027-06-18",
+            "implied_rate_post_meeting": 1.398,
+            "prob_move_pct": 22.03,
+            "prob_is_cut": false,
+            "num_moves": 1.59,
+            "num_moves_is_cut": false,
+            "change_bps": 39.8
+          },
+          {
+            "meeting": "Jul 30, 2027*",
+            "meeting_iso": "2027-07-30",
+            "implied_rate_post_meeting": 1.479,
+            "prob_move_pct": 32.5,
+            "prob_is_cut": false,
+            "num_moves": 1.92,
+            "num_moves_is_cut": false,
+            "change_bps": 47.9
+          },
+          {
+            "meeting": "Sep 17, 2027*",
+            "meeting_iso": "2027-09-17",
+            "implied_rate_post_meeting": 1.566,
+            "prob_move_pct": 34.62,
+            "prob_is_cut": false,
+            "num_moves": 2.26,
+            "num_moves_is_cut": false,
+            "change_bps": 56.6
+          }
+        ],
+        "debug": {
+          "today_local": "2026-06-27",
+          "tz": "America/New_York",
+          "should_drop_first_meeting": false,
+          "drop_applied": false,
+          "first_upcoming_meeting": "2026-07-31",
+          "meetings_computed": 10,
+          "df_pillars_built": 26,
+          "segments_approach": "df-window: DF from f(0,1M) anchor + monthly chain, log-linear interp (ACT/365)",
+          "effective_date_rule": "T+1 (next calendar day after announcement)",
+          "r0_source": "last_tona",
+          "mw_policy_override_active": false,
+          "mw_policy_implied_rate": null,
+          "mw_anchor_overridden": false,
+          "mw_anchor_original": 0.977,
+          "mw_fwd_overrides_count": 0,
+          "mw_next_meeting_iso": "2026-07-31"
+        }
+      },
+      "targets": {
+        "ago_1w": {
+          "date": "2026-06-19"
+        },
+        "ago_3w": {
+          "date": "2026-06-05"
+        },
+        "ago_6w": {
+          "date": "2026-05-15"
+        },
+        "ago_10w": {
+          "date": "2026-04-17"
+        }
+      },
+      "ago_1w": {
+        "rows": [
+          {
+            "meeting": "Jul 31, 2026",
+            "meeting_iso": "2026-07-31",
+            "implied_rate_post_meeting": 1.002,
+            "change_bps": 0.2,
+            "prob_move_pct": 0.64,
+            "prob_is_cut": false,
+            "num_moves": 0.01,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 18, 2026",
+            "meeting_iso": "2026-09-18",
+            "implied_rate_post_meeting": 1.008,
+            "change_bps": 0.8,
+            "prob_move_pct": 2.48,
+            "prob_is_cut": false,
+            "num_moves": 0.03,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Oct 30, 2026",
+            "meeting_iso": "2026-10-30",
+            "implied_rate_post_meeting": 1.08,
+            "change_bps": 8,
+            "prob_move_pct": 28.7,
+            "prob_is_cut": false,
+            "num_moves": 0.32,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Dec 18, 2026",
+            "meeting_iso": "2026-12-18",
+            "implied_rate_post_meeting": 1.143,
+            "change_bps": 14.3,
+            "prob_move_pct": 25.21,
+            "prob_is_cut": false,
+            "num_moves": 0.57,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jan 22, 2027*",
+            "meeting_iso": "2027-01-22",
+            "implied_rate_post_meeting": 1.254,
+            "change_bps": 25.4,
+            "prob_move_pct": 44.59,
+            "prob_is_cut": false,
+            "num_moves": 1.02,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Mar 19, 2027*",
+            "meeting_iso": "2027-03-19",
+            "implied_rate_post_meeting": 1.296,
+            "change_bps": 29.6,
+            "prob_move_pct": 16.95,
+            "prob_is_cut": false,
+            "num_moves": 1.19,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Apr 30, 2027*",
+            "meeting_iso": "2027-04-30",
+            "implied_rate_post_meeting": 1.354,
+            "change_bps": 35.4,
+            "prob_move_pct": 23.08,
+            "prob_is_cut": false,
+            "num_moves": 1.42,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jun 18, 2027*",
+            "meeting_iso": "2027-06-18",
+            "implied_rate_post_meeting": 1.426,
+            "change_bps": 42.6,
+            "prob_move_pct": 28.57,
+            "prob_is_cut": false,
+            "num_moves": 1.7,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jul 30, 2027*",
+            "meeting_iso": "2027-07-30",
+            "implied_rate_post_meeting": 1.493,
+            "change_bps": 49.3,
+            "prob_move_pct": 26.87,
+            "prob_is_cut": false,
+            "num_moves": 1.97,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 17, 2027*",
+            "meeting_iso": "2027-09-17",
+            "implied_rate_post_meeting": 1.55,
+            "change_bps": 55,
+            "prob_move_pct": 23.07,
+            "prob_is_cut": false,
+            "num_moves": 2.2,
+            "num_moves_is_cut": false
+          }
+        ],
+        "requested_date": "2026-06-19",
+        "used_date": "2026-06-19",
+        "policy_rate": null,
+        "current_target": null,
+        "midpoint": null,
+        "current band": null,
+        "most_recent_effr": null,
+        "assumed_move_bps": 25,
+        "label": "1w ago (2026-06-19)"
+      },
+      "ago_3w": {
+        "rows": [
+          {
+            "meeting": "Jun 16, 2026",
+            "meeting_iso": "2026-06-16",
+            "implied_rate_post_meeting": 0.991,
+            "change_bps": 24.1,
+            "prob_move_pct": 96.42,
+            "prob_is_cut": false,
+            "num_moves": 0.96,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jul 31, 2026",
+            "meeting_iso": "2026-07-31",
+            "implied_rate_post_meeting": 0.991,
+            "change_bps": 24.1,
+            "prob_move_pct": 0,
+            "prob_is_cut": false,
+            "num_moves": 0.96,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 18, 2026",
+            "meeting_iso": "2026-09-18",
+            "implied_rate_post_meeting": 1.051,
+            "change_bps": 30.1,
+            "prob_move_pct": 24.17,
+            "prob_is_cut": false,
+            "num_moves": 1.21,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Oct 30, 2026",
+            "meeting_iso": "2026-10-30",
+            "implied_rate_post_meeting": 1.125,
+            "change_bps": 37.5,
+            "prob_move_pct": 29.59,
+            "prob_is_cut": false,
+            "num_moves": 1.5,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Dec 18, 2026",
+            "meeting_iso": "2026-12-18",
+            "implied_rate_post_meeting": 1.228,
+            "change_bps": 47.8,
+            "prob_move_pct": 40.86,
+            "prob_is_cut": false,
+            "num_moves": 1.91,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jan 22, 2027*",
+            "meeting_iso": "2027-01-22",
+            "implied_rate_post_meeting": 1.228,
+            "change_bps": 47.8,
+            "prob_move_pct": 0,
+            "prob_is_cut": false,
+            "num_moves": 1.91,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Mar 19, 2027*",
+            "meeting_iso": "2027-03-19",
+            "implied_rate_post_meeting": 1.332,
+            "change_bps": 58.2,
+            "prob_move_pct": 41.91,
+            "prob_is_cut": false,
+            "num_moves": 2.33,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Apr 30, 2027*",
+            "meeting_iso": "2027-04-30",
+            "implied_rate_post_meeting": 1.332,
+            "change_bps": 58.2,
+            "prob_move_pct": 0,
+            "prob_is_cut": false,
+            "num_moves": 2.33,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jun 18, 2027*",
+            "meeting_iso": "2027-06-18",
+            "implied_rate_post_meeting": 1.486,
+            "change_bps": 73.6,
+            "prob_move_pct": 61.28,
+            "prob_is_cut": false,
+            "num_moves": 2.94,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jul 30, 2027*",
+            "meeting_iso": "2027-07-30",
+            "implied_rate_post_meeting": 1.486,
+            "change_bps": 73.6,
+            "prob_move_pct": 0,
+            "prob_is_cut": false,
+            "num_moves": 2.94,
+            "num_moves_is_cut": false
+          }
+        ],
+        "requested_date": "2026-06-05",
+        "used_date": "2026-06-05",
+        "policy_rate": null,
+        "current_target": null,
+        "midpoint": null,
+        "current band": null,
+        "most_recent_effr": null,
+        "assumed_move_bps": 25,
+        "label": "3w ago (2026-06-05)"
+      },
+      "ago_6w": {
+        "rows": [
+          {
+            "meeting": "Jun 16, 2026",
+            "meeting_iso": "2026-06-16",
+            "implied_rate_post_meeting": 0.965,
+            "change_bps": 21.5,
+            "prob_move_pct": 85.98,
+            "prob_is_cut": false,
+            "num_moves": 0.86,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jul 31, 2026",
+            "meeting_iso": "2026-07-31",
+            "implied_rate_post_meeting": 0.974,
+            "change_bps": 22.4,
+            "prob_move_pct": 3.52,
+            "prob_is_cut": false,
+            "num_moves": 0.89,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 18, 2026",
+            "meeting_iso": "2026-09-18",
+            "implied_rate_post_meeting": 1.069,
+            "change_bps": 31.9,
+            "prob_move_pct": 37.96,
+            "prob_is_cut": false,
+            "num_moves": 1.27,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Oct 30, 2026",
+            "meeting_iso": "2026-10-30",
+            "implied_rate_post_meeting": 1.162,
+            "change_bps": 41.2,
+            "prob_move_pct": 37.26,
+            "prob_is_cut": false,
+            "num_moves": 1.65,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Dec 18, 2026",
+            "meeting_iso": "2026-12-18",
+            "implied_rate_post_meeting": 1.237,
+            "change_bps": 48.7,
+            "prob_move_pct": 30.09,
+            "prob_is_cut": false,
+            "num_moves": 1.95,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jan 22, 2027*",
+            "meeting_iso": "2027-01-22",
+            "implied_rate_post_meeting": 1.332,
+            "change_bps": 58.2,
+            "prob_move_pct": 38.18,
+            "prob_is_cut": false,
+            "num_moves": 2.33,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Mar 19, 2027*",
+            "meeting_iso": "2027-03-19",
+            "implied_rate_post_meeting": 1.408,
+            "change_bps": 65.8,
+            "prob_move_pct": 30.35,
+            "prob_is_cut": false,
+            "num_moves": 2.63,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Apr 30, 2027*",
+            "meeting_iso": "2027-04-30",
+            "implied_rate_post_meeting": 1.508,
+            "change_bps": 75.8,
+            "prob_move_pct": 39.81,
+            "prob_is_cut": false,
+            "num_moves": 3.03,
+            "num_moves_is_cut": false
+          }
+        ],
+        "requested_date": "2026-05-15",
+        "used_date": "2026-05-15",
+        "policy_rate": null,
+        "current_target": null,
+        "midpoint": null,
+        "current band": null,
+        "most_recent_effr": null,
+        "assumed_move_bps": 25,
+        "label": "6w ago (2026-05-15)"
+      },
+      "ago_10w": {
+        "rows": [
+          {
+            "meeting": "Apr 28, 2026",
+            "meeting_iso": "2026-04-28",
+            "implied_rate_post_meeting": 0.802,
+            "change_bps": 5.2,
+            "prob_move_pct": 20.72,
+            "prob_is_cut": false,
+            "num_moves": 0.21,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jun 16, 2026",
+            "meeting_iso": "2026-06-16",
+            "implied_rate_post_meeting": 0.929,
+            "change_bps": 17.9,
+            "prob_move_pct": 50.87,
+            "prob_is_cut": false,
+            "num_moves": 0.72,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jul 31, 2026",
+            "meeting_iso": "2026-07-31",
+            "implied_rate_post_meeting": 1.016,
+            "change_bps": 26.6,
+            "prob_move_pct": 34.94,
+            "prob_is_cut": false,
+            "num_moves": 1.07,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 18, 2026",
+            "meeting_iso": "2026-09-18",
+            "implied_rate_post_meeting": 1.08,
+            "change_bps": 33,
+            "prob_move_pct": 25.43,
+            "prob_is_cut": false,
+            "num_moves": 1.32,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Oct 30, 2026",
+            "meeting_iso": "2026-10-30",
+            "implied_rate_post_meeting": 1.163,
+            "change_bps": 41.3,
+            "prob_move_pct": 33.26,
+            "prob_is_cut": false,
+            "num_moves": 1.65,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Dec 18, 2026",
+            "meeting_iso": "2026-12-18",
+            "implied_rate_post_meeting": 1.247,
+            "change_bps": 49.7,
+            "prob_move_pct": 33.51,
+            "prob_is_cut": false,
+            "num_moves": 1.99,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jan 22, 2027*",
+            "meeting_iso": "2027-01-22",
+            "implied_rate_post_meeting": 1.337,
+            "change_bps": 58.7,
+            "prob_move_pct": 35.91,
+            "prob_is_cut": false,
+            "num_moves": 2.35,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Mar 19, 2027*",
+            "meeting_iso": "2027-03-19",
+            "implied_rate_post_meeting": 1.385,
+            "change_bps": 63.5,
+            "prob_move_pct": 19.51,
+            "prob_is_cut": false,
+            "num_moves": 2.54,
+            "num_moves_is_cut": false
+          }
+        ],
+        "requested_date": "2026-04-17",
+        "used_date": "2026-04-17",
+        "policy_rate": null,
+        "current_target": null,
+        "midpoint": null,
+        "current band": null,
+        "most_recent_effr": null,
+        "assumed_move_bps": 25,
+        "label": "10w ago (2026-04-17)"
+      },
+      "compare": {
+        "x": [
+          "2026-07-31",
+          "2026-09-18",
+          "2026-10-30",
+          "2026-12-18",
+          "2027-01-22",
+          "2027-03-19",
+          "2027-04-30",
+          "2027-06-18",
+          "2027-07-30",
+          "2027-09-17"
+        ],
+        "x_labels": [
+          "Jul 31, 2026",
+          "Sep 18, 2026",
+          "Oct 30, 2026",
+          "Dec 18, 2026",
+          "Jan 22, 2027*",
+          "Mar 19, 2027*",
+          "Apr 30, 2027*",
+          "Jun 18, 2027*",
+          "Jul 30, 2027*",
+          "Sep 17, 2027*"
+        ],
+        "as_of": "2026-06-26 15:59:29 EDT",
+        "current_target": 1,
+        "last_tona": 0.977,
+        "assumed_move_bps": 25,
+        "lines": [
+          {
+            "key": "1w",
+            "label": "1w ago (2026-06-19)",
+            "current": null,
+            "values": [
+              1.002,
+              1.008,
+              1.08,
+              1.143,
+              1.254,
+              1.296,
+              1.354,
+              1.426,
+              1.493,
+              1.55
+            ],
+            "used_date": "2026-06-19",
+            "requested_date": "2026-06-19"
+          },
+          {
+            "key": "3w",
+            "label": "3w ago (2026-06-05)",
+            "current": null,
+            "values": [
+              0.991,
+              1.051,
+              1.125,
+              1.228,
+              1.228,
+              1.332,
+              1.332,
+              1.486,
+              1.486,
+              null
+            ],
+            "used_date": "2026-06-05",
+            "requested_date": "2026-06-05"
+          },
+          {
+            "key": "6w",
+            "label": "6w ago (2026-05-15)",
+            "current": null,
+            "values": [
+              0.974,
+              1.069,
+              1.162,
+              1.237,
+              1.332,
+              1.408,
+              1.508,
+              null,
+              null,
+              null
+            ],
+            "used_date": "2026-05-15",
+            "requested_date": "2026-05-15"
+          },
+          {
+            "key": "10w",
+            "label": "10w ago (2026-04-17)",
+            "current": null,
+            "values": [
+              1.016,
+              1.08,
+              1.163,
+              1.247,
+              1.337,
+              1.385,
+              null,
+              null,
+              null,
+              null
+            ],
+            "used_date": "2026-04-17",
+            "requested_date": "2026-04-17"
+          }
+        ]
+      },
+      "api_version": 1,
+      "generated_at_utc": "2026-06-27T12:00:20.489Z"
+    },
+    "CAD": {
+      "today": {
+        "as_of": "2026-06-26 17:10:09 EDT",
+        "rundate": "2026-06-27 08:00:09 EDT",
+        "timezone": "EDT",
+        "Overnight Rate Target": 2.25,
+        "Deposit Rate": 2.2,
+        "Bank Rate": 2.5,
+        "Last CORRA": 2.31,
+        "corra_target_spread_bps": -6,
+        "eq_spread_bps": -1.87,
+        "spread_is_frozen": false,
+        "corra_is_stale": false,
+        "assumed_move_bps": 25,
+        "rows": [
+          {
+            "meeting": "Jul 15, 2026",
+            "meeting_iso": "2026-07-15",
+            "implied_rate_post_meeting": 2.26,
+            "prob_move_pct": 4.14,
+            "prob_is_cut": false,
+            "num_moves": 0.04,
+            "num_moves_is_cut": false,
+            "change_bps": 1
+          },
+          {
+            "meeting": "Sep 02, 2026",
+            "meeting_iso": "2026-09-02",
+            "implied_rate_post_meeting": 2.26,
+            "prob_move_pct": 0.05,
+            "prob_is_cut": true,
+            "num_moves": 0.04,
+            "num_moves_is_cut": false,
+            "change_bps": 1
+          },
+          {
+            "meeting": "Oct 28, 2026",
+            "meeting_iso": "2026-10-28",
+            "implied_rate_post_meeting": 2.28,
+            "prob_move_pct": 7.84,
+            "prob_is_cut": false,
+            "num_moves": 0.12,
+            "num_moves_is_cut": false,
+            "change_bps": 3
+          },
+          {
+            "meeting": "Dec 09, 2026",
+            "meeting_iso": "2026-12-09",
+            "implied_rate_post_meeting": 2.342,
+            "prob_move_pct": 24.76,
+            "prob_is_cut": false,
+            "num_moves": 0.37,
+            "num_moves_is_cut": false,
+            "change_bps": 9.2
+          },
+          {
+            "meeting": "Jan 20, 2027*",
+            "meeting_iso": "2027-01-20",
+            "implied_rate_post_meeting": 2.387,
+            "prob_move_pct": 18.2,
+            "prob_is_cut": false,
+            "num_moves": 0.55,
+            "num_moves_is_cut": false,
+            "change_bps": 13.7
+          },
+          {
+            "meeting": "Mar 03, 2027*",
+            "meeting_iso": "2027-03-03",
+            "implied_rate_post_meeting": 2.46,
+            "prob_move_pct": 29.13,
+            "prob_is_cut": false,
+            "num_moves": 0.84,
+            "num_moves_is_cut": false,
+            "change_bps": 21
+          },
+          {
+            "meeting": "Apr 14, 2027*",
+            "meeting_iso": "2027-04-14",
+            "implied_rate_post_meeting": 2.534,
+            "prob_move_pct": 29.77,
+            "prob_is_cut": false,
+            "num_moves": 1.14,
+            "num_moves_is_cut": false,
+            "change_bps": 28.4
+          },
+          {
+            "meeting": "May 26, 2027*",
+            "meeting_iso": "2027-05-26",
+            "implied_rate_post_meeting": 2.617,
+            "prob_move_pct": 33,
+            "prob_is_cut": false,
+            "num_moves": 1.47,
+            "num_moves_is_cut": false,
+            "change_bps": 36.7
+          },
+          {
+            "meeting": "Jul 07, 2027*",
+            "meeting_iso": "2027-07-07",
+            "implied_rate_post_meeting": 2.657,
+            "prob_move_pct": 15.81,
+            "prob_is_cut": false,
+            "num_moves": 1.63,
+            "num_moves_is_cut": false,
+            "change_bps": 40.7
+          },
+          {
+            "meeting": "Aug 18, 2027*",
+            "meeting_iso": "2027-08-18",
+            "implied_rate_post_meeting": 2.704,
+            "prob_move_pct": 19.17,
+            "prob_is_cut": false,
+            "num_moves": 1.82,
+            "num_moves_is_cut": false,
+            "change_bps": 45.4
+          }
+        ],
+        "debug": {
+          "today_local": "2026-06-27",
+          "tz": "America/Toronto",
+          "should_drop_first_meeting": false,
+          "drop_applied": false,
+          "first_upcoming_meeting": "2026-07-15",
+          "meetings_computed": 10,
+          "df_pillars_built": 26,
+          "segments_approach": "df-window: DF from f(0,1M) anchor + monthly chain, log-linear interp (ACT/365)",
+          "effective_date_rule": "T+1 next business day",
+          "r0_source": "last_corra",
+          "spread_approach": "equilibrium: EQ_SPREAD_BPS=-1.87 (12-mo mean; spot spread diagnostic only)",
+          "mw_policy_override_active": false,
+          "mw_policy_implied_rate": null,
+          "mw_anchor_overridden": false,
+          "mw_anchor_original": 2.279,
+          "mw_fwd_overrides_count": 0,
+          "mw_next_meeting_iso": "2026-07-15"
+        }
+      },
+      "targets": {
+        "ago_1w": {
+          "date": "2026-06-19"
+        },
+        "ago_3w": {
+          "date": "2026-06-05"
+        },
+        "ago_6w": {
+          "date": "2026-05-15"
+        },
+        "ago_10w": {
+          "date": "2026-04-17"
+        }
+      },
+      "ago_1w": {
+        "rows": [
+          {
+            "meeting": "Jul 15, 2026",
+            "meeting_iso": "2026-07-15",
+            "implied_rate_post_meeting": 2.223,
+            "change_bps": -2.7,
+            "prob_move_pct": 10.84,
+            "prob_is_cut": true,
+            "num_moves": 0.11,
+            "num_moves_is_cut": true
+          },
+          {
+            "meeting": "Sep 02, 2026",
+            "meeting_iso": "2026-09-02",
+            "implied_rate_post_meeting": 2.234,
+            "change_bps": -1.6,
+            "prob_move_pct": 4.52,
+            "prob_is_cut": false,
+            "num_moves": 0.06,
+            "num_moves_is_cut": true
+          },
+          {
+            "meeting": "Oct 28, 2026",
+            "meeting_iso": "2026-10-28",
+            "implied_rate_post_meeting": 2.261,
+            "change_bps": 1.1,
+            "prob_move_pct": 10.59,
+            "prob_is_cut": false,
+            "num_moves": 0.04,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Dec 09, 2026",
+            "meeting_iso": "2026-12-09",
+            "implied_rate_post_meeting": 2.323,
+            "change_bps": 7.3,
+            "prob_move_pct": 25.05,
+            "prob_is_cut": false,
+            "num_moves": 0.29,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jan 20, 2027*",
+            "meeting_iso": "2027-01-20",
+            "implied_rate_post_meeting": 2.391,
+            "change_bps": 14.1,
+            "prob_move_pct": 27.21,
+            "prob_is_cut": false,
+            "num_moves": 0.57,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Mar 03, 2027*",
+            "meeting_iso": "2027-03-03",
+            "implied_rate_post_meeting": 2.485,
+            "change_bps": 23.5,
+            "prob_move_pct": 37.36,
+            "prob_is_cut": false,
+            "num_moves": 0.94,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Apr 14, 2027*",
+            "meeting_iso": "2027-04-14",
+            "implied_rate_post_meeting": 2.545,
+            "change_bps": 29.5,
+            "prob_move_pct": 24.18,
+            "prob_is_cut": false,
+            "num_moves": 1.18,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "May 26, 2027*",
+            "meeting_iso": "2027-05-26",
+            "implied_rate_post_meeting": 2.639,
+            "change_bps": 38.9,
+            "prob_move_pct": 37.46,
+            "prob_is_cut": false,
+            "num_moves": 1.56,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jul 07, 2027*",
+            "meeting_iso": "2027-07-07",
+            "implied_rate_post_meeting": 2.663,
+            "change_bps": 41.3,
+            "prob_move_pct": 9.84,
+            "prob_is_cut": false,
+            "num_moves": 1.65,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Aug 18, 2027*",
+            "meeting_iso": "2027-08-18",
+            "implied_rate_post_meeting": 2.739,
+            "change_bps": 48.9,
+            "prob_move_pct": 30.05,
+            "prob_is_cut": false,
+            "num_moves": 1.95,
+            "num_moves_is_cut": false
+          }
+        ],
+        "requested_date": "2026-06-19",
+        "used_date": "2026-06-19",
+        "policy_rate": null,
+        "current_target": null,
+        "midpoint": null,
+        "current band": null,
+        "most_recent_effr": null,
+        "assumed_move_bps": 25,
+        "label": "1w ago (2026-06-19)"
+      },
+      "ago_3w": {
+        "rows": [
+          {
+            "meeting": "Jun 10, 2026",
+            "meeting_iso": "2026-06-10",
+            "implied_rate_post_meeting": 2.235,
+            "change_bps": -1.5,
+            "prob_move_pct": 6.08,
+            "prob_is_cut": true,
+            "num_moves": 0.06,
+            "num_moves_is_cut": true
+          },
+          {
+            "meeting": "Jul 15, 2026",
+            "meeting_iso": "2026-07-15",
+            "implied_rate_post_meeting": 2.252,
+            "change_bps": 0.2,
+            "prob_move_pct": 6.89,
+            "prob_is_cut": false,
+            "num_moves": 0.01,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 02, 2026",
+            "meeting_iso": "2026-09-02",
+            "implied_rate_post_meeting": 2.308,
+            "change_bps": 5.8,
+            "prob_move_pct": 22.48,
+            "prob_is_cut": false,
+            "num_moves": 0.23,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Oct 28, 2026",
+            "meeting_iso": "2026-10-28",
+            "implied_rate_post_meeting": 2.416,
+            "change_bps": 16.6,
+            "prob_move_pct": 43.28,
+            "prob_is_cut": false,
+            "num_moves": 0.67,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Dec 09, 2026",
+            "meeting_iso": "2026-12-09",
+            "implied_rate_post_meeting": 2.559,
+            "change_bps": 30.9,
+            "prob_move_pct": 57.22,
+            "prob_is_cut": false,
+            "num_moves": 1.24,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jan 20, 2027*",
+            "meeting_iso": "2027-01-20",
+            "implied_rate_post_meeting": 2.616,
+            "change_bps": 36.6,
+            "prob_move_pct": 22.62,
+            "prob_is_cut": false,
+            "num_moves": 1.46,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Mar 03, 2027*",
+            "meeting_iso": "2027-03-03",
+            "implied_rate_post_meeting": 2.727,
+            "change_bps": 47.7,
+            "prob_move_pct": 44.48,
+            "prob_is_cut": false,
+            "num_moves": 1.91,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Apr 14, 2027*",
+            "meeting_iso": "2027-04-14",
+            "implied_rate_post_meeting": 2.822,
+            "change_bps": 57.2,
+            "prob_move_pct": 37.76,
+            "prob_is_cut": false,
+            "num_moves": 2.29,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "May 26, 2027*",
+            "meeting_iso": "2027-05-26",
+            "implied_rate_post_meeting": 2.822,
+            "change_bps": 57.2,
+            "prob_move_pct": 0,
+            "prob_is_cut": false,
+            "num_moves": 2.29,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jul 07, 2027*",
+            "meeting_iso": "2027-07-07",
+            "implied_rate_post_meeting": 2.907,
+            "change_bps": 65.7,
+            "prob_move_pct": 34.22,
+            "prob_is_cut": false,
+            "num_moves": 2.63,
+            "num_moves_is_cut": false
+          }
+        ],
+        "requested_date": "2026-06-05",
+        "used_date": "2026-06-05",
+        "policy_rate": null,
+        "current_target": null,
+        "midpoint": null,
+        "current band": null,
+        "most_recent_effr": null,
+        "assumed_move_bps": 25,
+        "label": "3w ago (2026-06-05)"
+      },
+      "ago_6w": {
+        "rows": [
+          {
+            "meeting": "Jun 10, 2026",
+            "meeting_iso": "2026-06-10",
+            "implied_rate_post_meeting": 2.295,
+            "change_bps": 4.5,
+            "prob_move_pct": 18,
+            "prob_is_cut": false,
+            "num_moves": 0.18,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jul 15, 2026",
+            "meeting_iso": "2026-07-15",
+            "implied_rate_post_meeting": 2.341,
+            "change_bps": 9.1,
+            "prob_move_pct": 18.33,
+            "prob_is_cut": false,
+            "num_moves": 0.36,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 02, 2026",
+            "meeting_iso": "2026-09-02",
+            "implied_rate_post_meeting": 2.709,
+            "change_bps": 45.9,
+            "prob_move_pct": 100,
+            "prob_is_cut": false,
+            "num_moves": 1.84,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Oct 28, 2026",
+            "meeting_iso": "2026-10-28",
+            "implied_rate_post_meeting": 2.971,
+            "change_bps": 72.1,
+            "prob_move_pct": 100,
+            "prob_is_cut": false,
+            "num_moves": 2.89,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Dec 09, 2026",
+            "meeting_iso": "2026-12-09",
+            "implied_rate_post_meeting": 3.06,
+            "change_bps": 81,
+            "prob_move_pct": 35.41,
+            "prob_is_cut": false,
+            "num_moves": 3.24,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jan 20, 2027*",
+            "meeting_iso": "2027-01-20",
+            "implied_rate_post_meeting": 3.11,
+            "change_bps": 86,
+            "prob_move_pct": 20.12,
+            "prob_is_cut": false,
+            "num_moves": 3.44,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Mar 03, 2027*",
+            "meeting_iso": "2027-03-03",
+            "implied_rate_post_meeting": 3.161,
+            "change_bps": 91.1,
+            "prob_move_pct": 20.31,
+            "prob_is_cut": false,
+            "num_moves": 3.64,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Apr 14, 2027*",
+            "meeting_iso": "2027-04-14",
+            "implied_rate_post_meeting": 3.204,
+            "change_bps": 95.4,
+            "prob_move_pct": 17.3,
+            "prob_is_cut": false,
+            "num_moves": 3.82,
+            "num_moves_is_cut": false
+          }
+        ],
+        "requested_date": "2026-05-15",
+        "used_date": "2026-05-15",
+        "policy_rate": null,
+        "current_target": null,
+        "midpoint": null,
+        "current band": null,
+        "most_recent_effr": null,
+        "assumed_move_bps": 25,
+        "label": "6w ago (2026-05-15)"
+      },
+      "ago_10w": {
+        "rows": [
+          {
+            "meeting": "Apr 29, 2026",
+            "meeting_iso": "2026-04-29",
+            "implied_rate_post_meeting": 2.215,
+            "change_bps": -3.5,
+            "prob_move_pct": 14,
+            "prob_is_cut": true,
+            "num_moves": 0.14,
+            "num_moves_is_cut": true
+          },
+          {
+            "meeting": "Jun 10, 2026",
+            "meeting_iso": "2026-06-10",
+            "implied_rate_post_meeting": 2.222,
+            "change_bps": -2.8,
+            "prob_move_pct": 3,
+            "prob_is_cut": false,
+            "num_moves": 0.11,
+            "num_moves_is_cut": true
+          },
+          {
+            "meeting": "Jul 15, 2026",
+            "meeting_iso": "2026-07-15",
+            "implied_rate_post_meeting": 2.245,
+            "change_bps": -0.5,
+            "prob_move_pct": 9,
+            "prob_is_cut": false,
+            "num_moves": 0.02,
+            "num_moves_is_cut": true
+          },
+          {
+            "meeting": "Sep 02, 2026",
+            "meeting_iso": "2026-09-02",
+            "implied_rate_post_meeting": 2.437,
+            "change_bps": 18.7,
+            "prob_move_pct": 76.71,
+            "prob_is_cut": false,
+            "num_moves": 0.75,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Oct 28, 2026",
+            "meeting_iso": "2026-10-28",
+            "implied_rate_post_meeting": 2.589,
+            "change_bps": 33.9,
+            "prob_move_pct": 61.07,
+            "prob_is_cut": false,
+            "num_moves": 1.36,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Dec 09, 2026",
+            "meeting_iso": "2026-12-09",
+            "implied_rate_post_meeting": 2.651,
+            "change_bps": 40.1,
+            "prob_move_pct": 24.82,
+            "prob_is_cut": false,
+            "num_moves": 1.61,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jan 20, 2027*",
+            "meeting_iso": "2027-01-20",
+            "implied_rate_post_meeting": 2.691,
+            "change_bps": 44.1,
+            "prob_move_pct": 15.82,
+            "prob_is_cut": false,
+            "num_moves": 1.76,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Mar 03, 2027*",
+            "meeting_iso": "2027-03-03",
+            "implied_rate_post_meeting": 2.726,
+            "change_bps": 47.6,
+            "prob_move_pct": 13.84,
+            "prob_is_cut": false,
+            "num_moves": 1.9,
+            "num_moves_is_cut": false
+          }
+        ],
+        "requested_date": "2026-04-17",
+        "used_date": "2026-04-17",
+        "policy_rate": null,
+        "current_target": null,
+        "midpoint": null,
+        "current band": null,
+        "most_recent_effr": null,
+        "assumed_move_bps": 25,
+        "label": "10w ago (2026-04-17)"
+      },
+      "compare": {
+        "x": [
+          "2026-07-15",
+          "2026-09-02",
+          "2026-10-28",
+          "2026-12-09",
+          "2027-01-20",
+          "2027-03-03",
+          "2027-04-14",
+          "2027-05-26",
+          "2027-07-07",
+          "2027-08-18"
+        ],
+        "x_labels": [
+          "Jul 15, 2026",
+          "Sep 02, 2026",
+          "Oct 28, 2026",
+          "Dec 09, 2026",
+          "Jan 20, 2027*",
+          "Mar 03, 2027*",
+          "Apr 14, 2027*",
+          "May 26, 2027*",
+          "Jul 07, 2027*",
+          "Aug 18, 2027*"
+        ],
+        "as_of": "2026-06-26 17:10:09 EDT",
+        "rundate": "2026-06-27 08:00:09 EDT",
+        "timezone": "EDT",
+        "overnight_rate_target": 2.25,
+        "deposit_rate": 2.2,
+        "bank_rate": 2.5,
+        "last_corra": 2.31,
+        "corra_target_spread_bps": -6,
+        "spread_is_frozen": false,
+        "assumed_move_bps": 25,
+        "lines": [
+          {
+            "key": "1w",
+            "label": "1w ago (2026-06-19)",
+            "current": 0,
+            "values": [
+              2.223,
+              2.234,
+              2.261,
+              2.323,
+              2.391,
+              2.485,
+              2.545,
+              2.639,
+              2.663,
+              2.739
+            ],
+            "used_date": "2026-06-19",
+            "requested_date": "2026-06-19"
+          },
+          {
+            "key": "3w",
+            "label": "3w ago (2026-06-05)",
+            "current": 0,
+            "values": [
+              2.252,
+              2.308,
+              2.416,
+              2.559,
+              2.616,
+              2.727,
+              2.822,
+              2.822,
+              2.907,
+              null
+            ],
+            "used_date": "2026-06-05",
+            "requested_date": "2026-06-05"
+          },
+          {
+            "key": "6w",
+            "label": "6w ago (2026-05-15)",
+            "current": 0,
+            "values": [
+              2.341,
+              2.709,
+              2.971,
+              3.06,
+              3.11,
+              3.161,
+              3.204,
+              null,
+              null,
+              null
+            ],
+            "used_date": "2026-05-15",
+            "requested_date": "2026-05-15"
+          },
+          {
+            "key": "10w",
+            "label": "10w ago (2026-04-17)",
+            "current": 0,
+            "values": [
+              2.245,
+              2.437,
+              2.589,
+              2.651,
+              2.691,
+              2.726,
+              null,
+              null,
+              null,
+              null
+            ],
+            "used_date": "2026-04-17",
+            "requested_date": "2026-04-17"
+          }
+        ]
+      },
+      "api_version": 1,
+      "generated_at_utc": "2026-06-27T12:00:14.070Z"
+    },
+    "AUD": {
+      "today": {
+        "as_of": "2026-06-26 03:59:57 EDT",
+        "rundate": "2026-06-27 08:00:27 EDT",
+        "timezone": "EDT",
+        "cash_rate_target": 4.35,
+        "es_balance_rate": 4.25,
+        "overnight_repo_rate": 4.6,
+        "most_recent_aonia": 4.35,
+        "aonia_target_spread_bps": 0,
+        "spread_is_frozen": false,
+        "aonia_is_stale": false,
+        "assumed_move_bps": 25,
+        "rows": [
+          {
+            "meeting": "Aug 11, 2026",
+            "meeting_iso": "2026-08-11",
+            "implied_rate_post_meeting": 4.371,
+            "prob_move_pct": 8.39,
+            "prob_is_cut": false,
+            "num_moves": 0.08,
+            "num_moves_is_cut": false,
+            "change_bps": 2.1
+          },
+          {
+            "meeting": "Sep 29, 2026",
+            "meeting_iso": "2026-09-29",
+            "implied_rate_post_meeting": 4.399,
+            "prob_move_pct": 11.39,
+            "prob_is_cut": false,
+            "num_moves": 0.2,
+            "num_moves_is_cut": false,
+            "change_bps": 4.9
+          },
+          {
+            "meeting": "Nov 03, 2026",
+            "meeting_iso": "2026-11-03",
+            "implied_rate_post_meeting": 4.426,
+            "prob_move_pct": 10.57,
+            "prob_is_cut": false,
+            "num_moves": 0.3,
+            "num_moves_is_cut": false,
+            "change_bps": 7.6
+          },
+          {
+            "meeting": "Dec 08, 2026",
+            "meeting_iso": "2026-12-08",
+            "implied_rate_post_meeting": 4.454,
+            "prob_move_pct": 11.41,
+            "prob_is_cut": false,
+            "num_moves": 0.42,
+            "num_moves_is_cut": false,
+            "change_bps": 10.4
+          },
+          {
+            "meeting": "Feb 09, 2027",
+            "meeting_iso": "2027-02-09",
+            "implied_rate_post_meeting": 4.46,
+            "prob_move_pct": 2.41,
+            "prob_is_cut": false,
+            "num_moves": 0.44,
+            "num_moves_is_cut": false,
+            "change_bps": 11
+          },
+          {
+            "meeting": "Mar 23, 2027",
+            "meeting_iso": "2027-03-23",
+            "implied_rate_post_meeting": 4.442,
+            "prob_move_pct": 7.37,
+            "prob_is_cut": true,
+            "num_moves": 0.37,
+            "num_moves_is_cut": false,
+            "change_bps": 9.2
+          },
+          {
+            "meeting": "May 04, 2027",
+            "meeting_iso": "2027-05-04",
+            "implied_rate_post_meeting": 4.401,
+            "prob_move_pct": 16.33,
+            "prob_is_cut": true,
+            "num_moves": 0.2,
+            "num_moves_is_cut": false,
+            "change_bps": 5.1
+          },
+          {
+            "meeting": "Jun 22, 2027",
+            "meeting_iso": "2027-06-22",
+            "implied_rate_post_meeting": 4.365,
+            "prob_move_pct": 14.5,
+            "prob_is_cut": true,
+            "num_moves": 0.06,
+            "num_moves_is_cut": false,
+            "change_bps": 1.5
+          },
+          {
+            "meeting": "Aug 10, 2027",
+            "meeting_iso": "2027-08-10",
+            "implied_rate_post_meeting": 4.355,
+            "prob_move_pct": 4.09,
+            "prob_is_cut": true,
+            "num_moves": 0.02,
+            "num_moves_is_cut": false,
+            "change_bps": 0.5
+          },
+          {
+            "meeting": "Sep 28, 2027",
+            "meeting_iso": "2027-09-28",
+            "implied_rate_post_meeting": 4.335,
+            "prob_move_pct": 8.04,
+            "prob_is_cut": true,
+            "num_moves": 0.06,
+            "num_moves_is_cut": true,
+            "change_bps": -1.5
+          }
+        ],
+        "debug": {
+          "today_local": "2026-06-27",
+          "tz": "Australia/Sydney",
+          "should_drop_first_meeting": true,
+          "drop_applied": false,
+          "first_upcoming_meeting": "2026-08-11",
+          "meetings_computed": 10,
+          "df_pillars_built": 32,
+          "segments_approach": "df-window: DF from f(0,1M) anchor + monthly chain, log-linear interp (ACT/365)",
+          "effective_date_rule": "T+1 calendar day",
+          "r0_source": "last_aonia",
+          "mw_policy_override_active": false,
+          "mw_policy_implied_rate": null,
+          "mw_anchor_overridden": false,
+          "mw_anchor_original": 4.356,
+          "mw_fwd_overrides_count": 0,
+          "mw_next_meeting_iso": "2026-08-11"
+        }
+      },
+      "targets": {
+        "ago_1w": {
+          "date": "2026-06-19"
+        },
+        "ago_3w": {
+          "date": "2026-06-05"
+        },
+        "ago_6w": {
+          "date": "2026-05-15"
+        },
+        "ago_10w": {
+          "date": "2026-04-17"
+        }
+      },
+      "ago_1w": {
+        "rows": [
+          {
+            "meeting": "Aug 11, 2026",
+            "meeting_iso": "2026-08-11",
+            "implied_rate_post_meeting": 4.375,
+            "change_bps": 2.5,
+            "prob_move_pct": 10.14,
+            "prob_is_cut": false,
+            "num_moves": 0.1,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 29, 2026",
+            "meeting_iso": "2026-09-29",
+            "implied_rate_post_meeting": 4.436,
+            "change_bps": 8.6,
+            "prob_move_pct": 24.1,
+            "prob_is_cut": false,
+            "num_moves": 0.34,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Nov 03, 2026",
+            "meeting_iso": "2026-11-03",
+            "implied_rate_post_meeting": 4.473,
+            "change_bps": 12.3,
+            "prob_move_pct": 14.89,
+            "prob_is_cut": false,
+            "num_moves": 0.49,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Dec 08, 2026",
+            "meeting_iso": "2026-12-08",
+            "implied_rate_post_meeting": 4.505,
+            "change_bps": 15.5,
+            "prob_move_pct": 12.89,
+            "prob_is_cut": false,
+            "num_moves": 0.62,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Feb 09, 2027",
+            "meeting_iso": "2027-02-09",
+            "implied_rate_post_meeting": 4.53,
+            "change_bps": 18,
+            "prob_move_pct": 10.01,
+            "prob_is_cut": false,
+            "num_moves": 0.72,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Mar 23, 2027",
+            "meeting_iso": "2027-03-23",
+            "implied_rate_post_meeting": 4.538,
+            "change_bps": 18.8,
+            "prob_move_pct": 3.21,
+            "prob_is_cut": false,
+            "num_moves": 0.75,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "May 04, 2027",
+            "meeting_iso": "2027-05-04",
+            "implied_rate_post_meeting": 4.539,
+            "change_bps": 18.9,
+            "prob_move_pct": 0.27,
+            "prob_is_cut": false,
+            "num_moves": 0.76,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jun 22, 2027",
+            "meeting_iso": "2027-06-22",
+            "implied_rate_post_meeting": 4.48,
+            "change_bps": 13,
+            "prob_move_pct": 23.68,
+            "prob_is_cut": true,
+            "num_moves": 0.52,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Aug 10, 2027",
+            "meeting_iso": "2027-08-10",
+            "implied_rate_post_meeting": 4.449,
+            "change_bps": 9.9,
+            "prob_move_pct": 12.35,
+            "prob_is_cut": true,
+            "num_moves": 0.39,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 28, 2027",
+            "meeting_iso": "2027-09-28",
+            "implied_rate_post_meeting": 4.415,
+            "change_bps": 6.5,
+            "prob_move_pct": 13.43,
+            "prob_is_cut": true,
+            "num_moves": 0.26,
+            "num_moves_is_cut": false
+          }
+        ],
+        "requested_date": "2026-06-19",
+        "used_date": "2026-06-19",
+        "policy_rate": null,
+        "current_target": null,
+        "midpoint": null,
+        "current band": null,
+        "most_recent_effr": null,
+        "assumed_move_bps": 25,
+        "label": "1w ago (2026-06-19)"
+      },
+      "ago_3w": {
+        "rows": [
+          {
+            "meeting": "Jun 16, 2026",
+            "meeting_iso": "2026-06-16",
+            "implied_rate_post_meeting": 4.366,
+            "change_bps": 1.6,
+            "prob_move_pct": 6.25,
+            "prob_is_cut": false,
+            "num_moves": 0.06,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Aug 11, 2026",
+            "meeting_iso": "2026-08-11",
+            "implied_rate_post_meeting": 4.5,
+            "change_bps": 15,
+            "prob_move_pct": 53.94,
+            "prob_is_cut": false,
+            "num_moves": 0.6,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 29, 2026",
+            "meeting_iso": "2026-09-29",
+            "implied_rate_post_meeting": 4.5,
+            "change_bps": 15,
+            "prob_move_pct": 0,
+            "prob_is_cut": false,
+            "num_moves": 0.6,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Nov 03, 2026",
+            "meeting_iso": "2026-11-03",
+            "implied_rate_post_meeting": 4.583,
+            "change_bps": 23.3,
+            "prob_move_pct": 33.09,
+            "prob_is_cut": false,
+            "num_moves": 0.93,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Dec 08, 2026",
+            "meeting_iso": "2026-12-08",
+            "implied_rate_post_meeting": 4.583,
+            "change_bps": 23.3,
+            "prob_move_pct": 0.21,
+            "prob_is_cut": true,
+            "num_moves": 0.93,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Feb 09, 2027",
+            "meeting_iso": "2027-02-09",
+            "implied_rate_post_meeting": 4.604,
+            "change_bps": 25.4,
+            "prob_move_pct": 8.64,
+            "prob_is_cut": false,
+            "num_moves": 1.02,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Mar 23, 2027",
+            "meeting_iso": "2027-03-23",
+            "implied_rate_post_meeting": 4.607,
+            "change_bps": 25.7,
+            "prob_move_pct": 0.89,
+            "prob_is_cut": false,
+            "num_moves": 1.03,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "May 04, 2027",
+            "meeting_iso": "2027-05-04",
+            "implied_rate_post_meeting": 4.507,
+            "change_bps": 15.7,
+            "prob_move_pct": 39.96,
+            "prob_is_cut": true,
+            "num_moves": 0.63,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jun 22, 2027",
+            "meeting_iso": "2027-06-22",
+            "implied_rate_post_meeting": 4.566,
+            "change_bps": 21.6,
+            "prob_move_pct": 23.72,
+            "prob_is_cut": false,
+            "num_moves": 0.86,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Aug 10, 2027",
+            "meeting_iso": "2027-08-10",
+            "implied_rate_post_meeting": 4.571,
+            "change_bps": 22.1,
+            "prob_move_pct": 1.89,
+            "prob_is_cut": false,
+            "num_moves": 0.88,
+            "num_moves_is_cut": false
+          }
+        ],
+        "requested_date": "2026-06-05",
+        "used_date": "2026-06-05",
+        "policy_rate": null,
+        "current_target": null,
+        "midpoint": null,
+        "current band": null,
+        "most_recent_effr": null,
+        "assumed_move_bps": 25,
+        "label": "3w ago (2026-06-05)"
+      },
+      "ago_6w": {
+        "rows": [
+          {
+            "meeting": "Jun 16, 2026",
+            "meeting_iso": "2026-06-16",
+            "implied_rate_post_meeting": 4.397,
+            "change_bps": 4.8,
+            "prob_move_pct": 19,
+            "prob_is_cut": false,
+            "num_moves": 0.19,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Aug 11, 2026",
+            "meeting_iso": "2026-08-11",
+            "implied_rate_post_meeting": 4.564,
+            "change_bps": 21.4,
+            "prob_move_pct": 66.65,
+            "prob_is_cut": false,
+            "num_moves": 0.86,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 29, 2026",
+            "meeting_iso": "2026-09-29",
+            "implied_rate_post_meeting": 4.63,
+            "change_bps": 28,
+            "prob_move_pct": 26.35,
+            "prob_is_cut": false,
+            "num_moves": 1.12,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Nov 03, 2026",
+            "meeting_iso": "2026-11-03",
+            "implied_rate_post_meeting": 4.719,
+            "change_bps": 36.9,
+            "prob_move_pct": 35.56,
+            "prob_is_cut": false,
+            "num_moves": 1.48,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Dec 08, 2026",
+            "meeting_iso": "2026-12-08",
+            "implied_rate_post_meeting": 4.74,
+            "change_bps": 39,
+            "prob_move_pct": 8.44,
+            "prob_is_cut": false,
+            "num_moves": 1.56,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Feb 09, 2027",
+            "meeting_iso": "2027-02-09",
+            "implied_rate_post_meeting": 4.745,
+            "change_bps": 39.5,
+            "prob_move_pct": 2,
+            "prob_is_cut": false,
+            "num_moves": 1.58,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Mar 23, 2027",
+            "meeting_iso": "2027-03-23",
+            "implied_rate_post_meeting": 4.745,
+            "change_bps": 39.5,
+            "prob_move_pct": 0,
+            "prob_is_cut": true,
+            "num_moves": 1.58,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "May 04, 2027",
+            "meeting_iso": "2027-05-04",
+            "implied_rate_post_meeting": 4.711,
+            "change_bps": 36.1,
+            "prob_move_pct": 13.78,
+            "prob_is_cut": true,
+            "num_moves": 1.44,
+            "num_moves_is_cut": false
+          }
+        ],
+        "requested_date": "2026-05-15",
+        "used_date": "2026-05-15",
+        "policy_rate": null,
+        "current_target": null,
+        "midpoint": null,
+        "current band": null,
+        "most_recent_effr": null,
+        "assumed_move_bps": 25,
+        "label": "6w ago (2026-05-15)"
+      },
+      "ago_10w": {
+        "rows": [
+          {
+            "meeting": "May 05, 2026",
+            "meeting_iso": "2026-05-05",
+            "implied_rate_post_meeting": 4.27,
+            "change_bps": 17,
+            "prob_move_pct": 68.15,
+            "prob_is_cut": false,
+            "num_moves": 0.68,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Jun 16, 2026",
+            "meeting_iso": "2026-06-16",
+            "implied_rate_post_meeting": 4.334,
+            "change_bps": 23.4,
+            "prob_move_pct": 25.38,
+            "prob_is_cut": false,
+            "num_moves": 0.94,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Aug 11, 2026",
+            "meeting_iso": "2026-08-11",
+            "implied_rate_post_meeting": 4.515,
+            "change_bps": 41.5,
+            "prob_move_pct": 72.46,
+            "prob_is_cut": false,
+            "num_moves": 1.66,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Sep 29, 2026",
+            "meeting_iso": "2026-09-29",
+            "implied_rate_post_meeting": 4.515,
+            "change_bps": 41.5,
+            "prob_move_pct": 0,
+            "prob_is_cut": false,
+            "num_moves": 1.66,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Nov 03, 2026",
+            "meeting_iso": "2026-11-03",
+            "implied_rate_post_meeting": 4.665,
+            "change_bps": 56.5,
+            "prob_move_pct": 60,
+            "prob_is_cut": false,
+            "num_moves": 2.26,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Dec 08, 2026",
+            "meeting_iso": "2026-12-08",
+            "implied_rate_post_meeting": 4.665,
+            "change_bps": 56.5,
+            "prob_move_pct": 0,
+            "prob_is_cut": false,
+            "num_moves": 2.26,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Feb 09, 2027",
+            "meeting_iso": "2027-02-09",
+            "implied_rate_post_meeting": 4.665,
+            "change_bps": 56.5,
+            "prob_move_pct": 0,
+            "prob_is_cut": false,
+            "num_moves": 2.26,
+            "num_moves_is_cut": false
+          },
+          {
+            "meeting": "Mar 23, 2027",
+            "meeting_iso": "2027-03-23",
+            "implied_rate_post_meeting": 4.655,
+            "change_bps": 55.5,
+            "prob_move_pct": 4,
+            "prob_is_cut": true,
+            "num_moves": 2.22,
+            "num_moves_is_cut": false
+          }
+        ],
+        "requested_date": "2026-04-17",
+        "used_date": "2026-04-17",
+        "policy_rate": null,
+        "current_target": null,
+        "midpoint": null,
+        "current band": null,
+        "most_recent_effr": null,
+        "assumed_move_bps": 25,
+        "label": "10w ago (2026-04-17)"
+      },
+      "compare": {
+        "x": [
+          "2026-08-11",
+          "2026-09-29",
+          "2026-11-03",
+          "2026-12-08",
+          "2027-02-09",
+          "2027-03-23",
+          "2027-05-04",
+          "2027-06-22",
+          "2027-08-10",
+          "2027-09-28"
+        ],
+        "x_labels": [
+          "Aug 11, 2026",
+          "Sep 29, 2026",
+          "Nov 03, 2026",
+          "Dec 08, 2026",
+          "Feb 09, 2027",
+          "Mar 23, 2027",
+          "May 04, 2027",
+          "Jun 22, 2027",
+          "Aug 10, 2027",
+          "Sep 28, 2027"
+        ],
+        "as_of": "2026-06-26 03:59:57 EDT",
+        "tz": null,
+        "rundate": "2026-06-27 08:00:27 EDT",
+        "timezone": "EDT",
+        "cash_rate_target": 4.35,
+        "es_balance_rate": 4.25,
+        "overnight_repo_rate": 4.6,
+        "most_recent_aonia": 4.35,
+        "aonia_target_spread_bps": 0,
+        "spread_is_frozen": false,
+        "assumed_move_bps": 25,
+        "lines": [
+          {
+            "key": "1w",
+            "label": "1w ago (2026-06-19)",
+            "current": null,
+            "values": [
+              4.375,
+              4.436,
+              4.473,
+              4.505,
+              4.53,
+              4.538,
+              4.539,
+              4.48,
+              4.449,
+              4.415
+            ],
+            "used_date": "2026-06-19",
+            "requested_date": "2026-06-19"
+          },
+          {
+            "key": "3w",
+            "label": "3w ago (2026-06-05)",
+            "current": null,
+            "values": [
+              4.5,
+              4.5,
+              4.583,
+              4.583,
+              4.604,
+              4.607,
+              4.507,
+              4.566,
+              4.571,
+              null
+            ],
+            "used_date": "2026-06-05",
+            "requested_date": "2026-06-05"
+          },
+          {
+            "key": "6w",
+            "label": "6w ago (2026-05-15)",
+            "current": null,
+            "values": [
+              4.564,
+              4.63,
+              4.719,
+              4.74,
+              4.745,
+              4.745,
+              4.711,
+              null,
+              null,
+              null
+            ],
+            "used_date": "2026-05-15",
+            "requested_date": "2026-05-15"
+          },
+          {
+            "key": "10w",
+            "label": "10w ago (2026-04-17)",
+            "current": null,
+            "values": [
+              4.515,
+              4.515,
+              4.665,
+              4.665,
+              4.665,
+              4.655,
+              null,
+              null,
+              null,
+              null
+            ],
+            "used_date": "2026-04-17",
+            "requested_date": "2026-04-17"
+          }
+        ]
+      },
+      "api_version": 1,
+      "generated_at_utc": "2026-06-27T12:00:31.518Z"
+    }
+  },
+  "fetchedAt": "2026-06-27T14:31:47.136Z"
+}

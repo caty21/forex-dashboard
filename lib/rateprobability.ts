@@ -1,7 +1,10 @@
 // lib/rateprobability.ts
 // Données de probabilités de taux depuis rateprobability.com (API publique OIS/futures)
 // Endpoint pattern: https://rateprobability.com/api/{cb}/latest
+// Fallback: data/rate-probabilities.json mis à jour par GitHub Actions toutes les heures
 
+import { readFileSync } from "fs";
+import { join } from "path";
 import type { Currency } from "./types";
 import { fetchILExpectationsWithHistory } from "./investinglive";
 import type { ILExpectationsMap } from "./investinglive";
@@ -114,7 +117,10 @@ async function fetchCBPath(ccy: Currency, slug: string): Promise<CBRatePath | nu
       },
       cache: "no-store",
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error(`[rate-prob] ${slug} HTTP ${res.status} ${res.statusText}`);
+      return null;
+    }
     const body  = await res.json() as Record<string, unknown>;
     const today = body["today"] as Record<string, unknown> | undefined;
     if (!today) return null;
@@ -219,6 +225,52 @@ function buildSNBPath(il: ILExpectationsMap, currentRate: number): CBRatePath | 
   };
 }
 
+// ── Fallback : data JSON committé par GitHub Actions ─────────────────────────
+
+function loadCachedRPBody(ccy: string, slug: string): Record<string, unknown> | null {
+  try {
+    const filePath = join(process.cwd(), "data", "rate-probabilities.json");
+    const raw = readFileSync(filePath, "utf8");
+    const parsed = JSON.parse(raw) as { data: Record<string, unknown>; fetchedAt: string };
+    const entry = parsed.data?.[ccy] as Record<string, unknown> | undefined;
+    if (!entry) return null;
+    const ageMs = Date.now() - new Date(parsed.fetchedAt).getTime();
+    if (ageMs > 4 * 60 * 60 * 1000) { // ignore si > 4h
+      console.warn(`[rate-prob] cache stale (${Math.round(ageMs / 3600000)}h), skipping`);
+      return null;
+    }
+    console.log(`[rate-prob] ${ccy} loaded from GitHub Actions cache (${Math.round(ageMs / 60000)}min old)`);
+    return entry;
+  } catch { return null; }
+}
+
+// Reparse un body brut de rateprobability.com (même format que fetchCBPath)
+function parseCBBody(ccy: Currency, body: Record<string, unknown>): CBRatePath | null {
+  const today = body["today"] as Record<string, unknown> | undefined;
+  if (!today) return null;
+  const currentRate = getCurrentRate(ccy, today);
+  const asOf = getAsOf(today);
+  const nowIso = new Date().toISOString().slice(0, 10);
+  const maxIso = new Date(Date.now() + 380 * 86400000).toISOString().slice(0, 10);
+  const rawRows = (today["rows"] as Array<Record<string, unknown>> | undefined) ?? [];
+  const meetings: RateProbMeeting[] = rawRows
+    .filter(r => typeof r["meeting_iso"] === "string" && (r["meeting_iso"] as string) >= nowIso && (r["meeting_iso"] as string) <= maxIso)
+    .map(r => ({
+      label:       (r["meeting"] as string).slice(0, 6),
+      dateIso:     r["meeting_iso"] as string,
+      impliedRate: parseFloat(String(r["implied_rate_post_meeting"] ?? currentRate)),
+      probMovePct: parseFloat(String(r["prob_move_pct"] ?? 0)),
+      probIsCut:   Boolean(r["prob_is_cut"]),
+      changeBps:   parseFloat(String(r["change_bps"] ?? 0)),
+    }));
+  if (!meetings.length) return null;
+  const peakMeeting = meetings.reduce((best, m) => m.probMovePct > best.probMovePct ? m : best, meetings[0]);
+  const currentYear = new Date().getFullYear();
+  const meetsThisYear = meetings.filter(m => m.dateIso <= `${currentYear}-12-31`);
+  const yearEndImplied = meetsThisYear.length > 0 ? meetsThisYear.at(-1)!.impliedRate : meetings[0].impliedRate;
+  return { currency: ccy, asOf, currentRate, meetings, peakMeeting, yearEndImplied };
+}
+
 // ── Fetch toutes les CB en parallèle ──────────────────────────────────────────
 
 export async function fetchAllCBPaths(): Promise<RateProbData> {
@@ -233,11 +285,20 @@ export async function fetchAllCBPaths(): Promise<RateProbData> {
 
   const data: RateProbData = {};
 
-  // Intègre les données rateprobability.com
+  // Intègre les données rateprobability.com + fallback cache GitHub Actions
   for (let i = 0; i < CB_KEYS.length; i++) {
-    const [ccy] = CB_KEYS[i];
+    const [ccy, slug] = CB_KEYS[i];
     const r = rpResults[i];
-    if (r.status === "fulfilled" && r.value) data[ccy] = r.value;
+    if (r.status === "fulfilled" && r.value) {
+      data[ccy] = r.value;
+    } else {
+      // Live fetch failed → try the GitHub Actions hourly cache
+      const cachedBody = loadCachedRPBody(ccy, slug);
+      if (cachedBody) {
+        const parsed = parseCBBody(ccy as Currency, cachedBody);
+        if (parsed) data[ccy] = parsed;
+      }
+    }
   }
 
   // CHF/SNB : rateprobability ne couvre pas la SNB → InvestingLive est la seule source
