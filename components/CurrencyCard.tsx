@@ -939,7 +939,8 @@ export default function CurrencyCard({
       return id;
     });
     onMacroSlideChange?.(id);
-  }, [onMacroSlideChange]);
+    onCardTabChange?.("overview");
+  }, [onMacroSlideChange, onCardTabChange]);
 
   // Sync depuis une autre carte : calculer la direction par rapport à la valeur précédente
   useEffect(() => {
@@ -982,7 +983,8 @@ export default function CurrencyCard({
       return id;
     });
     onSignauxSlideChange?.(id);
-  }, [onSignauxSlideChange]);
+    onCardTabChange?.("mispricing");
+  }, [onSignauxSlideChange, onCardTabChange]);
 
   // ── Recent published events for this currency (last 72h, non-low impact) ─────
   const recentEvents = useMemo(() => {
