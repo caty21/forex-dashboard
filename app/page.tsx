@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { RefreshCw, Zap, Database, Activity, Maximize2, Minimize2 } from "lucide-react";
+import { RefreshCw, Zap, Database, Activity, Maximize2, Minimize2, X, BarChart2 } from "lucide-react";
 import { CURRENCIES, CURRENCY_META } from "@/lib/constants";
-import type { Currency, DriverData, SentimentEntry, CotEntry } from "@/lib/types";
+import type { Currency, DriverData, SentimentEntry, CotEntry, MacroSection } from "@/lib/types";
 import type { RateProbData } from "@/lib/rateprobability";
 import { saveCache, loadCache, formatCacheDate } from "@/lib/localCache";
 import CurrencyCard from "@/components/CurrencyCard";
@@ -23,7 +23,7 @@ const REFRESH_MS = parseInt(process.env.NEXT_PUBLIC_REFRESH_INTERVAL_MS ?? "3600
 export default function Dashboard() {
   const [drivers,      setDrivers]      = useState<DriverData | null>(null);
   const [expectations, setExpectations] = useState<Record<string, unknown> | null>(null);
-  const [yields,       setYields]       = useState<{ yields: Record<string, number | null>; spreads: Record<string, number | null>; dayDeltas?: Record<string, number | null> } | null>(null);
+  const [yields,       setYields]       = useState<{ yields: Record<string, number | null>; spreads: Record<string, number | null>; dayDeltas?: Record<string, number | null>; fxDayPct?: Record<string, number | null> } | null>(null);
   const [sentiment,    setSentiment]    = useState<Record<string, SentimentEntry> | null>(null);
   const [cot,          setCot]          = useState<Record<string, CotEntry> | null>(null);
   const [calEvents,    setCalEvents]    = useState<CalendarEvent[]>([]);
@@ -41,6 +41,13 @@ export default function Dashboard() {
   const [driversFromCache,  setDriversFromCache]  = useState(false);
   const [driversCacheAge,   setDriversCacheAge]   = useState<string | null>(null);
   const [isFullscreen,      setIsFullscreen]      = useState(false);
+  const [macroSection,      setMacroSection]      = useState<MacroSection>("all");
+  const [comparisonOpen,    setComparisonOpen]    = useState(false);
+  const [comparisonSection, setComparisonSection] = useState<Exclude<MacroSection,"all">>("inflation");
+  const [comparisonCurrencies, setComparisonCurrencies] = useState<Currency[] | "all">("all");
+  const [focusCurrency,     setFocusCurrency]     = useState<Currency | "all">("all");
+  const [globalMacroSlide,  setGlobalMacroSlide]  = useState<"mon"|"infl"|"cro"|"empl">("mon");
+  const [macroSyncEnabled,  setMacroSyncEnabled]  = useState(false);
 
   // ── Sentiment multi-paires Myfxbook → {CCY: {longPct, shortPct, pair}} ──────
   // Pour chaque devise, on calcule le % "long CCY" en moyenne pondérée (par volume)
@@ -297,12 +304,16 @@ export default function Dashboard() {
 
         <div className="flex items-center gap-3">
           {divergenceCount > 0 && (
-            <div className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 rounded-full px-3 py-1.5">
+            <button
+              onClick={() => setActiveTab("dashboard")}
+              title="Devises avec score macro ≥ 2 — cliquer pour voir le dashboard"
+              className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 rounded-full px-3 py-1.5 hover:bg-amber-500/20 transition-colors"
+            >
               <Zap size={12} className="text-amber-400" />
               <span className="text-xs font-medium text-amber-400">
                 {divergenceCount} divergence{divergenceCount > 1 ? "s" : ""} active{divergenceCount > 1 ? "s" : ""}
               </span>
-            </div>
+            </button>
           )}
 
           <div className="flex items-center gap-2 text-[11px] text-slate-500">
@@ -363,30 +374,204 @@ export default function Dashboard() {
 
       {activeTab === "dashboard" && (
         <>
-          {/* Active divergences summary */}
-          {activeDivergences.length > 0 && (
-            <div className="mb-4 flex flex-wrap gap-2">
-              {activeDivergences
-                .sort((a, b) => Math.abs(b.score) - Math.abs(a.score))
-                .map(({ currency, score }) => (
-                  <div
-                    key={currency}
-                    className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full border font-medium ${
-                      score < 0
-                        ? "bg-red-500/10 border-red-500/20 text-red-400"
-                        : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                    }`}
-                  >
-                    <Zap size={10} />
-                    {CURRENCY_META[currency].flag} {currency} SD:{score > 0 ? "+" : ""}{score}
+          {/* ── Barre de contrôle : Sync + Comparer uniquement ────────────── */}
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <button
+              onClick={() => setMacroSyncEnabled(v => !v)}
+              className={`text-[11px] font-medium px-3 py-1 rounded-full border transition-all flex items-center gap-1.5 ${
+                macroSyncEnabled
+                  ? "bg-violet-500/15 border-violet-500/30 text-violet-400"
+                  : "border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-600"
+              }`}
+              title="Synchroniser l'onglet macro affiché sur toutes les cartes"
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${macroSyncEnabled ? "bg-violet-400" : "bg-slate-600"}`} />
+              Sync
+            </button>
+            <button
+              onClick={() => setComparisonOpen(v => !v)}
+              className={`text-[11px] font-medium px-3 py-1 rounded-full border transition-all flex items-center gap-1.5 ${
+                comparisonOpen
+                  ? "bg-sky-500/15 border-sky-500/30 text-sky-400"
+                  : "border-slate-700 text-slate-500 hover:text-sky-400 hover:border-sky-500/40"
+              }`}
+            >
+              <BarChart2 size={11} />
+              Comparer
+            </button>
+            {/* Badges actifs (section filtre + focus devise) */}
+            {macroSection !== "all" && (
+              <div className="flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 rounded-full px-2.5 py-1">
+                <span className="text-[10px] text-amber-400 font-medium">
+                  {{ inflation:"📊 Inflation", pmi:"🏭 PMI", employment:"👷 Emploi", gdp:"📈 PIB", policy:"🏦 Politique" }[macroSection]}
+                </span>
+                <button onClick={() => { setMacroSection("all"); }} className="text-amber-500/50 hover:text-amber-400 transition-colors text-[10px] leading-none">✕</button>
+              </div>
+            )}
+            {focusCurrency !== "all" && (
+              <div className="flex items-center gap-1 bg-sky-500/10 border border-sky-500/20 rounded-full px-2.5 py-1">
+                <span className="text-[10px] text-sky-400 font-medium">{CURRENCY_META[focusCurrency].flag} {focusCurrency}</span>
+                <button onClick={() => { setFocusCurrency("all"); setComparisonCurrencies("all"); }} className="text-sky-500/50 hover:text-sky-400 transition-colors text-[10px] leading-none">✕</button>
+              </div>
+            )}
+          </div>
+
+          {/* ── Comparison panel ──────────────────────────────────────────── */}
+          {comparisonOpen && (() => {
+            type IndSnap = { value: number | null; trend: string | null; surprise: number | null } | null;
+            type CacheData = { indicators: Record<string, IndSnap> };
+            const COMP_SECTIONS: { id: Exclude<MacroSection,"all">; label: string }[] = [
+              { id: "inflation",  label: "📊 Inflation" },
+              { id: "pmi",        label: "🏭 PMI" },
+              { id: "employment", label: "👷 Emploi" },
+              { id: "gdp",        label: "📈 PIB" },
+              { id: "policy",     label: "🏦 Politique" },
+            ];
+            const SECTION_FIELDS: Record<Exclude<MacroSection,"all">, { key: string; label: string; unit?: string; inv?: boolean }[]> = {
+              inflation:  [{ key:"cpiYoY", label:"CPI YoY", unit:"%" }, { key:"cpiCore", label:"Core CPI", unit:"%" }, { key:"cpiMoM", label:"CPI MoM", unit:"%" }],
+              pmi:        [{ key:"pmiComposite", label:"PMI Comp." }, { key:"pmiMfg", label:"PMI Mfg" }, { key:"pmiServices", label:"PMI Svc" }],
+              employment: [{ key:"unemployment", label:"Chômage", unit:"%", inv:true }, { key:"employment", label:"Emploi", unit:"k" }],
+              gdp:        [{ key:"gdp", label:"PIB QoQ", unit:"%" }, { key:"retailSales", label:"Retail Sales", unit:"%" }],
+              policy:     [{ key:"policyRate", label:"Taux dir.", unit:"%" }],
+            };
+            const fields = SECTION_FIELDS[comparisonSection];
+            const activeCurrencies = comparisonCurrencies === "all" ? CURRENCIES : comparisonCurrencies;
+            const rows = activeCurrencies.map(c => {
+              const cached = loadCache<CacheData>(`macro_${c}`);
+              const inds = cached?.data?.indicators ?? {};
+              return { currency: c, inds };
+            });
+            const trendColor = (t: string | null, inv = false) => {
+              if (!t) return "text-slate-500";
+              return (t === "up") !== inv ? "text-emerald-400" : "text-red-400";
+            };
+            const surpriseColor = (s: number | null, inv = false) => {
+              if (s === null) return "text-slate-500";
+              return (s > 0) !== inv ? "text-emerald-400" : "text-red-400";
+            };
+            const toggleCurrency = (c: Currency) => {
+              setComparisonCurrencies(prev => {
+                const current = prev === "all" ? [...CURRENCIES] : [...prev];
+                const next = current.includes(c) ? current.filter(x => x !== c) : [...current, c];
+                const result = next.length === CURRENCIES.length ? "all" : next.length === 0 ? "all" : next;
+                // 1 devise sélectionnée → zoom sur cette carte dans la grille
+                if (Array.isArray(result) && result.length === 1) setFocusCurrency(result[0]);
+                else setFocusCurrency("all");
+                return result;
+              });
+            };
+            const resetCurrencies = () => { setComparisonCurrencies("all"); setFocusCurrency("all"); };
+            return (
+              <div className="mb-4 bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-800">
+                  <span className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Comparaison</span>
+                  <button onClick={() => { setComparisonOpen(false); setMacroSection("all"); }} className="text-slate-600 hover:text-slate-400">
+                    <X size={14} />
+                  </button>
+                </div>
+                {/* Config row */}
+                <div className="px-4 py-2.5 border-b border-slate-800 flex flex-wrap gap-3 items-center">
+                  {/* Section picker */}
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {COMP_SECTIONS.map(s => (
+                      <button
+                        key={s.id}
+                        onClick={() => { setComparisonSection(s.id); setMacroSection(s.id); }}
+                        className={`text-[10px] font-medium px-2.5 py-1 rounded-full border transition-all ${
+                          comparisonSection === s.id
+                            ? "bg-sky-500/15 border-sky-500/30 text-sky-400"
+                            : "border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-600"
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
                   </div>
-                ))}
-            </div>
-          )}
+                  <div className="w-px bg-slate-800 self-stretch hidden sm:block" />
+                  {/* Currency picker — Toutes = tableau complet | 1 seule = zoom carte */}
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {Array.isArray(comparisonCurrencies) && comparisonCurrencies.length === 1 && (
+                      <span className="text-[9px] text-sky-400/60 mr-0.5">zoom ↓</span>
+                    )}
+                    <button
+                      onClick={resetCurrencies}
+                      className={`text-[10px] font-medium px-2.5 py-1 rounded-full border transition-all ${
+                        comparisonCurrencies === "all"
+                          ? "bg-slate-700 border-slate-600 text-slate-200"
+                          : "border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-600"
+                      }`}
+                    >
+                      Toutes
+                    </button>
+                    {CURRENCIES.map(c => {
+                      const active = comparisonCurrencies === "all" || comparisonCurrencies.includes(c);
+                      return (
+                        <button
+                          key={c}
+                          onClick={() => toggleCurrency(c)}
+                          className={`text-[10px] font-medium px-2 py-1 rounded-full border transition-all ${
+                            active
+                              ? "bg-slate-700 border-slate-600 text-slate-200"
+                              : "border-slate-700/50 text-slate-600 hover:text-slate-400"
+                          }`}
+                        >
+                          {CURRENCY_META[c].flag} {c}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                {/* Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[11px]">
+                    <thead>
+                      <tr className="border-b border-slate-800">
+                        <th className="text-left px-4 py-2 text-slate-600 font-medium w-20">Devise</th>
+                        {fields.map(f => (
+                          <th key={f.key} className="text-right px-3 py-2 text-slate-600 font-medium">{f.label}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map(({ currency: c, inds }) => (
+                        <tr key={c} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
+                          <td className="px-4 py-2 font-semibold text-slate-300">
+                            {CURRENCY_META[c].flag} {c}
+                          </td>
+                          {fields.map(f => {
+                            const ind = inds[f.key] as IndSnap;
+                            const val = ind?.value ?? null;
+                            const fmtVal = val !== null ? `${val % 1 === 0 ? val : val.toFixed(2)}${f.unit ?? ""}` : "—";
+                            const tArrow = ind?.trend === "up" ? "↑" : ind?.trend === "down" ? "↓" : "";
+                            return (
+                              <td key={f.key} className="text-right px-3 py-2">
+                                <span className={`font-semibold tabular-nums ${val !== null ? trendColor(ind?.trend ?? null, f.inv) : "text-slate-600"}`}>
+                                  {fmtVal}
+                                </span>
+                                {tArrow && (
+                                  <span className={`ml-0.5 text-[10px] ${trendColor(ind?.trend ?? null, f.inv)}`}>{tArrow}</span>
+                                )}
+                                {ind?.surprise !== null && ind?.surprise !== undefined && (
+                                  <span className={`ml-1 text-[9px] ${surpriseColor(ind.surprise, f.inv)}`}>
+                                    {ind.surprise > 0 ? "▲" : "▼"}
+                                  </span>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Currency cards grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {CURRENCIES.map((currency) => (
+          <div className={`grid gap-3 ${focusCurrency !== "all" ? "grid-cols-1 max-w-xl" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"}`}>
+            {CURRENCIES.filter(c => focusCurrency === "all" || c === focusCurrency).map((currency) => (
               <CurrencyCard
                 key={currency}
                 currency={currency}
@@ -396,6 +581,10 @@ export default function Dashboard() {
                 cot={cot?.[currency] ?? null}
                 ratePath={rateProbabilities?.[currency] ?? null}
                 onDivergenceUpdate={handleDivergenceUpdate}
+                calEvents={calEvents}
+                macroSection={macroSection}
+                syncMacroSlide={macroSyncEnabled ? globalMacroSlide : undefined}
+                onMacroSlideChange={macroSyncEnabled ? setGlobalMacroSlide : undefined}
               />
             ))}
           </div>
@@ -411,7 +600,7 @@ export default function Dashboard() {
       )}
 
       {activeTab === "yields" && (
-        <YieldsTab yieldsData={yields} />
+        <YieldsTab yieldsData={yields} fxDayPct={yields?.fxDayPct ?? null} />
       )}
 
       {activeTab === "news" && (

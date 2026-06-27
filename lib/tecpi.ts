@@ -697,3 +697,80 @@ export async function fetchTEGDPGrowthRate(): Promise<CoreCPIMap> {
     return {};
   }
 }
+
+// ── Employment Change — pages individuelles TradingEconomics ─────────────────
+// USD : /united-states/non-farm-payrolls → en milliers, MoM
+// GBP : /united-kingdom/employment-change → en milliers, MoM (3 mois glissants)
+// AUD : /australia/employment-change → en personnes → /1000
+// EUR : /euro-area/employment-change → QoQ%
+
+export interface TEEmploymentEntry {
+  value: number;   // k pour USD/GBP/AUD, QoQ% pour EUR
+  prev:  number | null;
+}
+
+const TE_EMP_CONFIG: Partial<Record<Currency, { slug: string; unitKw: string; divisor: number; precision: number }>> = {
+  USD: { slug: "united-states/non-farm-payrolls",    unitKw: "thousand", divisor: 1,    precision: 0 },
+  GBP: { slug: "united-kingdom/employment-change",   unitKw: "thousand", divisor: 1,    precision: 0 },
+  AUD: { slug: "australia/employment-change",         unitKw: "person",   divisor: 1000, precision: 1 },
+  EUR: { slug: "euro-area/employment-change",         unitKw: "percent",  divisor: 1,    precision: 2 },
+};
+
+export async function fetchTEEmploymentChange(): Promise<Partial<Record<Currency, TEEmploymentEntry>>> {
+  const headers = {
+    "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
+    "Accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+  };
+
+  const entries = await Promise.all(
+    (Object.entries(TE_EMP_CONFIG) as [Currency, NonNullable<typeof TE_EMP_CONFIG[Currency]>][])
+      .map(async ([ccy, { slug, unitKw, divisor, precision }]) => {
+        try {
+          const res = await fetch(`https://tradingeconomics.com/${slug}`, {
+            next: { revalidate: 21600 },
+            headers,
+          });
+          if (!res.ok) return null;
+          const html = await res.text();
+
+          // Current value from meta description
+          const metaM = html.match(/name=["']description["'][^>]*content=["']([^"']+)["']/i)
+                     ?? html.match(/content=["']([^"']+)["'][^>]*name=["']description["']/i);
+          const desc = metaM?.[1] ?? "";
+          const incrM = desc.match(/increased\s+by\s+([\d,]+\.?\d*)/i);
+          const decrM = desc.match(/decreased\s+by\s+([\d,]+\.?\d*)/i);
+          if (!incrM && !decrM) return null;
+
+          const sign    = incrM ? 1 : -1;
+          const absVal  = parseFloat((incrM?.[1] ?? decrM![1]).replace(/,/g, ""));
+          const curRaw  = sign * absVal;
+
+          // Find previous from table: groups of (value, prev, unit-label)
+          const tdVals: string[] = [];
+          const tdRe = /<td[^>]*>([^<]+)<\/td>/g;
+          let m: RegExpExecArray | null;
+          while ((m = tdRe.exec(html)) !== null) tdVals.push(m[1].trim());
+
+          let prevRaw: number | null = null;
+          for (let i = 0; i < tdVals.length - 2; i++) {
+            const a = parseFloat(tdVals[i].replace(/,/g, ""));
+            const b = parseFloat(tdVals[i + 1].replace(/,/g, ""));
+            const c = tdVals[i + 2].toLowerCase();
+            if (isNaN(a) || isNaN(b) || !c.includes(unitKw)) continue;
+            const tol = Math.max(1, Math.abs(curRaw) * 0.02);
+            if (Math.abs(a - curRaw) <= tol) { prevRaw = b; break; }
+          }
+
+          return [ccy, {
+            value: parseFloat((curRaw  / divisor).toFixed(precision)),
+            prev:  prevRaw !== null ? parseFloat((prevRaw / divisor).toFixed(precision)) : null,
+          }] as [Currency, TEEmploymentEntry];
+        } catch { return null; }
+      })
+  );
+
+  const result: Partial<Record<Currency, TEEmploymentEntry>> = {};
+  for (const e of entries) if (e) result[e[0]] = e[1];
+  return result;
+}

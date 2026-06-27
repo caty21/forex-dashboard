@@ -47,33 +47,6 @@ async function yahooQuote(symbol: string): Promise<FredResult> {
   } catch { return empty; }
 }
 
-// ── Stooq (Or XAU/USD, Argent XAG/USD — gratuit, sans clé, quasi temps réel) ─
-// delta = Close - Open = variation intraday vs ouverture de session
-
-async function stooqMetal(symbol: string): Promise<FredResult> {
-  const empty: FredResult = { value: null, delta: null, deltaPct: null };
-  try {
-    const url = `https://stooq.com/q/l/?s=${symbol}&f=sd2t2ohlcv&h&e=csv`;
-    const res  = await fetch(url, {
-      next: { revalidate: 300 }, // cache 5 min
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; ForexDashboard/1.0)" },
-    });
-    if (!res.ok) return empty;
-    const text  = await res.text();
-    const lines = text.trim().split("\n");
-    if (lines.length < 2) return empty;
-    const cols = lines[1].split(",");
-    // CSV header: Symbol,Date,Time,Open,High,Low,Close,Volume
-    const open  = parseFloat(cols[3]);
-    const close = parseFloat(cols[6]);
-    if (isNaN(close)) return empty;
-    const delta    = !isNaN(open) ? parseFloat((close - open).toFixed(2)) : null;
-    const deltaPct = (!isNaN(open) && open > 0)
-      ? parseFloat(((close - open) / open * 100).toFixed(2))
-      : null;
-    return { value: parseFloat(close.toFixed(2)), delta, deltaPct };
-  } catch { return empty; }
-}
 
 // ── Binance (Bitcoin — gratuit, sans clé, temps réel) ────────────────────────
 // ticker/price = prix spot instantané (plus précis que ticker/24hr lastPrice)
@@ -110,36 +83,150 @@ async function coingeckoBTC(): Promise<{ value: number | null; change24h: number
   } catch { return { value: null, change24h: null }; }
 }
 
+// ── investing.com — BTC/USD temps réel (data-test attributes, cache 1 min) ────
+// Sélecteurs stables : data-test="instrument-price-last/change/change-percent"
+async function investingBTC(): Promise<{ value: number | null; delta: number | null; deltaPct: number | null }> {
+  const empty = { value: null, delta: null, deltaPct: null };
+  try {
+    const res = await fetch("https://www.investing.com/crypto/bitcoin/btc-usd", {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return empty;
+    const html = await res.text();
+
+    // "61,307.0" → 61307
+    const priceMatch = html.match(/data-test="instrument-price-last">([^<]+)/);
+    const deltaMatch = html.match(/data-test="instrument-price-change">([^<]+)/);
+    // "(-0.75%)" → -0.75
+    const pctMatch   = html.match(/data-test="instrument-price-change-percent">\(([^)%]+)%\)/);
+
+    if (!priceMatch) return empty;
+    const value = parseFloat(priceMatch[1].replace(/,/g, ""));
+    if (isNaN(value)) return empty;
+
+    const delta    = deltaMatch ? parseFloat(deltaMatch[1].replace(/,/g, "")) : null;
+    const deltaPct = pctMatch   ? parseFloat(pctMatch[1])
+                   : delta !== null && value > 0 ? parseFloat(((delta / (value - delta)) * 100).toFixed(2))
+                   : null;
+
+    return {
+      value:    Math.round(value),
+      delta:    delta !== null && !isNaN(delta) ? Math.round(delta) : null,
+      deltaPct: deltaPct !== null && !isNaN(deltaPct) ? deltaPct : null,
+    };
+  } catch { return empty; }
+}
+
+// ── Business Insider Markets — WTI & S&P 500 (JSON inline, cache 1 min) ──────
+// JSON pattern dans le HTML : "currentValue":XX.XX et "previousClose":XX.XX
+async function biMarket(url: string): Promise<{ value: number | null; delta: number | null; deltaPct: number | null }> {
+  const empty = { value: null, delta: null, deltaPct: null };
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" },
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return empty;
+    const html = await res.text();
+    const curMatch  = html.match(/"currentValue":([\d.]+)/);
+    const prevMatch = html.match(/"previousClose":([\d.]+)/);
+    if (!curMatch) return empty;
+    const value = parseFloat(curMatch[1]);
+    const prev  = prevMatch ? parseFloat(prevMatch[1]) : null;
+    if (isNaN(value)) return empty;
+    const delta    = prev !== null ? parseFloat((value - prev).toFixed(2)) : null;
+    const deltaPct = delta !== null && prev !== null && prev > 0
+      ? parseFloat(((delta / prev) * 100).toFixed(2)) : null;
+    return { value: parseFloat(value.toFixed(2)), delta, deltaPct };
+  } catch { return empty; }
+}
+
+// ── abcbourse.com — Brent spot temps réel (Six Financial Information) ────────
+// Sélecteurs HTML stables : id="lastcx" (cours), id="veille" (clôture J-1), id="varcx" (%)
+async function abcbourseBrent(): Promise<{ value: number | null; delta: number | null; deltaPct: number | null }> {
+  const empty = { value: null, delta: null, deltaPct: null };
+  try {
+    const res = await fetch("https://www.abcbourse.com/cotation/XBRUSDu", {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" },
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return empty;
+    const html = await res.text();
+
+    const priceMatch = html.match(/id="lastcx">([^<]+)/);
+    const prevMatch  = html.match(/id="veille">([^<]+)/);
+    const pctMatch   = html.match(/id="varcx"[^>]*>([^<]+)/);
+
+    if (!priceMatch) return empty;
+
+    // "96,70 $" → 96.70
+    const value = parseFloat(priceMatch[1].replace(/[^\d,]/g, "").replace(",", "."));
+    if (isNaN(value)) return empty;
+
+    const prev  = prevMatch ? parseFloat(prevMatch[1].replace(",", ".").trim()) : null;
+    const delta = prev !== null && !isNaN(prev) ? parseFloat((value - prev).toFixed(2)) : null;
+
+    let deltaPct: number | null = null;
+    if (pctMatch) {
+      // &#x2B; = "+" ; &#x2212; ou &minus; = "−"
+      const pctStr = pctMatch[1]
+        .replace(/&#x2[Bb];/g, "+")
+        .replace(/&#x2212;|&minus;/g, "-")
+        .replace("%", "")
+        .replace(",", ".")
+        .trim();
+      const pctNum = parseFloat(pctStr);
+      if (!isNaN(pctNum)) deltaPct = pctNum;
+    } else if (delta !== null && prev !== null && prev > 0) {
+      deltaPct = parseFloat(((delta / prev) * 100).toFixed(2));
+    }
+
+    return { value, delta, deltaPct };
+  } catch { return empty; }
+}
+
 // ── GET ───────────────────────────────────────────────────────────────────────
 
 export async function GET() {
   const fredKey = process.env.FRED_API_KEY;
   if (!fredKey) return NextResponse.json({ error: "FRED_API_KEY missing" }, { status: 500 });
 
-  // 1. Indices — Yahoo Finance (temps réel, cache 5 min)
-  //    ^VIX = CBOE Volatility Index | ^GSPC = S&P 500
-  const [vixQ, sp500Q] = await Promise.all([
+  // 1. Indices — Business Insider (JSON inline, cache 1 min) + fallback Yahoo Finance
+  //    VIX reste Yahoo (Business Insider n'a pas VIX)
+  const [vixQ, sp500Raw] = await Promise.all([
     yahooQuote("^VIX"),
-    yahooQuote("^GSPC"),
+    biMarket("https://markets.businessinsider.com/index/s%26p_500"),
   ]);
+  const sp500Q = sp500Raw.value !== null ? sp500Raw : await yahooQuote("^GSPC");
 
-  // Pétrole — Stooq futures (quasi temps réel, cache 5 min, sans clé API)
-  //   cl.f = WTI NYMEX | cb.f = Brent ICE  → delta = variation intraday vs ouverture
-  const [brentQ, wtiQ] = await Promise.all([
-    stooqMetal("cb.f"),
-    stooqMetal("cl.f"),
+  // Brent — abcbourse.com (Six Financial Information, temps réel, cache 1 min)
+  //   Fallback : Yahoo Finance BZ=F si le scraping échoue
+  // WTI — Business Insider (JSON inline, cache 1 min) + fallback Yahoo Finance CL=F
+  const [brentRaw, wtiRaw] = await Promise.all([
+    abcbourseBrent(),
+    biMarket("https://markets.businessinsider.com/commodities/oil-price?type=wti"),
   ]);
+  const brentQ = brentRaw.value !== null ? brentRaw : await yahooQuote("BZ=F").then(q => ({
+    value: q.value, delta: q.delta, deltaPct: q.deltaPct,
+  }));
+  const wtiQ = wtiRaw.value !== null ? wtiRaw : await yahooQuote("CL=F");
 
-  // 2. Métaux précieux — Stooq (quasi temps réel, cache 5 min, sans clé API)
-  //    delta = variation intraday vs ouverture de session
-  const [goldQ, silverQ] = await Promise.all([
-    stooqMetal("xauusd"),
-    stooqMetal("xagusd"),
+  // 2. Métaux précieux — Business Insider (JSON inline, cache 1 min) + fallback Yahoo Finance
+  const [goldRaw, silverRaw] = await Promise.all([
+    biMarket("https://markets.businessinsider.com/commodities/gold-price"),
+    biMarket("https://markets.businessinsider.com/commodities/silver-price"),
   ]);
+  const goldQ   = goldRaw.value   !== null ? goldRaw   : await yahooQuote("GC=F");
+  const silverQ = silverRaw.value !== null ? silverRaw : await yahooQuote("SI=F");
 
-  // 3. Bitcoin — Binance (temps réel), fallback CoinGecko
-  const btcBin = await binanceBTC();
-  const btcCg  = btcBin.value === null ? await coingeckoBTC() : { value: null, change24h: null };
+  // 3. BTC/USD — investing.com (data-test attrs, cache 1 min) + fallback Binance/CoinGecko
+  const btcRaw = await investingBTC();
+  const btcBin = btcRaw.value === null ? await binanceBTC() : { value: null, change24h: null };
+  const btcCg  = btcRaw.value === null && btcBin.value === null ? await coingeckoBTC() : { value: null, change24h: null };
 
   // 4. FRED — spreads crédit (cache 1h)
   //    Yields 10Y — TE bonds (cache 1h, données du jour)
@@ -160,8 +247,9 @@ export async function GET() {
     sp500:          sp500Q.value,
     sp500Change:    sp500Q.delta,
     sp500ChangePct: sp500Q.deltaPct,
-    btc:            btcBin.value    ?? btcCg.value,
+    btc:            btcRaw.value    ?? btcBin.value    ?? btcCg.value,
     btcChange24h:   btcBin.change24h ?? btcCg.change24h,
+    btcDeltaPct:    btcRaw.deltaPct,
     // Crédit (FRED, bps)
     hySpread: hyRaw != null ? Math.round(hyRaw * 100) : null,
     igSpread: igRaw != null ? Math.round(igRaw * 100) : null,
@@ -190,15 +278,19 @@ export async function GET() {
     us10y,
     us2y,
     curveSlope: us10y !== null && us2y !== null ? Math.round((us10y - us2y) * 100) : null,
-    // Commodités — Or/Argent intraday (Stooq), Pétrole j-1 (FRED)
-    gold:        goldQ.value,
-    goldDelta:   goldQ.delta,
-    silver:      silverQ.value,
-    silverDelta: silverQ.delta,
-    brent:       brentQ.value,
-    brentDelta:  brentQ.delta,
+    // Commodités — Business Insider (cache 1 min) + fallback Yahoo Finance
+    gold:           goldQ.value,
+    goldDelta:      goldQ.delta,
+    goldDeltaPct:   goldQ.deltaPct,
+    silver:         silverQ.value,
+    silverDelta:    silverQ.delta,
+    silverDeltaPct: silverQ.deltaPct,
+    brent:          brentQ.value,
+    brentDelta:     brentQ.delta,
+    brentDeltaPct:  brentQ.deltaPct,
     wti:         wtiQ.value,
     wtiDelta:    wtiQ.delta,
+    wtiDeltaPct: wtiQ.deltaPct,
     // Compat
     copper: null,
     timestamp: Date.now(),

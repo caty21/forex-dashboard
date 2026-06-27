@@ -93,8 +93,12 @@ export default function NewsTab({ items, loading, onRefresh }: Props) {
     if (priorityOnly && !isPriorityItem(item)) return false;
     if (filterCcy !== "ALL" && !item.impacts.some(i => i.ccy === filterCcy)) return false;
     if (filterCat !== "ALL" && !item.categories.includes(filterCat)) return false;
-    if (filterDir !== "all" && filterCcy !== "ALL") {
-      if (!item.impacts.some(i => i.ccy === filterCcy && i.direction === filterDir)) return false;
+    if (filterDir !== "all") {
+      if (filterCcy !== "ALL") {
+        if (!item.impacts.some(i => i.ccy === filterCcy && i.direction === filterDir)) return false;
+      } else {
+        if (!item.impacts.some(i => i.direction === filterDir)) return false;
+      }
     }
     return true;
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -251,8 +255,8 @@ export default function NewsTab({ items, loading, onRefresh }: Props) {
           {filterCcy !== "ALL" && ` · ${CCY_FLAGS[filterCcy]} ${filterCcy}`}
           {filterCat !== "ALL" && ` · ${filterCat}`}
         </span>
-        {(filterCcy !== "ALL" || filterCat !== "ALL" || filterDir !== "all") && (
-          <button onClick={() => { setFilterCcy("ALL"); setFilterCat("ALL"); setFilterDir("all"); }}
+        {(filterCcy !== "ALL" || filterCat !== "ALL" || filterDir !== "all" || priorityOnly) && (
+          <button onClick={() => { setFilterCcy("ALL"); setFilterCat("ALL"); setFilterDir("all"); setPriorityOnly(false); }}
             className="text-[10px] text-slate-600 hover:text-slate-400">
             Effacer filtres ×
           </button>

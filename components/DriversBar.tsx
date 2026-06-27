@@ -95,18 +95,16 @@ export default function DriversBar({ drivers }: Props) {
   const {
     vix, vixDelta,
     sp500, sp500ChangePct,
-    btc, btcChange24h,
+    btc, btcDeltaPct, btcChange24h,
     hySpread, igSpread,
     us10y, us2y, curveSlope,
-    gold, goldDelta,
-    silver, silverDelta,
-    brent, brentDelta,
-    wti, wtiDelta,
+    gold, goldDeltaPct,
+    silver, silverDeltaPct,
+    brent, brentDelta, brentDeltaPct,
+    wti, wtiDelta, wtiDeltaPct,
   } = drivers;
 
-  const dxy      = (drivers as DriverData & { dxy?: number | null }).dxy       ?? null;
-  const dxyDelta = (drivers as DriverData & { dxyDelta?: number | null }).dxyDelta ?? null;
-  const riskOff  = (vix ?? 0) > 25 || (hySpread ?? 0) > 500;
+  const riskOff = (vix ?? 0) > 25 || (hySpread ?? 0) > 500;
 
   return (
     <div className="mb-4 bg-slate-950/60 border border-slate-800 rounded-xl p-3 space-y-2">
@@ -133,9 +131,10 @@ export default function DriversBar({ drivers }: Props) {
           accent={(vix ?? 0) > 25 ? "red" : undefined}
           tooltip="Clôture actuelle − clôture précédente (Yahoo Finance)." />
         <Tile label="S&P 500" value={sp500} dec={0} delta={sp500ChangePct} deltaPct deltaDec={2}
-          tooltip="% vs clôture précédente (Yahoo Finance)." />
-        <Tile label="Bitcoin" value={btc} dec={0} unit=" $" delta={btcChange24h} deltaPct deltaDec={2}
-          tooltip="Variation 24h (Binance / CoinGecko)." />
+          tooltip="% vs clôture J-1 (Business Insider, cache 1 min). Fallback : Yahoo Finance." />
+        <Tile label="BTC/USD" value={btc} dec={0} unit=" $"
+          delta={btcDeltaPct ?? btcChange24h} deltaPct deltaDec={2}
+          tooltip="% vs clôture J-1 (investing.com, cache 1 min). Fallback : Binance/CoinGecko 24h." />
 
         {/* ── Crédit ────────────────────────────────────────────── */}
         <div className="w-px bg-slate-800 self-stretch mx-0.5 hidden sm:block" />
@@ -146,11 +145,9 @@ export default function DriversBar({ drivers }: Props) {
         <Tile label="IG Spread" value={igSpread} dec={0} unit=" bps"
           tooltip="Investment Grade spread vs Treasuries US." />
 
-        {/* ── FX / Taux ─────────────────────────────────────────── */}
+        {/* ── Taux ──────────────────────────────────────────────── */}
         <div className="w-px bg-slate-800 self-stretch mx-0.5 hidden sm:block" />
-        <GroupLabel label="FX / Taux" />
-        <Tile label="DXY" value={dxy} dec={2} delta={dxyDelta} deltaDec={2}
-          tooltip="ICE Dollar Index Futures (DX=F) — Yahoo Finance, cache 5 min." />
+        <GroupLabel label="Taux" />
         <Tile
           label="Crb 2-10" value={curveSlope} dec={0} unit=" bps"
           accent={(curveSlope ?? 0) < -50 ? "amber" : undefined}
@@ -160,14 +157,18 @@ export default function DriversBar({ drivers }: Props) {
         {/* ── Commodités ────────────────────────────────────────── */}
         <div className="w-px bg-slate-800 self-stretch mx-0.5 hidden sm:block" />
         <GroupLabel label="Commodités" />
-        <Tile label="Or $/oz" value={gold} dec={0} delta={goldDelta} deltaDec={1}
-          tooltip="Delta intraday close−open (Stooq)." />
-        <Tile label="Argent $/oz" value={silver} dec={2} delta={silverDelta}
-          tooltip="Delta intraday close−open (Stooq)." />
-        <Tile label="Brent $/b" value={brent} dec={1} delta={brentDelta} deltaDec={1}
-          tooltip="Delta intraday close−open (Stooq)." />
-        <Tile label="WTI $/b" value={wti} dec={1} delta={wtiDelta} deltaDec={1}
-          tooltip="Delta intraday close−open (Stooq)." />
+        <Tile label="Or $/oz" value={gold} dec={0}
+          delta={goldDeltaPct} deltaPct deltaDec={2}
+          tooltip="% vs clôture J-1 (Business Insider, cache 1 min). Fallback : Yahoo GC=F." />
+        <Tile label="Argent $/oz" value={silver} dec={2}
+          delta={silverDeltaPct} deltaPct deltaDec={2}
+          tooltip="% vs clôture J-1 (Business Insider, cache 1 min). Fallback : Yahoo SI=F." />
+        <Tile label="Brent $/b" value={brent} dec={1}
+          delta={brentDeltaPct ?? brentDelta} deltaPct={brentDeltaPct !== null} deltaDec={2}
+          tooltip={`% évolution vs clôture J-1 (abcbourse.com — Six Financial Information, temps réel).${brentDelta != null ? `\nDelta: ${brentDelta > 0 ? "+" : ""}${brentDelta.toFixed(2)} $` : ""}`} />
+        <Tile label="WTI $/b" value={wti} dec={1}
+          delta={wtiDeltaPct ?? wtiDelta} deltaPct={wtiDeltaPct !== null} deltaDec={2}
+          tooltip={`% évolution vs clôture J-1 (Business Insider, cache 1 min). Fallback : Yahoo Finance CL=F.${wtiDelta != null ? `\nDelta: ${wtiDelta > 0 ? "+" : ""}${wtiDelta.toFixed(2)} $` : ""}`} />
 
       </div>
     </div>

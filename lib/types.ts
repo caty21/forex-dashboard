@@ -110,7 +110,8 @@ export interface DriverData {
   sp500Change:    number | null;   // pts vs clôture j-1
   sp500ChangePct: number | null;   // % vs clôture j-1
   btc:            number | null;   // BTC/USD
-  btcChange24h:   number | null;   // % variation 24h (CoinGecko)
+  btcChange24h:   number | null;   // % variation 24h (legacy)
+  btcDeltaPct:    number | null;   // % vs clôture J-1 (Business Insider)
   // Crédit
   hySpread: number | null;
   igSpread: number | null;
@@ -121,14 +122,18 @@ export interface DriverData {
   us2y:       number | null;
   curveSlope: number | null;
   // Commodités (avec delta vs session précédente)
-  gold:        number | null;
-  goldDelta:   number | null;
-  silver:      number | null;
-  silverDelta: number | null;
-  brent:       number | null;
-  brentDelta:  number | null;
+  gold:           number | null;
+  goldDelta:      number | null;
+  goldDeltaPct:   number | null;
+  silver:         number | null;
+  silverDelta:    number | null;
+  silverDeltaPct: number | null;
+  brent:          number | null;
+  brentDelta:     number | null;
+  brentDeltaPct:  number | null;
   wti:         number | null;
   wtiDelta:    number | null;
+  wtiDeltaPct: number | null;
   // Compat
   copper: number | null;
 }
@@ -144,10 +149,28 @@ export interface SentimentEntry {
   pair:     string;
 }
 
+export type MacroSection = "all" | "inflation" | "pmi" | "employment" | "gdp" | "policy";
+
 export interface CotEntry {
-  net:      number;
-  longPct:  number;
-  shortPct: number;
-  totalLev: number;
-  weekDate: string;
+  // HF — Leveraged Money (spéculation directionnelle, hedge funds / CTAs)
+  net:          number;    // longs - shorts
+  hfLongs:      number;    // contrats long bruts
+  hfShorts:     number;    // contrats short bruts
+  longPct:      number;    // % longs / total HF
+  shortPct:     number;    // % shorts / total HF
+  totalLev:     number;    // total contrats HF
+  // AM — Asset Manager (hedging institutionnel, fonds pension / souverains)
+  amNet:        number;
+  amLongs:      number;
+  amShorts:     number;
+  amLongPct:    number;    // % longs / total AM
+  amTotal:      number;
+  // Δ semaine précédente (null si pas de données J-7)
+  netDelta:     number | null;   // Δ net HF
+  longsDelta:   number | null;   // Δ longs HF (+= ajout de longs)
+  shortsDelta:  number | null;   // Δ shorts HF (+= ajout de shorts)
+  amNetDelta:   number | null;   // Δ net AM
+  // Métadonnées
+  weekDate:     string;
+  prevWeekDate: string | null;
 }

@@ -845,7 +845,15 @@ export async function fetchAllNews(): Promise<NewsItem[]> {
     return true;
   });
 
-  deduped.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+  const PRIORITY_SET = new Set(["Discours BC", "Décision Taux", "Crise", "Guerre", "Chef d'État", "Probabilités Taux"]);
+  const isPrio = (item: NewsItem) => item.categories.some(c => PRIORITY_SET.has(c));
+
+  deduped.sort((a, b) => {
+    const pa = isPrio(a) ? 1 : 0;
+    const pb = isPrio(b) ? 1 : 0;
+    if (pb !== pa) return pb - pa;
+    return b.publishedAt.localeCompare(a.publishedAt);
+  });
 
   return deduped;
 }

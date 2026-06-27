@@ -5,7 +5,7 @@ import cpiOverridesRaw   from "@/data/cpi_overrides.json";
 import rateDecisionsRaw  from "@/data/rate_decisions.json";
 import { fetchFFThisWeek, fetchFFEvents } from "@/lib/forexfactory";
 import type { FFEvent } from "@/lib/forexfactory";
-import { fetchTECoreInflation, fetchTEMoMInflation, fetchTEInflationYoY, fetchTECoreCPIMoM, fetchTECoreConsumerPricesIndex, fetchTEPPIMoM, fetchTECoreInflationPages, fetchTEInflationYoYPages, fetchTEAUDCommodityYoY, fetchTEGDPGrowthRate, fetchTEUnemploymentRate, fetchTESTIRRate } from "@/lib/tecpi";
+import { fetchTECoreInflation, fetchTEMoMInflation, fetchTEInflationYoY, fetchTECoreCPIMoM, fetchTECoreConsumerPricesIndex, fetchTEPPIMoM, fetchTECoreInflationPages, fetchTEInflationYoYPages, fetchTEAUDCommodityYoY, fetchTEGDPGrowthRate, fetchTEUnemploymentRate, fetchTESTIRRate, fetchTEEmploymentChange } from "@/lib/tecpi";
 import { fetchTEInflationForecasts } from "@/lib/tradingeconomics";
 
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
@@ -625,14 +625,14 @@ function toIndicatorYoY(obs: Obs[], periods = 12): IndicatorResult {
  */
 function toIndicatorDeltaK(obs: Obs[], personsToK: boolean): IndicatorResult {
   if (obs.length < 2) return null;
-  const raw  = obs[0].value - obs[1].value;
-  const valK = personsToK
-    ? parseFloat((raw / 1000).toFixed(1))
-    : parseFloat(raw.toFixed(1));
+  const toK = (v: number) => personsToK ? parseFloat((v / 1000).toFixed(1)) : parseFloat(v.toFixed(1));
+  const valK  = toK(obs[0].value - obs[1].value);
+  // Période précédente : delta obs[1]-obs[2] si disponible
+  const prevK = obs.length >= 3 ? toK(obs[1].value - obs[2].value) : null;
   return {
     value:       valK,
-    prev:        null,
-    surprise:    valK,           // surprise = la valeur elle-même (signe = direction)
+    prev:        prevK,
+    surprise:    prevK !== null ? parseFloat((valK - prevK).toFixed(1)) : valK,
     trend:       valK > 0 ? "up" : valK < 0 ? "down" : "flat",
     lastUpdated: obs[0].date,
   };
@@ -1109,7 +1109,7 @@ export async function GET(req: NextRequest) {
   // Remplace séries FRED stale/erronées.
   // Nouvelles données : cpiYoY headline, cpiCoreMoM (pages individuelles), ppiMoM
   {
-    const [teCoreMap, teMoMMap, teYoYMap, teCoreMoMMap, teCoreIdxMap, tePPIMap, teCorePages, teYoYPages, teAUDComm, teGDPMap, teUneMap, teSTIRMap] = await Promise.all([
+    const [teCoreMap, teMoMMap, teYoYMap, teCoreMoMMap, teCoreIdxMap, tePPIMap, teCorePages, teYoYPages, teAUDComm, teGDPMap, teUneMap, teSTIRMap, teEmpMap] = await Promise.all([
       fetchTECoreInflation(),
       fetchTEMoMInflation(),
       fetchTEInflationYoY(),
@@ -1122,6 +1122,7 @@ export async function GET(req: NextRequest) {
       fetchTEGDPGrowthRate(),
       fetchTEUnemploymentRate(),
       fetchTESTIRRate(),
+      fetchTEEmploymentChange(),
     ]);
 
     const teCore     = teCoreMap[currency];
@@ -1282,6 +1283,25 @@ export async function GET(req: NextRequest) {
             ? (teUne.value > teUne.prev ? "up" : teUne.value < teUne.prev ? "down" : "flat")
             : null,
           lastUpdated: teUne.refMonth,
+        };
+      }
+    }
+
+    // Employment Change — TE pages individuelles (USD NFP, GBP MoM, AUD MoM, EUR QoQ%)
+    // Remplace FRED : prev était null (toIndicatorDeltaK ne calculait pas le delta précédent)
+    // EUR/GBP : pas de série FRED disponible → seule source
+    {
+      const teEmp = teEmpMap[currency];
+      if (teEmp) {
+        const surprise = teEmp.prev !== null
+          ? parseFloat((teEmp.value - teEmp.prev).toFixed(1))
+          : teEmp.value;
+        indicators.employment = {
+          value:       teEmp.value,
+          prev:        teEmp.prev,
+          surprise,
+          trend:       teEmp.value > 0 ? "up" : teEmp.value < 0 ? "down" : "flat",
+          lastUpdated: null,
         };
       }
     }

@@ -15,6 +15,7 @@ interface YieldsData {
 
 interface Props {
   yieldsData: YieldsData | null;
+  fxDayPct?:  Record<string, number | null> | null;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -54,7 +55,7 @@ function carryLabel(bps: number): { label: string; color: string } {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function YieldsTab({ yieldsData }: Props) {
+export default function YieldsTab({ yieldsData, fxDayPct }: Props) {
   if (!yieldsData) {
     return (
       <div className="flex items-center justify-center h-48 text-gray-400 text-sm">
@@ -99,21 +100,35 @@ export default function YieldsTab({ yieldsData }: Props) {
   const topCarry   = carryPairs.slice(0, 6);
   const tightPairs = [...carryPairs].sort((a, b) => a.bps - b.bps).slice(0, 4);
 
-  // Divergences : devises dont la direction journalière est opposée à la majorité
+  // Divergences yield/FX : yield et devise vont dans des directions opposées
+  // Yield ↑ + devise ↓ → obligations vendues MAIS devise sous pression = signal de stress
+  // Yield ↓ + devise ↑ → obligations achetées MAIS devise forte = safe-haven ou anomalie
+  // Seuils : yield ≥ 2bp (0.02%) ET FX ≥ 0.1% pour filtrer le bruit
   const divergences = useMemo(() => {
-    const deltas = sorted.map(([ccy]) => ({ ccy, d: dayDeltas[ccy] ?? 0 }));
-    const rising  = deltas.filter(x => x.d > 0.001).length;
-    const falling = deltas.filter(x => x.d < -0.001).length;
-    const majority = rising >= falling ? "up" : "down";
+    const YIELD_THRESHOLD = 0.02;  // 2 basis points minimum
+    const FX_THRESHOLD    = 0.1;   // 0.1% FX move minimum
+    const result: { ccy: string; yieldDelta: number; fxPct: number; type: "stress" | "safehaven" }[] = [];
 
-    return deltas
-      .filter(x => {
-        if (majority === "up"   && x.d < -0.001) return true;
-        if (majority === "down" && x.d >  0.001) return true;
-        return false;
-      })
-      .sort((a, b) => Math.abs(b.d) - Math.abs(a.d));
-  }, [sorted, dayDeltas]);
+    for (const [ccy] of sorted) {
+      const yd = dayDeltas[ccy] ?? null;
+      const fx = fxDayPct?.[ccy] ?? null;
+      if (yd === null || fx === null) continue;
+      if (Math.abs(yd) < YIELD_THRESHOLD || Math.abs(fx) < FX_THRESHOLD) continue;
+
+      const yieldUp = yd > 0;
+      const fxUp    = fx > 0;
+
+      if (yieldUp && !fxUp) {
+        // Yield monte, devise baisse → signal de stress / pression vendeuse sur dettes
+        result.push({ ccy, yieldDelta: yd, fxPct: fx, type: "stress" });
+      } else if (!yieldUp && fxUp) {
+        // Yield baisse, devise monte → safe-haven ou anomalie (ex: JPY, CHF)
+        result.push({ ccy, yieldDelta: yd, fxPct: fx, type: "safehaven" });
+      }
+    }
+
+    return result.sort((a, b) => Math.abs(b.yieldDelta) + Math.abs(b.fxPct) - (Math.abs(a.yieldDelta) + Math.abs(a.fxPct)));
+  }, [sorted, dayDeltas, fxDayPct]);
 
   // Movers du jour (triés par amplitude de variation)
   const movers = useMemo(() => {
@@ -276,42 +291,58 @@ export default function YieldsTab({ yieldsData }: Props) {
       {/* ── Divergences + Movers du jour ────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-        {/* Divergences */}
+        {/* Divergences yield/FX */}
         <div className="bg-white border border-gray-100 rounded-xl p-4">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">
-            ⚡ Divergences du jour
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">
+            ⚡ Divergences Yield / FX
           </p>
-          {divergences.length === 0 ? (
+          <p className="text-[9px] text-gray-400 mb-3">
+            Yield et devise vont dans des sens opposés — signal d'anomalie ou de stress
+          </p>
+          {!fxDayPct ? (
+            <p className="text-xs text-gray-400 italic">Données FX non disponibles.</p>
+          ) : divergences.length === 0 ? (
             <p className="text-xs text-gray-400 italic">
-              Aucune divergence notable — tous les yields bougent dans la même direction.
+              Aucune divergence — yield et devise évoluent de façon cohérente ce jour.
             </p>
           ) : (
             <>
-              <div className="space-y-2">
-                {divergences.map(({ ccy, d }) => (
-                  <div key={ccy} className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
+              <div className="space-y-2.5">
+                {divergences.map(({ ccy, yieldDelta, fxPct, type }) => (
+                  <div key={ccy} className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <span className="text-xs">{CCY_FLAGS[ccy]}</span>
-                      <span className="text-xs font-semibold text-gray-700">{ccy}</span>
-                      <span className="text-[10px] text-gray-400">{CCY_COUNTRY[ccy]}</span>
+                      <span className="text-xs font-semibold text-gray-700 w-7">{ccy}</span>
                     </div>
-                    <div className={`flex items-center gap-1 text-xs font-mono font-semibold ${deltaColor(d)}`}>
-                      {deltaIcon(d)}
-                      {d >= 0 ? "+" : ""}{d.toFixed(3)}%
-                      <span className={`ml-1 text-[9px] border rounded-full px-1.5 py-0.5 ${
-                        d > 0
-                          ? "bg-green-50 text-green-700 border-green-200"
-                          : "bg-red-50 text-red-700 border-red-200"
+                    <div className="flex items-center gap-2 flex-1 justify-end flex-wrap">
+                      {/* Yield delta */}
+                      <span className={`text-[10px] font-mono font-semibold flex items-center gap-0.5 ${deltaColor(yieldDelta)}`}>
+                        {deltaIcon(yieldDelta)}
+                        <span className="text-[9px] text-gray-400 mr-0.5">yield</span>
+                        {yieldDelta >= 0 ? "+" : ""}{yieldDelta.toFixed(3)}%
+                      </span>
+                      <span className="text-gray-300 text-[10px]">vs</span>
+                      {/* FX delta */}
+                      <span className={`text-[10px] font-mono font-semibold flex items-center gap-0.5 ${deltaColor(fxPct)}`}>
+                        {deltaIcon(fxPct)}
+                        <span className="text-[9px] text-gray-400 mr-0.5">FX</span>
+                        {fxPct >= 0 ? "+" : ""}{fxPct.toFixed(2)}%
+                      </span>
+                      {/* Badge type */}
+                      <span className={`text-[9px] border rounded-full px-1.5 py-0.5 shrink-0 ${
+                        type === "stress"
+                          ? "bg-red-50 text-red-700 border-red-200"
+                          : "bg-blue-50 text-blue-700 border-blue-200"
                       }`}>
-                        {d > 0 ? "↑ contre tendance" : "↓ contre tendance"}
+                        {type === "stress" ? "⚠ stress dette" : "🛡 safe-haven"}
                       </span>
                     </div>
                   </div>
                 ))}
               </div>
               <p className="text-[9px] text-gray-400 mt-3 border-t border-gray-50 pt-2">
-                Ces devises bougent à contre-courant des autres ce jour.
-                Signal potentiel de réévaluation ou d'actualité macro spécifique.
+                Stress dette : yield ↑ + devise ↓ (obligations vendues, devise sous pression).<br />
+                Safe-haven : yield ↓ + devise ↑ (capitaux attirés malgré taux bas).
               </p>
             </>
           )}
