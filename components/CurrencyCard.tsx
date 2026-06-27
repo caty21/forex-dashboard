@@ -520,7 +520,9 @@ function OISEnhancedBlock({ ratePath }: { ratePath: CBRatePath }) {
                   domain={[minR - yMargin, maxR + yMargin]}
                   tickFormatter={(v: number) => v.toFixed(2)} />
                 <Tooltip
-                  contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 6, fontSize: 9, color: "#e2e8f0" }}
+                  contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 6, fontSize: 9 }}
+                  labelStyle={{ color: "#94a3b8", fontSize: 9 }}
+                  itemStyle={{ color: "#e2e8f0", fontSize: 9 }}
                   formatter={(v: number, name: string) => [`${v.toFixed(3)}%`, name === "current" ? "Actuel" : "Sem. préc."]}
                 />
                 <Line type="monotone" dataKey="current" stroke="#e2e8f0" strokeWidth={1.5} dot={{ r: 2, fill: "#e2e8f0" }} name="current" />
@@ -554,7 +556,9 @@ function OISEnhancedBlock({ ratePath }: { ratePath: CBRatePath }) {
                   tickFormatter={(v: number) => `${v}bps`} />
                 <ReferenceLine y={0} stroke="#334155" strokeWidth={0.5} />
                 <Tooltip
-                  contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 6, fontSize: 9, color: "#e2e8f0" }}
+                  contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 6, fontSize: 9 }}
+                  labelStyle={{ color: "#94a3b8", fontSize: 9 }}
+                  itemStyle={{ color: "#e2e8f0", fontSize: 9 }}
                   formatter={(v: number) => [`${v > 0 ? "+" : ""}${v.toFixed(1)}bps`, "Implied"]}
                 />
                 <Bar dataKey="bps" radius={[2, 2, 0, 0]}>
