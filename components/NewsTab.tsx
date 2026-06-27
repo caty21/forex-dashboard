@@ -341,7 +341,6 @@ function NewsCard({ item, activeCcy }: { item: NewsItem; activeCcy: Currency | n
           {isPriority && (
             <span className="text-[9px] text-amber-500 font-bold">⚡ Prioritaire</span>
           )}
-          <span className="ml-auto text-[10px] text-slate-600 shrink-0">{formatRelativeTime(item.publishedAt)}</span>
         </div>
 
         {/* Titre */}
@@ -376,10 +375,13 @@ function NewsCard({ item, activeCcy }: { item: NewsItem; activeCcy: Currency | n
                  <Minus size={9} />}
               </div>
             ))}
-            <button onClick={() => setExpanded(e => !e)}
-              className="text-[9px] text-slate-600 hover:text-slate-400 px-1.5 py-0.5 rounded-full border border-slate-700/30 ml-auto">
-              {expanded ? "▲" : "▼ Analyse"}
-            </button>
+            <div className="ml-auto flex items-center gap-1.5 shrink-0">
+              <span className="text-[10px] text-slate-600">{formatRelativeTime(item.publishedAt)}</span>
+              <button onClick={() => setExpanded(e => !e)}
+                className="text-[9px] text-slate-500 hover:text-slate-300 px-1.5 py-0.5 rounded-full border border-slate-700/30">
+                {expanded ? "▲" : "▼ Analyse"}
+              </button>
+            </div>
           </div>
         )}
 
