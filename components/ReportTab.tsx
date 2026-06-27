@@ -509,12 +509,12 @@ export default function ReportTab({ calEvents, drivers, cotHistory }: Props) {
               <div className="h-px flex-1 bg-sky-500/30" />
             </div>
 
-            {/* Macro overview : S&P, VIX, DXY, US10Y */}
+            {/* Macro overview : S&P, VIX, DXY, Or */}
             <div className="grid grid-cols-2 gap-4">
-              <TvAdvancedChart symbol="SP:SPX"    label="S&P 500 · Weekly"   interval="W" height={220} />
-              <TvAdvancedChart symbol="TVC:VIX"   label="VIX · Daily"        interval="D" height={220} />
-              <TvAdvancedChart symbol="TVC:DXY"   label="DXY Dollar Index · Weekly" interval="W" height={220} />
-              <TvAdvancedChart symbol="TVC:US10Y" label="US 10Y Yield · Weekly"     interval="W" height={220} />
+              <TvMiniChart symbol="SP:SPX"    label="S&P 500 · Daily"          dateRange="12M" height={200} />
+              <TvMiniChart symbol="TVC:VIX"   label="VIX · Daily"              dateRange="12M" height={200} />
+              <TvMiniChart symbol="TVC:DXY"   label="DXY Dollar Index · Weekly" dateRange="60M" height={200} />
+              <TvMiniChart symbol="TVC:GOLD"  label="Or (XAU/USD) · Weekly"    dateRange="60M" height={200} />
             </div>
 
             <div className="flex items-center gap-4 pt-2">

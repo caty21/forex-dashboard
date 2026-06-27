@@ -13,11 +13,12 @@ declare global {
 }
 
 interface TvMiniChartProps {
-  symbol:    string;   // ex: "FX:EURUSD", "TVC:DXY", "SP:SPX"
-  label?:    string;   // titre affiché au-dessus
-  interval?: "W" | "D" | "M";
-  height?:   number;
-  showInfo?: boolean;  // afficher nom + prix sous le graphique
+  symbol:     string;   // ex: "FX:EURUSD", "TVC:DXY", "SP:SPX"
+  label?:     string;   // titre affiché au-dessus
+  interval?:  "W" | "D" | "M";
+  dateRange?: string;   // "1D","5D","1M","3M","6M","12M","60M","ALL","YTD"
+  height?:    number;
+  showInfo?:  boolean;  // afficher nom + prix sous le graphique
 }
 
 // Script TradingView chargé une seule fois
@@ -41,7 +42,7 @@ function loadTvScript(cb: () => void) {
   document.head.appendChild(s);
 }
 
-export function TvMiniChart({ symbol, label, height = 180, showInfo = true }: TvMiniChartProps) {
+export function TvMiniChart({ symbol, label, dateRange = "1M", height = 180, showInfo = true }: TvMiniChartProps) {
   const uid  = useId().replace(/:/g, "_");
   const id   = `tv_mini_${uid}`;
   const ref  = useRef<HTMLDivElement>(null);
@@ -60,7 +61,7 @@ export function TvMiniChart({ symbol, label, height = 180, showInfo = true }: Tv
           width:                "100%",
           height,
           locale:               "fr",
-          dateRange:            "1M",
+          dateRange,
           colorTheme:           "dark",
           trendLineColor:       "#38bdf8",
           underLineColor:       "rgba(56,189,248,0.08)",

@@ -237,7 +237,7 @@ function loadCachedRPBody(ccy: string, slug: string): Record<string, unknown> | 
     const entry = parsed.data?.[ccy] as Record<string, unknown> | undefined;
     if (!entry) return null;
     const ageMs = Date.now() - new Date(parsed.fetchedAt).getTime();
-    if (ageMs > 4 * 60 * 60 * 1000) { // ignore si > 4h
+    if (ageMs > 48 * 60 * 60 * 1000) { // ignore si > 48h (GitHub Actions peut ne pas tourner quotidiennement)
       console.warn(`[rate-prob] cache stale (${Math.round(ageMs / 3600000)}h), skipping`);
       return null;
     }
