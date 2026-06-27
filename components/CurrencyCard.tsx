@@ -58,6 +58,10 @@ interface Props {
   macroSection?: MacroSection;
   syncMacroSlide?: "mon" | "infl" | "cro" | "empl";
   onMacroSlideChange?: (id: "mon" | "infl" | "cro" | "empl") => void;
+  syncCardTab?: "overview" | "mispricing" | "focus";
+  onCardTabChange?: (id: "overview" | "mispricing" | "focus") => void;
+  syncSignauxSlide?: "ois" | "cot" | "sent";
+  onSignauxSlideChange?: (id: "ois" | "cot" | "sent") => void;
 }
 
 type Tab = "overview" | "mispricing" | "focus";
@@ -600,6 +604,7 @@ function OISEnhancedBlock({ ratePath }: { ratePath: CBRatePath }) {
 export default function CurrencyCard({
   currency, expectations, yields, sentiment, cot, ratePath, onDivergenceUpdate,
   calEvents, macroSection, syncMacroSlide, onMacroSlideChange,
+  syncCardTab, onCardTabChange, syncSignauxSlide, onSignauxSlideChange,
 }: Props) {
   const meta = CURRENCY_META[currency];
 
@@ -636,6 +641,8 @@ export default function CurrencyCard({
   const prevSyncMacroRef = useRef<MacroSlide>(syncMacroSlide ?? "mon");
   const [signauxSlide,    setSignauxSlide]    = useState<SignauxSlide>("ois");
   const [signauxSlideDir, setSignauxSlideDir] = useState<1|-1>(1);
+  const prevSyncCardTabRef     = useRef<Tab>(syncCardTab ?? "overview");
+  const prevSyncSignauxSlideRef = useRef<SignauxSlide>(syncSignauxSlide ?? "ois");
 
   // ── Data fetch ───────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -924,13 +931,36 @@ export default function CurrencyCard({
     }
   }, [syncMacroSlide]);
 
+  // Sync tab principal depuis une autre carte
+  useEffect(() => {
+    if (syncCardTab === undefined) return;
+    const prev = prevSyncCardTabRef.current;
+    if (syncCardTab !== prev) {
+      setActiveTab(syncCardTab);
+      prevSyncCardTabRef.current = syncCardTab;
+    }
+  }, [syncCardTab]);
+
+  // Sync sous-slide Signaux depuis une autre carte
+  useEffect(() => {
+    if (syncSignauxSlide === undefined) return;
+    const order: SignauxSlide[] = ["ois", "cot", "sent"];
+    const prev = prevSyncSignauxSlideRef.current;
+    if (syncSignauxSlide !== prev) {
+      setSignauxSlideDir(order.indexOf(syncSignauxSlide) >= order.indexOf(prev) ? 1 : -1);
+      setSignauxSlide(syncSignauxSlide);
+      prevSyncSignauxSlideRef.current = syncSignauxSlide;
+    }
+  }, [syncSignauxSlide]);
+
   const goToSignauxSlide = useCallback((id: SignauxSlide) => {
     const order: SignauxSlide[] = ["ois", "cot", "sent"];
     setSignauxSlide(prev => {
       setSignauxSlideDir(order.indexOf(id) >= order.indexOf(prev) ? 1 : -1);
       return id;
     });
-  }, []);
+    onSignauxSlideChange?.(id);
+  }, [onSignauxSlideChange]);
 
   // ── Recent published events for this currency (last 72h, non-low impact) ─────
   const recentEvents = useMemo(() => {
@@ -1234,7 +1264,7 @@ export default function CurrencyCard({
         {TABS.map((t) => (
           <button
             key={t.id}
-            onClick={() => setActiveTab(t.id)}
+            onClick={() => { setActiveTab(t.id); onCardTabChange?.(t.id); }}
             className={`flex items-center gap-1.5 px-3 py-2 text-[11px] font-medium rounded-t-lg transition-all ${
               activeTab === t.id
                 ? "text-white bg-slate-800"

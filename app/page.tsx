@@ -46,8 +46,10 @@ export default function Dashboard() {
   const [comparisonSection, setComparisonSection] = useState<Exclude<MacroSection,"all">>("inflation");
   const [comparisonCurrencies, setComparisonCurrencies] = useState<Currency[] | "all">("all");
   const [focusCurrency,     setFocusCurrency]     = useState<Currency | "all">("all");
-  const [globalMacroSlide,  setGlobalMacroSlide]  = useState<"mon"|"infl"|"cro"|"empl">("mon");
-  const [macroSyncEnabled,  setMacroSyncEnabled]  = useState(false);
+  const [globalMacroSlide,   setGlobalMacroSlide]   = useState<"mon"|"infl"|"cro"|"empl">("mon");
+  const [globalCardTab,      setGlobalCardTab]      = useState<"overview"|"mispricing"|"focus">("overview");
+  const [globalSignauxSlide, setGlobalSignauxSlide] = useState<"ois"|"cot"|"sent">("ois");
+  const [macroSyncEnabled,   setMacroSyncEnabled]   = useState(false);
 
   // ── Sentiment multi-paires Myfxbook → {CCY: {longPct, shortPct, pair}} ──────
   // Pour chaque devise, on calcule le % "long CCY" en moyenne pondérée (par volume)
@@ -585,6 +587,10 @@ export default function Dashboard() {
                 macroSection={macroSection}
                 syncMacroSlide={macroSyncEnabled ? globalMacroSlide : undefined}
                 onMacroSlideChange={macroSyncEnabled ? setGlobalMacroSlide : undefined}
+                syncCardTab={macroSyncEnabled ? globalCardTab : undefined}
+                onCardTabChange={macroSyncEnabled ? (setGlobalCardTab as (id: "overview"|"mispricing"|"focus") => void) : undefined}
+                syncSignauxSlide={macroSyncEnabled ? globalSignauxSlide : undefined}
+                onSignauxSlideChange={macroSyncEnabled ? setGlobalSignauxSlide : undefined}
               />
             ))}
           </div>
