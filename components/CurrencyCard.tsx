@@ -526,8 +526,8 @@ function OISEnhancedBlock({ ratePath }: { ratePath: CBRatePath }) {
                   tickFormatter={(v: number) => v.toFixed(2)} />
                 <Tooltip
                   contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 6, fontSize: 9 }}
-                  labelStyle={{ color: "#94a3b8", fontSize: 9 }}
-                  itemStyle={{ color: "#e2e8f0", fontSize: 9 }}
+                  labelStyle={{ color: "#ffffff", fontSize: 9 }}
+                  itemStyle={{ color: "#ffffff", fontSize: 9 }}
                   formatter={(v: number, name: string) => [`${v.toFixed(3)}%`, name === "current" ? "Actuel" : "Sem. préc."]}
                 />
                 <Line type="monotone" dataKey="current" stroke="#e2e8f0" strokeWidth={1.5} dot={{ r: 2, fill: "#e2e8f0" }} name="current" />
@@ -566,8 +566,8 @@ function OISEnhancedBlock({ ratePath }: { ratePath: CBRatePath }) {
                     const v = payload[0]?.value as number;
                     return (
                       <div style={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 6, padding: "4px 8px" }}>
-                        <p style={{ color: "#94a3b8", fontSize: 9, margin: 0 }}>{label}</p>
-                        <p style={{ color: "#e2e8f0", fontSize: 9, margin: "2px 0 0" }}>
+                        <p style={{ color: "#ffffff", fontSize: 9, margin: 0 }}>{label}</p>
+                        <p style={{ color: "#ffffff", fontSize: 9, margin: "2px 0 0" }}>
                           Implied&nbsp;: {v > 0 ? "+" : ""}{typeof v === "number" ? v.toFixed(1) : "—"}bps
                         </p>
                       </div>
