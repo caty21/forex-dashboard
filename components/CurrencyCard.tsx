@@ -497,8 +497,19 @@ function OISEnhancedBlock({ ratePath }: { ratePath: CBRatePath }) {
         {/* Chart 1 — Implied Interest Rate Curve */}
         {chartTab === "curve" && (
           <div>
-            <div className="text-[8px] text-slate-600 mb-1">
-              Courbe de taux implicite{ilDelta ? " · blanc = actuel · bleu = sem. préc. (approx)" : ""}
+            {/* Légende visuelle */}
+            <div className="flex items-center gap-3 mb-1.5">
+              <span className="text-[8px] text-slate-500">Courbe de taux implicite</span>
+              <div className="flex items-center gap-2 ml-auto">
+                <span className="flex items-center gap-1 text-[8px] text-slate-200">
+                  <span className="inline-block w-5 h-px bg-slate-200 rounded" />
+                  Actuel
+                </span>
+                <span className={`flex items-center gap-1 text-[8px] ${ilDelta ? "text-sky-400" : "text-slate-600"}`}>
+                  <span className={`inline-block w-5 border-t border-dashed ${ilDelta ? "border-sky-400" : "border-slate-700"}`} />
+                  {ilDelta ? `Sem. préc. (${ilDelta.prevDate})` : "Sem. préc. (indispo)"}
+                </span>
+              </div>
             </div>
             <ResponsiveContainer width="100%" height={120}>
               <LineChart data={rateCurveData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
@@ -507,7 +518,7 @@ function OISEnhancedBlock({ ratePath }: { ratePath: CBRatePath }) {
                   domain={[minR - yMargin, maxR + yMargin]}
                   tickFormatter={(v: number) => v.toFixed(2)} />
                 <Tooltip
-                  contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 6, fontSize: 9 }}
+                  contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 6, fontSize: 9, color: "#e2e8f0" }}
                   formatter={(v: number, name: string) => [`${v.toFixed(3)}%`, name === "current" ? "Actuel" : "Sem. préc."]}
                 />
                 <Line type="monotone" dataKey="current" stroke="#e2e8f0" strokeWidth={1.5} dot={{ r: 2, fill: "#e2e8f0" }} name="current" />
@@ -522,7 +533,18 @@ function OISEnhancedBlock({ ratePath }: { ratePath: CBRatePath }) {
         {/* Chart 2 — Implied Points (bps cumulatifs par réunion) */}
         {chartTab === "implied" && (
           <div>
-            <div className="text-[8px] text-slate-600 mb-1">Implied Points (bps par réunion)</div>
+            {/* Légende couleurs barres */}
+            <div className="flex items-center gap-3 mb-1.5">
+              <span className="text-[8px] text-slate-500">Implied Points (bps par réunion)</span>
+              <div className="flex items-center gap-2 ml-auto">
+                <span className="flex items-center gap-1 text-[8px] text-emerald-400">
+                  <span className="inline-block w-2 h-2 rounded-sm bg-emerald-400/80" /> Hausse
+                </span>
+                <span className="flex items-center gap-1 text-[8px] text-pink-400">
+                  <span className="inline-block w-2 h-2 rounded-sm bg-pink-400/80" /> Baisse
+                </span>
+              </div>
+            </div>
             <ResponsiveContainer width="100%" height={120}>
               <BarChart data={impliedPtsData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
                 <XAxis dataKey="label" tick={{ fontSize: 7, fill: "#64748b" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
@@ -530,7 +552,7 @@ function OISEnhancedBlock({ ratePath }: { ratePath: CBRatePath }) {
                   tickFormatter={(v: number) => `${v}bps`} />
                 <ReferenceLine y={0} stroke="#334155" strokeWidth={0.5} />
                 <Tooltip
-                  contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 6, fontSize: 9 }}
+                  contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 6, fontSize: 9, color: "#e2e8f0" }}
                   formatter={(v: number) => [`${v > 0 ? "+" : ""}${v.toFixed(1)}bps`, "Implied"]}
                 />
                 <Bar dataKey="bps" radius={[2, 2, 0, 0]}>

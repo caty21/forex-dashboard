@@ -55,7 +55,7 @@ async function tryUrl(daysAgo: number): Promise<ArticleRef | null> {
     const res = await fetch(url, {
       method:  "HEAD",
       headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36" },
-      next:    { revalidate: 21600 },
+      cache:   "no-store",
     });
     return res.ok ? { url, dateStr, daysAgo } : null;
   } catch { return null; }
