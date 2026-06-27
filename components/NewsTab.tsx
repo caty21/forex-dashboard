@@ -91,7 +91,7 @@ interface Props {
 }
 
 export default function NewsTab({ items, loading, onRefresh }: Props) {
-  const [selectedCats,  setSelectedCats]  = useState<Set<string>>(new Set());
+  const [selectedCats,  setSelectedCats]  = useState<string[]>([]);
   const [filterDir,     setFilterDir]     = useState<"all" | "bullish" | "bearish">("all");
   const [priorityOnly,  setPriorityOnly]  = useState(false);
   const [autoRefresh,   setAutoRefresh]   = useState(true);
@@ -106,23 +106,20 @@ export default function NewsTab({ items, loading, onRefresh }: Props) {
   }, [autoRefresh, onRefresh]);
 
   const toggleCat = (cat: string) => {
-    setSelectedCats(prev => {
-      const next = new Set(prev);
-      if (next.has(cat)) next.delete(cat);
-      else next.add(cat);
-      return next;
-    });
+    setSelectedCats(prev =>
+      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+    );
   };
 
   // Filtre + tri — articles avec catégories macro et articles sans
   const { topFiltered, otherItems } = useMemo(() => {
-    const hasActiveFilter = selectedCats.size > 0 || filterDir !== "all" || priorityOnly;
+    const hasActiveFilter = selectedCats.length > 0 || filterDir !== "all" || priorityOnly;
 
     // Articles filtrés (tous)
     const allFiltered = items
       .filter(item => {
         if (priorityOnly && !item.categories.some(c => HIGH_PRIO.has(c))) return false;
-        if (selectedCats.size > 0 && !item.categories.some(c => selectedCats.has(c))) return false;
+        if (selectedCats.length > 0 && !item.categories.some(c => selectedCats.includes(c))) return false;
         if (filterDir !== "all" && !item.impacts.some(i => i.direction === filterDir)) return false;
         return true;
       })
@@ -143,14 +140,14 @@ export default function NewsTab({ items, loading, onRefresh }: Props) {
 
   // Boutons de catégories : dynamiques + catégories "toujours visibles"
   const activeCats = useMemo(() => {
-    const set = new Set<string>();
-    for (const item of items) item.categories.forEach(c => set.add(c));
-    ALWAYS_VISIBLE.forEach(c => set.add(c)); // toujours afficher ces catégories
-    return PRIORITY_CATS.filter(c => set.has(c));
+    const seen = new Set<string>();
+    for (const item of items) item.categories.forEach(c => seen.add(c));
+    ALWAYS_VISIBLE.forEach(c => seen.add(c));
+    return PRIORITY_CATS.filter(c => seen.has(c));
   }, [items]);
 
-  const anyFilter = selectedCats.size > 0 || filterDir !== "all" || priorityOnly;
-  const clearFilters = () => { setSelectedCats(new Set()); setFilterDir("all"); setPriorityOnly(false); };
+  const anyFilter = selectedCats.length > 0 || filterDir !== "all" || priorityOnly;
+  const clearFilters = () => { setSelectedCats([]); setFilterDir("all"); setPriorityOnly(false); };
 
   return (
     <div className="space-y-3">
@@ -226,9 +223,9 @@ export default function NewsTab({ items, loading, onRefresh }: Props) {
             <span className="text-[9px] text-amber-400 uppercase tracking-wider font-semibold shrink-0">
               Catégorie
             </span>
-            <button onClick={() => setSelectedCats(new Set())}
+            <button onClick={() => setSelectedCats([])}
               className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border transition-colors shrink-0 ${
-                selectedCats.size === 0
+                selectedCats.length === 0
                   ? "bg-slate-700 text-slate-300 border-slate-600"
                   : "text-slate-500 border-slate-700/40 hover:text-slate-300"
               }`}>
@@ -236,7 +233,7 @@ export default function NewsTab({ items, loading, onRefresh }: Props) {
             </button>
             {activeCats.map(cat => {
               const meta     = CATEGORY_META[cat];
-              const isActive = selectedCats.has(cat);
+              const isActive = selectedCats.includes(cat);
               return (
                 <button key={cat} onClick={() => toggleCat(cat)}
                   className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-semibold border transition-colors shrink-0 ${

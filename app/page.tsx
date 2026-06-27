@@ -14,7 +14,7 @@ import YieldsTab from "@/components/YieldsTab";
 import NewsTab from "@/components/NewsTab";
 import CotTab from "@/components/CotTab";
 import ReportTab from "@/components/ReportTab";
-import { TvMiniChart } from "@/components/TvChart";
+import { TvAdvancedChart } from "@/components/TvChart";
 import type { CalendarEvent } from "@/app/api/calendar/route";
 import type { NewsItem } from "@/app/api/news/route";
 import type { CotHistory } from "@/app/api/cot-history/route";
@@ -607,10 +607,10 @@ export default function Dashboard() {
             <div className="h-px flex-1 bg-sky-500/20" />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <TvMiniChart symbol="SP:SPX"   label="S&P 500 · Daily"           dateRange="12M" height={220} />
-            <TvMiniChart symbol="TVC:VIX"  label="VIX · Daily"               dateRange="12M" height={220} />
-            <TvMiniChart symbol="TVC:DXY"  label="DXY Dollar Index · Weekly" dateRange="60M" height={220} />
-            <TvMiniChart symbol="TVC:GOLD" label="Or (XAU/USD) · Weekly"     dateRange="60M" height={220} />
+            <TvAdvancedChart symbol="SP:SPX"   label="S&P 500 · Daily"           interval="D" height={220} />
+            <TvAdvancedChart symbol="TVC:VIX"  label="VIX · Daily"               interval="D" height={220} />
+            <TvAdvancedChart symbol="TVC:DXY"  label="DXY Dollar Index · Weekly" interval="W" height={220} />
+            <TvAdvancedChart symbol="TVC:GOLD" label="Or (XAU/USD) · Weekly"     interval="W" height={220} />
           </div>
         </div>
       )}
