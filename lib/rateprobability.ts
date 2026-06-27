@@ -44,6 +44,8 @@ export interface CBRatePath {
   yearEndImplied: number | null;           // taux impliqué à la dernière réunion connue (SOFR)
   ilCurrent?:     ILCurrent;               // valeurs absolues de l'article IL courant
   ilDelta?:       ILWeeklyDelta;           // delta vs article IL semaine précédente
+  prevMeetings?:  RateProbMeeting[];       // réunions semaine précédente (snapshot RP)
+  prevWeekDate?:  string;                  // date du snapshot semaine précédente
 }
 
 export type RateProbData = Partial<Record<Currency, CBRatePath>>;
@@ -244,6 +246,21 @@ function loadCachedRPBody(ccy: string, slug: string): Record<string, unknown> | 
   } catch { return null; }
 }
 
+function loadPrevWeekCachedBody(ccy: string): { body: Record<string, unknown>; date: string } | null {
+  try {
+    const filePath = join(process.cwd(), "data", "rate-probabilities.json");
+    const raw = readFileSync(filePath, "utf8");
+    const parsed = JSON.parse(raw) as { previousWeek?: Record<string, unknown>; previousWeekFetchedAt?: string };
+    if (!parsed.previousWeek || !parsed.previousWeekFetchedAt) return null;
+    const entry = parsed.previousWeek[ccy] as Record<string, unknown> | undefined;
+    if (!entry) return null;
+    const ageMs = Date.now() - new Date(parsed.previousWeekFetchedAt).getTime();
+    // Le snapshot semaine précédente doit dater de 4 à 10 jours
+    if (ageMs < 3 * 86400000 || ageMs > 11 * 86400000) return null;
+    return { body: entry, date: parsed.previousWeekFetchedAt.slice(0, 10) };
+  } catch { return null; }
+}
+
 // Reparse un body brut de rateprobability.com (même format que fetchCBPath)
 function parseCBBody(ccy: Currency, body: Record<string, unknown>): CBRatePath | null {
   const today = body["today"] as Record<string, unknown> | undefined;
@@ -298,6 +315,18 @@ export async function fetchAllCBPaths(): Promise<RateProbData> {
         const parsed = parseCBBody(ccy as Currency, cachedBody);
         if (parsed) data[ccy] = parsed;
       }
+    }
+  }
+
+  // Enrichissement prevMeetings depuis snapshot semaine précédente (GitHub Actions)
+  for (const [ccy] of CB_KEYS) {
+    const path = data[ccy as Currency];
+    if (!path) continue;
+    const prev = loadPrevWeekCachedBody(ccy);
+    if (!prev) continue;
+    const prevPath = parseCBBody(ccy as Currency, prev.body);
+    if (prevPath?.meetings.length) {
+      data[ccy as Currency] = { ...path, prevMeetings: prevPath.meetings, prevWeekDate: prev.date };
     }
   }
 

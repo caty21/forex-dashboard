@@ -341,7 +341,7 @@ function SignalBar({ strength, direction }: { strength: number; direction: Signa
 function OISEnhancedBlock({ ratePath }: { ratePath: CBRatePath }) {
   const [chartTab, setChartTab] = useState<"curve" | "implied" | "scenarios">("curve");
 
-  const { currentRate, meetings, yearEndImplied, ilDelta, ilCurrent } = ratePath;
+  const { currentRate, meetings, yearEndImplied, ilDelta, ilCurrent, prevMeetings, prevWeekDate } = ratePath;
   if (!meetings.length) return null;
 
   const m0 = meetings[0];
@@ -368,11 +368,16 @@ function OISEnhancedBlock({ ratePath }: { ratePath: CBRatePath }) {
   // Chart data (limit to 10 meetings)
   const chartMeetings = meetings.slice(0, 10);
 
-  const rateCurveData = chartMeetings.map(m => ({
-    label: m.label,
-    current: +m.impliedRate.toFixed(3),
-    ...(ilDelta ? { weekAgo: +(m.impliedRate + ilDelta.bpsDelta / 100).toFixed(3) } : {}),
-  }));
+  // prevMeetings (snapshot RP) = per-meeting exact; ilDelta (IL article) = décalage uniforme approximatif
+  const rateCurveData = chartMeetings.map(m => {
+    const prevM = prevMeetings?.find(p => p.dateIso === m.dateIso);
+    const weekAgo = prevM
+      ? +prevM.impliedRate.toFixed(3)
+      : ilDelta ? +(m.impliedRate + ilDelta.bpsDelta / 100).toFixed(3) : undefined;
+    return { label: m.label, current: +m.impliedRate.toFixed(3), ...(weekAgo !== undefined ? { weekAgo } : {}) };
+  });
+  const hasPrevCurve = !!(prevMeetings?.length || ilDelta);
+  const prevCurveLabel = prevWeekDate ?? ilDelta?.prevDate ?? null;
 
   const impliedPtsData = chartMeetings.map(m => ({
     label: m.label,
@@ -507,9 +512,9 @@ function OISEnhancedBlock({ ratePath }: { ratePath: CBRatePath }) {
                   <span className="inline-block w-5 h-px bg-slate-200 rounded" />
                   Actuel
                 </span>
-                <span className={`flex items-center gap-1 text-[8px] ${ilDelta ? "text-sky-400" : "text-slate-600"}`}>
-                  <span className={`inline-block w-5 border-t border-dashed ${ilDelta ? "border-sky-400" : "border-slate-700"}`} />
-                  {ilDelta ? `Sem. préc. (${ilDelta.prevDate})` : "Sem. préc. (indispo)"}
+                <span className={`flex items-center gap-1 text-[8px] ${hasPrevCurve ? "text-sky-400" : "text-slate-600"}`}>
+                  <span className={`inline-block w-5 border-t border-dashed ${hasPrevCurve ? "border-sky-400" : "border-slate-700"}`} />
+                  {hasPrevCurve && prevCurveLabel ? `Sem. préc. (${prevCurveLabel})` : hasPrevCurve ? "Sem. préc." : "Sem. préc. (indispo)"}
                 </span>
               </div>
             </div>
@@ -526,7 +531,7 @@ function OISEnhancedBlock({ ratePath }: { ratePath: CBRatePath }) {
                   formatter={(v: number, name: string) => [`${v.toFixed(3)}%`, name === "current" ? "Actuel" : "Sem. préc."]}
                 />
                 <Line type="monotone" dataKey="current" stroke="#e2e8f0" strokeWidth={1.5} dot={{ r: 2, fill: "#e2e8f0" }} name="current" />
-                {ilDelta && (
+                {hasPrevCurve && (
                   <Line type="monotone" dataKey="weekAgo" stroke="#38bdf8" strokeWidth={1.5} dot={{ r: 2, fill: "#38bdf8" }} strokeDasharray="4 2" name="weekAgo" />
                 )}
               </LineChart>

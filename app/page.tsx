@@ -634,15 +634,8 @@ export default function Dashboard() {
         <div className="ml-auto text-slate-700 hidden sm:block">Cliquer sur chaque signal pour voir l'analyse détaillée</div>
       </div>
 
-      {/* Footer */}
-      <footer className="mt-4 text-center text-xs text-slate-600 space-y-1">
-        <p>
-          Sources: FRED · ECB · BoE · BoC · CFTC · Frankfurter · Myfxbook · ForexFactory
-        </p>
-        <p>
-          LLM: Groq (Llama 3.1) · Données à titre informatif uniquement — pas de conseil financier
-        </p>
-      </footer>
+      {/* Padding bas pour éviter que le contenu s'arrête brutalement au scroll */}
+      <div className="pb-12" />
     </div>
   );
 }
