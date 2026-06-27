@@ -171,16 +171,18 @@ function computeESI(inds: Record<string, Ind | null> | undefined): number | null
 }
 
 function SurpriseIndexBadge({ value }: { value: number }) {
-  const color = value > 20 ? "text-emerald-400" : value < -20 ? "text-red-400" : "text-slate-400";
-  const bgBar = value > 20 ? "bg-emerald-500" : value < -20 ? "bg-red-500" : "bg-slate-500";
+  const cls = value > 20
+    ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+    : value < -20
+    ? "bg-red-500/15 text-red-400 border-red-500/30"
+    : "bg-slate-700/40 text-slate-400 border-slate-600/30";
   return (
-    <div className="flex items-center gap-1.5">
-      <span className="text-[10px] text-slate-600" title={"ESI — Economic Surprise Index\n\nCalcul : 9 indicateurs (CPI YoY, Core CPI, CPI MoM, PPI MoM, PMI Mfg, PMI Svc, GDP, Retail Sales, Employment). Pour chacun : actual > forecast → +1 ; actual < forecast → −1 ; égal → 0. Le chômage est inversé (hausse = mauvaise nouvelle → −1). Résultat = moyenne des signes × 100.\n\nPlage : −100 à +100. Seuils : > +20 vert (majorité de beats) ; < −20 rouge (majorité de misses).\n\nLimites : non pondéré (un petit beat = un gros beat), non daté (une donnée vieille compte autant qu'une récente)."}>ESI</span>
-      <div className="w-12 h-1 bg-slate-700 rounded-full overflow-hidden">
-        <div className={`h-full ${bgBar} rounded-full`} style={{ width: `${Math.min(100, Math.abs(value))}%` }} />
-      </div>
-      <span className={`text-[10px] font-bold tabular-nums ${color}`}>{value > 0 ? "+" : ""}{value}</span>
-    </div>
+    <span
+      className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full border tabular-nums ${cls}`}
+      title={"ESI — Economic Surprise Index\n\nBeat/miss de 9 indicateurs (CPI, PMI, PIB, emploi…).\nPlage −100 → +100. Vert > +20 (majorité de beats), Rouge < −20 (majorité de misses)."}
+    >
+      ESI {value > 0 ? "+" : ""}{value}
+    </span>
   );
 }
 
@@ -1328,26 +1330,20 @@ export default function CurrencyCard({
             {activeTab === "overview" && (
               <>
 
-                {/* ── Divergence macro / marché — compact 1 ligne ─────────── */}
-                {(dir !== "neutral" || mispricDir !== "neutral") && (
-                  <div className={`rounded-lg border px-2.5 py-1.5 flex items-center gap-1.5 text-[10px] ${
-                    bothOpposed ? "bg-amber-500/8 border-amber-500/25"
-                    : bothAligned ? sigBg(divergenceSignal)
-                    : "bg-slate-800/40 border-slate-700/30"
-                  }`}>
-                    <span className="text-slate-500 shrink-0">Fond.</span>
-                    <span className={`font-black ${sigColor(dir)}`}>{dir === "bullish" ? "↑" : dir === "bearish" ? "↓" : "—"}</span>
-                    <span className={`text-[9px] tabular-nums ${sigColor(dir)}`}>({macroScore > 0 ? "+" : ""}{macroScore})</span>
-                    <span className="text-slate-700 mx-0.5">·</span>
-                    <span className={`font-bold flex-1 text-center ${bothOpposed ? "text-amber-400" : sigColor(divergenceSignal)}`}>
-                      {bothOpposed ? "⚠ Divergence" : bothAligned ? (divergenceSignal === "bullish" ? "✓ Conv. ↑" : "✓ Conv. ↓") : dir !== "neutral" ? "Macro seule" : "Signaux seuls"}
-                    </span>
-                    <span className="text-slate-700 mx-0.5">·</span>
-                    <span className="text-slate-500 shrink-0">Marché</span>
-                    <span className={`font-black ${sigColor(mispricDir)}`}>{mispricDir === "bullish" ? "↑" : mispricDir === "bearish" ? "↓" : "—"}</span>
-                    <span className="text-[8px] text-slate-600 shrink-0">OIS/COT</span>
-                  </div>
-                )}
+                {/* ── Convergence / Divergence macro ↔ marché ─────────────── */}
+                <div className={`rounded-lg border px-2.5 py-1.5 flex items-center gap-1.5 text-[10px] ${
+                  bothOpposed ? "bg-amber-500/8 border-amber-500/25"
+                  : bothAligned ? sigBg(divergenceSignal)
+                  : "bg-slate-800/40 border-slate-700/30"
+                }`}>
+                  <span className="text-slate-500 shrink-0 text-[9px] uppercase tracking-wider">Fond.</span>
+                  <span className={`font-black text-[13px] leading-none ${sigColor(dir)}`}>{dir === "bullish" ? "↑" : dir === "bearish" ? "↓" : "—"}</span>
+                  <span className={`font-bold flex-1 text-center ${bothOpposed ? "text-amber-400" : sigColor(divergenceSignal)}`}>
+                    {bothOpposed ? "⚠ Divergence" : bothAligned ? (divergenceSignal === "bullish" ? "✓ Convergence ↑" : "✓ Convergence ↓") : dir !== "neutral" ? "Macro seule" : mispricDir !== "neutral" ? "Signaux seuls" : "Neutre"}
+                  </span>
+                  <span className={`font-black text-[13px] leading-none ${sigColor(mispricDir)}`}>{mispricDir === "bullish" ? "↑" : mispricDir === "bearish" ? "↓" : "—"}</span>
+                  <span className="text-slate-500 shrink-0 text-[9px] uppercase tracking-wider">Marché</span>
+                </div>
 
                 {/* ── Slider macro : Mon. / Infl. / Cro. / Empl. ───────────── */}
                 {(() => {
@@ -1418,10 +1414,7 @@ export default function CurrencyCard({
                                 {yield10Y !== null && (
                                   <div className="flex items-center justify-between text-[12px]">
                                     <div className="flex items-center gap-1.5"><span className="text-slate-600">→</span><span className="text-slate-400">10Y Yield</span></div>
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="font-semibold text-slate-200 tabular-nums">{yield10Y.toFixed(2)}%</span>
-                                      {spread10Y !== null && <span className={`text-[10px] ${spread10Y > 0 ? "text-emerald-500" : "text-red-500"}`}>({spread10Y > 0 ? "+" : ""}{spread10Y}bps)</span>}
-                                    </div>
+                                    <span className="font-semibold text-slate-200 tabular-nums">{yield10Y.toFixed(2)}%</span>
                                   </div>
                                 )}
                               </MacroBlock>
