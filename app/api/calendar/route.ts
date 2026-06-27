@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import rateDecisionsData from "@/data/rate_decisions.json";
 import { fetchFFEvents, nextWeekAvailable } from "@/lib/forexfactory";
+
+export const dynamic = "force-dynamic";
 import type { FFEvent } from "@/lib/forexfactory";
 import type { Currency } from "@/lib/types";
 import { fetchAllCBPaths, extractMeetingEvents } from "@/lib/rateprobability";

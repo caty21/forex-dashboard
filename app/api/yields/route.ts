@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { fetchTEBondYields } from "@/lib/tebonds";
 
+export const dynamic = "force-dynamic";
+
 // Variation % d'un pair FX vs clôture J-1 (Yahoo Finance, cache 5 min)
 // Valeur positive = devise X plus forte vs USD (ou USD plus fort si pair inversé)
 async function fxChangePct(symbol: string, invert = false): Promise<number | null> {

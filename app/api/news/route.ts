@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { fetchAllNews } from "@/lib/newsfeed";
 import type { NewsItem } from "@/lib/newsfeed";
 
+export const dynamic = "force-dynamic";
+
 export type { NewsItem } from "@/lib/newsfeed";
 
 let _cache: { data: NewsItem[]; ts: number } | null = null;

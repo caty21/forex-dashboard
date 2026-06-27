@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { fetchAllCBPaths } from "@/lib/rateprobability";
 import type { RateProbData } from "@/lib/rateprobability";
 
+export const dynamic = "force-dynamic";
+
 export type { RateProbData, CBRatePath, RateProbMeeting } from "@/lib/rateprobability";
 
 export interface RateProbabilitiesResponse {
