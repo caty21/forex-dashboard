@@ -45,7 +45,7 @@ export default function NarrativeButton({ currency, phase, macroScore }: Props) 
       <button
         onClick={run}
         disabled={loading}
-        className="flex items-center gap-1 text-[10px] text-indigo-600 hover:text-indigo-800 disabled:opacity-50"
+        className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-200 disabled:opacity-50 transition-colors px-2 py-1"
       >
         <Sparkles size={11} />
         {loading ? "Analyse…" : "Résumé IA"}
@@ -60,20 +60,20 @@ export default function NarrativeButton({ currency, phase, macroScore }: Props) 
       {open && analysis && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setOpen(false)}>
           <div
-            className="bg-white rounded-xl shadow-xl max-w-sm w-full p-5"
+            className="bg-slate-900 border border-slate-700 rounded-xl shadow-xl max-w-sm w-full p-5"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <Sparkles size={15} className="text-indigo-500" />
-                <span className="font-medium text-sm">Analyse {currency} — Groq AI</span>
+                <Sparkles size={15} className="text-slate-400" />
+                <span className="font-medium text-sm text-slate-200">Analyse {currency} — Groq AI</span>
               </div>
-              <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-700">
+              <button onClick={() => setOpen(false)} className="text-slate-600 hover:text-slate-300">
                 <X size={15} />
               </button>
             </div>
-            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{analysis}</p>
-            <div className="mt-3 text-[10px] text-gray-400 text-right">
+            <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">{analysis}</p>
+            <div className="mt-3 text-[10px] text-slate-600 text-right">
               Powered by Groq · Llama 3.1 8B
             </div>
           </div>

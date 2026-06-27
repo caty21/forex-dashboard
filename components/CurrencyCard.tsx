@@ -1067,7 +1067,7 @@ export default function CurrencyCard({
     { key: "mac",  abbr: "Fonda.", dir },
     { key: "cot",  abbr: "COT",  dir: cotSignalDir },
     { key: "sent", abbr: "Sent", dir: sentSignalDir },
-    { key: "real", abbr: "Réel", dir: realRateDir },
+    { key: "real", abbr: "Tx.R", dir: realRateDir },
   ];
 
   // Auto-select first available slider block when data changes
@@ -1124,8 +1124,8 @@ export default function CurrencyCard({
           </span>
           {esi !== null && <SurpriseIndexBadge value={esi} />}
           {fromCache && cacheAge && (
-            <span className="flex items-center gap-0.5 text-[9px] text-amber-500" title="Données depuis le cache local">
-              <Database size={9} /> cache {cacheAge}
+            <span className="text-amber-500/60 cursor-help" title={`Données depuis le cache local (${cacheAge})`}>
+              <Database size={9} />
             </span>
           )}
         </div>
@@ -1133,7 +1133,7 @@ export default function CurrencyCard({
         {!loading && (
           <div className="flex items-center gap-3 mt-2 pt-2 border-t border-slate-800">
             {signalSummary.map(s => (
-              <div key={s.key} className="flex flex-col items-center gap-0.5" title={`${s.abbr} : ${s.dir}`}>
+              <div key={s.key} className="flex flex-col items-center gap-0.5" title={s.key === "real" ? `Taux Réel = Taux directeur − CPI YoY.\n> +1.5% → restrictif (bullish)\n< 0% → accommodant (bearish)` : `${s.abbr} : ${s.dir}`}>
                 <div className={`w-2 h-2 rounded-full ${
                   s.dir === "bullish" ? "bg-emerald-500"
                   : s.dir === "bearish" ? "bg-red-500"
@@ -1328,44 +1328,24 @@ export default function CurrencyCard({
             {activeTab === "overview" && (
               <>
 
-                {/* ── Divergence macro / marché ───────────────────────────── */}
+                {/* ── Divergence macro / marché — compact 1 ligne ─────────── */}
                 {(dir !== "neutral" || mispricDir !== "neutral") && (
-                  <div className={`rounded-xl border px-3 py-2 flex items-center gap-3 ${
-                    bothOpposed
-                      ? "bg-amber-500/8 border-amber-500/25"
-                      : bothAligned
-                      ? `${sigBg(divergenceSignal)}`
-                      : "bg-slate-800/40 border-slate-700/30"
+                  <div className={`rounded-lg border px-2.5 py-1.5 flex items-center gap-1.5 text-[10px] ${
+                    bothOpposed ? "bg-amber-500/8 border-amber-500/25"
+                    : bothAligned ? sigBg(divergenceSignal)
+                    : "bg-slate-800/40 border-slate-700/30"
                   }`}>
-                    {/* Macro */}
-                    <div className="flex flex-col items-center gap-0.5">
-                      <span className="text-[7px] text-slate-600 uppercase tracking-wider">Fond.</span>
-                      <span className={`text-[18px] font-black leading-none ${sigColor(dir)}`}>
-                        {dir === "bullish" ? "↑" : dir === "bearish" ? "↓" : "—"}
-                      </span>
-                      <span className={`text-[9px] font-bold tabular-nums ${sigColor(dir)}`}>
-                        {macroScore > 0 ? "+" : ""}{macroScore}
-                      </span>
-                    </div>
-                    {/* Verdict central */}
-                    <div className="flex-1 text-center">
-                      <div className={`text-[10px] font-bold ${bothOpposed ? "text-amber-400" : sigColor(divergenceSignal)}`}>
-                        {bothOpposed ? "⚠ Divergence" : bothAligned ? (divergenceSignal === "bullish" ? "✓ Convergence ↑" : "✓ Convergence ↓") : dir !== "neutral" ? "Macro seule" : "Signaux seuls"}
-                      </div>
-                      {bothOpposed && (
-                        <div className="text-[8px] text-slate-600 mt-0.5">
-                          Fond. {dir === "bullish" ? "haussier" : "baissier"} · Marché {mispricDir === "bullish" ? "haussier" : "baissier"}
-                        </div>
-                      )}
-                    </div>
-                    {/* Marché / Signaux */}
-                    <div className="flex flex-col items-center gap-0.5">
-                      <span className="text-[7px] text-slate-600 uppercase tracking-wider">Marché</span>
-                      <span className={`text-[18px] font-black leading-none ${sigColor(mispricDir)}`}>
-                        {mispricDir === "bullish" ? "↑" : mispricDir === "bearish" ? "↓" : "—"}
-                      </span>
-                      <span className={`text-[9px] text-slate-600`}>OIS/COT/Sent</span>
-                    </div>
+                    <span className="text-slate-500 shrink-0">Fond.</span>
+                    <span className={`font-black ${sigColor(dir)}`}>{dir === "bullish" ? "↑" : dir === "bearish" ? "↓" : "—"}</span>
+                    <span className={`text-[9px] tabular-nums ${sigColor(dir)}`}>({macroScore > 0 ? "+" : ""}{macroScore})</span>
+                    <span className="text-slate-700 mx-0.5">·</span>
+                    <span className={`font-bold flex-1 text-center ${bothOpposed ? "text-amber-400" : sigColor(divergenceSignal)}`}>
+                      {bothOpposed ? "⚠ Divergence" : bothAligned ? (divergenceSignal === "bullish" ? "✓ Conv. ↑" : "✓ Conv. ↓") : dir !== "neutral" ? "Macro seule" : "Signaux seuls"}
+                    </span>
+                    <span className="text-slate-700 mx-0.5">·</span>
+                    <span className="text-slate-500 shrink-0">Marché</span>
+                    <span className={`font-black ${sigColor(mispricDir)}`}>{mispricDir === "bullish" ? "↑" : mispricDir === "bearish" ? "↓" : "—"}</span>
+                    <span className="text-[8px] text-slate-600 shrink-0">OIS/COT</span>
                   </div>
                 )}
 
