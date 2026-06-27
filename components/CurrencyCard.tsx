@@ -1335,19 +1335,37 @@ export default function CurrencyCard({
               <>
 
                 {/* ── Convergence / Divergence macro ↔ marché ─────────────── */}
-                <div className={`rounded-lg border px-2.5 py-1.5 flex items-center gap-1.5 text-[10px] ${
-                  bothOpposed ? "bg-amber-500/8 border-amber-500/25"
-                  : bothAligned ? sigBg(divergenceSignal)
-                  : "bg-slate-800/40 border-slate-700/30"
-                }`}>
-                  <span className="text-slate-500 shrink-0 text-[9px] uppercase tracking-wider">Fond.</span>
-                  <span className={`font-black text-[13px] leading-none ${sigColor(dir)}`}>{dir === "bullish" ? "↑" : dir === "bearish" ? "↓" : "—"}</span>
-                  <span className={`font-bold flex-1 text-center ${bothOpposed ? "text-amber-400" : sigColor(divergenceSignal)}`}>
-                    {bothOpposed ? "⚠ Divergence" : bothAligned ? (divergenceSignal === "bullish" ? "✓ Convergence ↑" : "✓ Convergence ↓") : dir !== "neutral" ? "Macro seule" : mispricDir !== "neutral" ? "Signaux seuls" : "Neutre"}
-                  </span>
-                  <span className={`font-black text-[13px] leading-none ${sigColor(mispricDir)}`}>{mispricDir === "bullish" ? "↑" : mispricDir === "bearish" ? "↓" : "—"}</span>
-                  <span className="text-slate-500 shrink-0 text-[9px] uppercase tracking-wider">Marché</span>
-                </div>
+                {(() => {
+                  const isNeutral = dir === "neutral" && mispricDir === "neutral";
+                  const verdictText = bothOpposed ? "⚠ Divergence"
+                    : bothAligned ? (divergenceSignal === "bullish" ? "✓ Convergence ↑" : "✓ Convergence ↓")
+                    : dir !== "neutral" ? "Macro seule"
+                    : mispricDir !== "neutral" ? "Signaux seuls"
+                    : "Neutre";
+                  const containerCls = bothOpposed
+                    ? "bg-amber-500/10 border-amber-500/30"
+                    : bothAligned
+                    ? sigBg(divergenceSignal)
+                    : isNeutral
+                    ? "bg-slate-800/60 border-slate-600/40"
+                    : "bg-slate-800/50 border-slate-600/30";
+                  const verdictCls = bothOpposed ? "text-amber-400"
+                    : isNeutral ? "text-slate-400"
+                    : sigColor(divergenceSignal);
+                  return (
+                    <div className={`rounded-lg border px-2.5 py-1.5 flex items-center gap-1.5 text-[10px] ${containerCls}`}>
+                      <span className="text-slate-400 shrink-0 text-[9px] uppercase tracking-wider font-semibold">Fond.</span>
+                      <span className={`font-black text-[13px] leading-none ${dir === "neutral" ? "text-slate-500" : sigColor(dir)}`}>
+                        {dir === "bullish" ? "↑" : dir === "bearish" ? "↓" : "—"}
+                      </span>
+                      <span className={`font-bold flex-1 text-center ${verdictCls}`}>{verdictText}</span>
+                      <span className={`font-black text-[13px] leading-none ${mispricDir === "neutral" ? "text-slate-500" : sigColor(mispricDir)}`}>
+                        {mispricDir === "bullish" ? "↑" : mispricDir === "bearish" ? "↓" : "—"}
+                      </span>
+                      <span className="text-slate-400 shrink-0 text-[9px] uppercase tracking-wider font-semibold">Marché</span>
+                    </div>
+                  );
+                })()}
 
                 {/* ── Slider macro : Mon. / Infl. / Cro. / Empl. ───────────── */}
                 {(() => {
