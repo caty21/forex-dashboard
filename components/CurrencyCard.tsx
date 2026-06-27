@@ -1360,19 +1360,21 @@ export default function CurrencyCard({
                     : bothAligned
                     ? sigBg(divergenceSignal)
                     : isNeutral
-                    ? "bg-slate-800/60 border-slate-600/40"
+                    ? "bg-slate-700/40 border-slate-500/50"
                     : "bg-slate-800/50 border-slate-600/30";
                   const verdictCls = bothOpposed ? "text-amber-400"
-                    : isNeutral ? "text-slate-400"
+                    : isNeutral ? "text-slate-300"
                     : sigColor(divergenceSignal);
+                  const arrowCls = (d: SignalDir) =>
+                    d === "neutral" ? "text-slate-400" : sigColor(d);
                   return (
                     <div className={`rounded-lg border px-2.5 py-1.5 flex items-center gap-1.5 text-[10px] ${containerCls}`}>
                       <span className="text-slate-400 shrink-0 text-[9px] uppercase tracking-wider font-semibold">Fond.</span>
-                      <span className={`font-black text-[13px] leading-none ${dir === "neutral" ? "text-slate-500" : sigColor(dir)}`}>
+                      <span className={`font-black text-[13px] leading-none ${arrowCls(dir)}`}>
                         {dir === "bullish" ? "↑" : dir === "bearish" ? "↓" : "—"}
                       </span>
                       <span className={`font-bold flex-1 text-center ${verdictCls}`}>{verdictText}</span>
-                      <span className={`font-black text-[13px] leading-none ${mispricDir === "neutral" ? "text-slate-500" : sigColor(mispricDir)}`}>
+                      <span className={`font-black text-[13px] leading-none ${arrowCls(mispricDir)}`}>
                         {mispricDir === "bullish" ? "↑" : mispricDir === "bearish" ? "↓" : "—"}
                       </span>
                       <span className="text-slate-400 shrink-0 text-[9px] uppercase tracking-wider font-semibold">Marché</span>
