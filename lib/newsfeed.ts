@@ -847,12 +847,12 @@ export async function fetchAllNews(): Promise<NewsItem[]> {
 
   const PRIORITY_SET = new Set(["Discours BC", "Décision Taux", "Crise", "Guerre", "Chef d'État", "Probabilités Taux"]);
   const isPrio = (item: NewsItem) => item.categories.some(c => PRIORITY_SET.has(c));
+  const PRIO_BONUS_MS = 3 * 60 * 60 * 1000; // +3h boost pour les prioritaires
 
   deduped.sort((a, b) => {
-    const pa = isPrio(a) ? 1 : 0;
-    const pb = isPrio(b) ? 1 : 0;
-    if (pb !== pa) return pb - pa;
-    return b.publishedAt.localeCompare(a.publishedAt);
+    const ta = new Date(a.publishedAt).getTime() + (isPrio(a) ? PRIO_BONUS_MS : 0);
+    const tb = new Date(b.publishedAt).getTime() + (isPrio(b) ? PRIO_BONUS_MS : 0);
+    return tb - ta;
   });
 
   return deduped;
