@@ -80,12 +80,14 @@ export function TvAdvancedChart({
         locale:               "fr",
         backgroundColor:      "rgba(8,12,20,0)",
         gridColor:            "rgba(30,45,61,0.5)",
-        hide_top_toolbar:     true,
+        hide_top_toolbar:     false,
         hide_legend:          false,
         allow_symbol_change:  false,
         calendar:             false,
         hide_volume:          true,
         isTransparent:        true,
+        save_image:           true,
+        drawings_access:      { type: "all", tools: [{ name: "Regression Trend" }] },
       },
       height
     );

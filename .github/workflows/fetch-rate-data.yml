@@ -1,0 +1,29 @@
+name: Fetch Rate Probabilities
+
+on:
+  schedule:
+    - cron: '0 * * * *'   # toutes les heures
+  workflow_dispatch:        # déclenchement manuel
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Fetch rate probabilities from rateprobability.com
+        run: node .github/scripts/fetch-rate-data.mjs
+
+      - name: Commit updated data (if changed)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/rate-probabilities.json
+          git diff --staged --quiet || git commit -m "chore: update rate-probabilities data [skip ci]"
+          git push
