@@ -33,7 +33,7 @@ function mountEmbedWidget(
 
   const script = document.createElement("script");
   script.type  = "text/javascript";
-  script.async = true;
+  script.async = false; // false = exécution ordonnée → document.currentScript correctement défini
   script.src   = scriptSrc;
   script.text  = JSON.stringify(config);
   wrapper.appendChild(script);
