@@ -607,10 +607,10 @@ export default function Dashboard() {
             <div className="h-px flex-1 bg-sky-500/20" />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <TvAdvancedChart symbol="SP:SPX"   label="S&P 500 · Daily"           interval="D" height={220} />
-            <TvAdvancedChart symbol="TVC:VIX"  label="VIX · Daily"               interval="D" height={220} />
-            <TvAdvancedChart symbol="TVC:DXY"  label="DXY Dollar Index · Weekly" interval="W" height={220} />
-            <TvAdvancedChart symbol="TVC:GOLD" label="Or (XAU/USD) · Weekly"     interval="W" height={220} />
+            <TvAdvancedChart symbol="FOREXCOM:SPXUSD" label="S&P 500 · Daily"           interval="D" height={220} />
+            <TvAdvancedChart symbol="CBOE:VIX"       label="VIX · Daily"               interval="D" height={220} />
+            <TvAdvancedChart symbol="CAPITALCOM:DXY" label="DXY Dollar Index · Weekly" interval="W" height={220} />
+            <TvAdvancedChart symbol="TVC:GOLD"       label="Or (XAU/USD) · Weekly"     interval="W" height={220} />
           </div>
         </div>
       )}
