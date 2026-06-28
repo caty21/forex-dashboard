@@ -350,14 +350,8 @@ function NewsCard({ item, secondary = false }: { item: NewsItem; secondary?: boo
           )}
         </div>
 
-        {/* Analyse + Titre */}
+        {/* Titre + Analyse (bouton en fin de ligne) */}
         <div className="flex items-start gap-2 mb-1.5">
-          {!secondary && (
-            <button onClick={() => setExpanded(e => !e)}
-              className="text-[9px] text-slate-400 hover:text-white px-1.5 py-0.5 rounded-full border border-slate-600/50 transition-colors whitespace-nowrap shrink-0 mt-0.5">
-              {expanded ? "▲" : "▼ Analyse"}
-            </button>
-          )}
           <a href={item.url} target="_blank" rel="noopener noreferrer"
             className="group flex items-start gap-1 flex-1 min-w-0">
             <span className={`text-[12px] leading-snug font-medium group-hover:text-white transition-colors ${secondary ? "text-slate-400" : "text-slate-200"}`}>
@@ -365,6 +359,12 @@ function NewsCard({ item, secondary = false }: { item: NewsItem; secondary?: boo
             </span>
             <ExternalLink size={10} className="text-slate-600 group-hover:text-slate-400 shrink-0 mt-0.5" />
           </a>
+          {!secondary && (
+            <button onClick={() => setExpanded(e => !e)}
+              className="text-[9px] text-slate-400 hover:text-white px-1.5 py-0.5 rounded-full border border-slate-600/50 transition-colors whitespace-nowrap shrink-0 mt-0.5">
+              {expanded ? "▲" : "▼ Analyse"}
+            </button>
+          )}
         </div>
 
         {item.summary && !secondary && (
