@@ -29,11 +29,13 @@ function mountEmbedWidget(
   widgetDiv.className = "tradingview-widget-container__widget";
   widgetDiv.style.width  = "100%";
   widgetDiv.style.height = `${height}px`;
+  // container_id permet au widget de trouver son propre conteneur parmi plusieurs instances
+  if (config.container_id) widgetDiv.id = String(config.container_id);
   wrapper.appendChild(widgetDiv);
 
   const script = document.createElement("script");
   script.type  = "text/javascript";
-  script.async = false; // false = exécution ordonnée → document.currentScript correctement défini
+  script.async = false; // false → document.currentScript défini lors de l'exécution
   script.src   = scriptSrc;
   script.text  = JSON.stringify(config);
   wrapper.appendChild(script);
@@ -65,6 +67,7 @@ export function TvAdvancedChart({
     if (initialized.current || !wrapperRef.current) return;
     initialized.current = true;
 
+    const containerId = `tv_adv_${instanceId.current}`;
     mountEmbedWidget(
       wrapperRef.current,
       `https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js?t=${instanceId.current}`,
@@ -76,7 +79,7 @@ export function TvAdvancedChart({
         interval,
         timezone:             "Europe/Paris",
         theme:                "dark",
-        style:                "1",       // bougies japonaises
+        style:                "1",
         locale:               "fr",
         backgroundColor:      "rgba(8,12,20,0)",
         gridColor:            "rgba(30,45,61,0.5)",
@@ -88,6 +91,7 @@ export function TvAdvancedChart({
         isTransparent:        true,
         save_image:           true,
         drawings_access:      { type: "all", tools: [{ name: "Regression Trend" }] },
+        container_id:         containerId,
       },
       height
     );

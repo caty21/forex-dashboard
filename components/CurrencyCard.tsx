@@ -1602,100 +1602,91 @@ export default function CurrencyCard({
                         </div>
                       )}
 
-                      {/* ② Signal de synthèse — lecture immédiate en premier */}
-                      {(() => {
-                        const hfSignalColor =
-                          (hfLongsGrowing && hfIsShort) || (hfShortsReducing && hfIsShort)
-                            ? "text-emerald-400 border-emerald-500/20 bg-emerald-500/5"
-                            : (hfShortsGrowing && !hfIsShort) || (hfLongsReducing && !hfIsShort)
-                            ? "text-red-400 border-red-500/20 bg-red-500/5"
-                            : "text-slate-300 border-slate-600/30 bg-slate-800/30";
-                        return (
-                          <div className={`rounded-lg border px-3 py-2 ${hfSignalColor}`}>
-                            <div className="text-[11px] font-bold leading-snug">
-                              → HF {hfIsShort ? "net short" : "net long"} — {hfTrend}
-                            </div>
-                            <div className="text-[9px] mt-0.5 opacity-70">
-                              {amDominates
-                                ? `AM domine le flux · ${cot.amNet > 0 ? "hedge haussier" : "hedge baissier"} (${dFmt(cot.amNet)})`
-                                : `HF domine le flux · net ${dFmt(cot.net)}`
-                              }
-                            </div>
-                          </div>
-                        );
-                      })()}
+                      {/* ② Qui pilote la devise ? */}
+                      <div className="text-[10px] leading-snug text-slate-300 font-medium">
+                        {amDominates
+                          ? <><span className="text-indigo-400 font-bold">AM pilote ({amPct}%)</span> · hedge {cot.amNet > 0 ? "haussier" : "baissier"} — institutionnel / carry</>
+                          : <><span className="text-amber-400 font-bold">HF pilote ({hfPct}%)</span> · spéculation {hfIsShort ? "baissière" : "haussière"}</>
+                        }
+                      </div>
 
-                      {/* ③ Flux hebdomadaire HF — ΔL/ΔS en priorité */}
-                      <div className="bg-slate-900/40 rounded-lg px-3 py-2 space-y-1.5">
-                        <div className="text-[8px] text-slate-300 uppercase tracking-wider text-center">Mouvement HF · semaine</div>
-                        <div className="flex justify-center items-stretch gap-8">
-                          <div className="space-y-0.5 text-center">
-                            <div className="text-[8px] text-slate-400">Δ Longs</div>
-                            <div className={`text-[13px] font-black tabular-nums leading-none ${
-                              cot.longsDelta === null ? "text-slate-600"
-                              : cot.longsDelta > 0 ? "text-emerald-400" : "text-red-400"
-                            }`}>
-                              {cot.longsDelta !== null
-                                ? `${cot.longsDelta > 0 ? "+" : ""}${(cot.longsDelta/1000).toFixed(1)}k${cot.longsDelta > 0 ? "↑" : "↓"}`
-                                : "—"
-                              }
-                            </div>
-                            <div className="text-[9px] text-slate-400">{(cot.hfLongs/1000).toFixed(1)}k acc.</div>
-                          </div>
-                          <div className="w-px bg-slate-700/50" />
-                          <div className="space-y-0.5 text-center">
-                            <div className="text-[8px] text-slate-400">Δ Shorts</div>
-                            <div className={`text-[13px] font-black tabular-nums leading-none ${
-                              cot.shortsDelta === null ? "text-slate-600"
-                              : cot.shortsDelta > 0 ? "text-red-400" : "text-emerald-400"
-                            }`}>
-                              {cot.shortsDelta !== null
-                                ? `${cot.shortsDelta > 0 ? "+" : ""}${(cot.shortsDelta/1000).toFixed(1)}k${cot.shortsDelta > 0 ? "↑" : "↓"}`
-                                : "—"
-                              }
-                            </div>
-                            <div className="text-[9px] text-slate-400">{(cot.hfShorts/1000).toFixed(1)}k acc.</div>
-                          </div>
+                      {/* ③ Évolution hebdomadaire — le delta est la vraie lecture */}
+                      <div className="space-y-1 bg-slate-900/40 rounded-lg px-2.5 py-2">
+                        <div className="text-[8px] text-slate-500 uppercase tracking-wider mb-1.5">Évolution cette semaine</div>
+
+                        {/* AM delta */}
+                        <div className="flex items-center justify-between text-[9px]">
+                          <span className="text-indigo-400 font-semibold w-20 shrink-0">AM (hedge)</span>
+                          <span className="flex items-center gap-2 text-right">
+                            <span className={`tabular-nums text-[10px] font-bold ${cot.amNet > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                              {cot.amNet > 0 ? "LONG" : "SHORT"} {dFmt(cot.amNet)}
+                            </span>
+                            {cot.amNetDelta !== null && (
+                              <span className={`text-[9px] ${cot.amNetDelta > 0 ? "text-emerald-400" : cot.amNetDelta < 0 ? "text-red-400" : "text-slate-500"}`}>
+                                Δ{dFmt(cot.amNetDelta)}{cot.amNetDelta > 0 ? "↑" : cot.amNetDelta < 0 ? "↓" : ""}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+
+                        {/* HF delta — Δlongs / Δshorts séparés : c'est ici que se lit l'accumulation */}
+                        <div className="flex items-start justify-between text-[9px]">
+                          <span className="text-amber-400 font-semibold w-20 shrink-0">HF (spécu)</span>
+                          <span className="flex flex-col items-end gap-0.5">
+                            <span className={`tabular-nums text-[10px] font-bold ${cot.net > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                              {cot.net > 0 ? "LONG" : "SHORT"} {dFmt(cot.net)}
+                            </span>
+                            <span className="flex items-center gap-2 text-[9px]">
+                              {cot.longsDelta !== null && (
+                                <span className={cot.longsDelta > 0 ? "text-emerald-400" : "text-red-400"}>
+                                  L {cot.longsDelta > 0 ? "+" : ""}{(cot.longsDelta/1000).toFixed(1)}k{cot.longsDelta > 0 ? "↑" : "↓"}
+                                </span>
+                              )}
+                              {cot.shortsDelta !== null && (
+                                <span className={cot.shortsDelta > 0 ? "text-red-400" : "text-emerald-400"}>
+                                  S {cot.shortsDelta > 0 ? "+" : ""}{(cot.shortsDelta/1000).toFixed(1)}k{cot.shortsDelta > 0 ? "↑" : "↓"}
+                                </span>
+                              )}
+                            </span>
+                          </span>
                         </div>
                       </div>
 
-                      {/* ④ Dominance AM vs HF — poids + direction explicite */}
+                      {/* ④ Barre de dominance + signal de convergence */}
                       <div className="space-y-1.5">
-                        {/* Barre de poids */}
-                        <div className="flex rounded-full overflow-hidden h-1.5">
+                        <div className="flex rounded-full overflow-hidden h-1">
                           <div className="bg-indigo-500/70 transition-all" style={{ width: `${amPct}%` }} />
                           <div className="bg-amber-500/60 transition-all" style={{ width: `${hfPct}%` }} />
                         </div>
-                        {/* AM */}
-                        <div className="flex items-center justify-between text-[9px]">
-                          <span className="text-indigo-400 font-semibold">AM · {amPct}% du flux</span>
-                          <span className="flex items-center gap-1.5">
-                            <span className={`font-bold px-1 rounded text-[8px] ${cot.amNet > 0 ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"}`}>
-                              {cot.amNet > 0 ? "LONG" : "SHORT"}
-                            </span>
-                            <span className={`tabular-nums ${cot.amNet > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                              {dFmt(cot.amNet)}
-                            </span>
-                            {cot.amNetDelta !== null && (
-                              <span className="text-slate-400">Δ{dFmt(cot.amNetDelta)}{cot.amNetDelta > 0 ? "↑" : "↓"}</span>
-                            )}
-                          </span>
+                        <div className="flex justify-between text-[8px] text-slate-600">
+                          <span className="text-indigo-400/70">AM {amPct}%</span>
+                          <span className="text-amber-400/70">HF {hfPct}%</span>
                         </div>
-                        {/* HF */}
-                        <div className="flex items-center justify-between text-[9px]">
-                          <span className="text-amber-400 font-semibold">HF · {hfPct}% du flux</span>
-                          <span className="flex items-center gap-1.5">
-                            <span className={`font-bold px-1 rounded text-[8px] ${cot.net > 0 ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"}`}>
-                              {cot.net > 0 ? "LONG" : "SHORT"}
-                            </span>
-                            <span className={`tabular-nums ${cot.net > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                              {dFmt(cot.net)}
-                            </span>
-                            {cot.netDelta !== null && (
-                              <span className="text-slate-400">Δ{dFmt(cot.netDelta)}{cot.netDelta > 0 ? "↑" : "↓"}</span>
-                            )}
-                          </span>
-                        </div>
+
+                        {/* Signal de convergence : est-ce que les deux groupes convergent ? */}
+                        {(() => {
+                          const amBull = cot.amNet > 0;
+                          const convergeBull = amBull && (hfLongsGrowing || hfShortsReducing);
+                          const convergeBear = !amBull && (hfShortsGrowing || hfLongsReducing);
+                          const hfFlipping   = hfIsShort && hfLongsGrowing && hfShortsReducing;
+                          const txt = hfFlipping
+                            ? `↻ HF retournement potentiel — longs ↑ & shorts ↓ malgré position short`
+                            : convergeBull
+                            ? `▲ Convergence haussière — AM long + HF ${hfTrend}`
+                            : convergeBear
+                            ? `▼ Convergence baissière — AM short + HF ${hfTrend}`
+                            : `→ Divergence — AM ${cot.amNet > 0 ? "long" : "short"} / HF ${hfTrend}`;
+                          const cls = hfFlipping || convergeBull
+                            ? "text-emerald-400/80 bg-emerald-500/5 border-emerald-500/15"
+                            : convergeBear
+                            ? "text-red-400/80 bg-red-500/5 border-red-500/15"
+                            : "text-slate-400 bg-slate-800/30 border-slate-700/20";
+                          return (
+                            <div className={`rounded px-2 py-1.5 border text-[9px] leading-snug ${cls}`}>
+                              {txt}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   );
