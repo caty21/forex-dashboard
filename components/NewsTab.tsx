@@ -348,8 +348,17 @@ function NewsCard({ item, secondary = false }: { item: NewsItem; secondary?: boo
           )}
         </div>
 
-        {/* Titre + heure + Analyse sur la même ligne */}
+        {/* Heure + Analyse + Titre */}
         <div className="flex items-start gap-2 mb-1.5">
+          <div className="flex items-center gap-1 shrink-0 mt-0.5">
+            <span className="text-[9px] text-white whitespace-nowrap">{formatRelativeTime(item.publishedAt)}</span>
+            {!secondary && (
+              <button onClick={() => setExpanded(e => !e)}
+                className="text-[9px] text-slate-400 hover:text-white px-1.5 py-0.5 rounded-full border border-slate-600/50 transition-colors whitespace-nowrap">
+                {expanded ? "▲" : "▼ Analyse"}
+              </button>
+            )}
+          </div>
           <a href={item.url} target="_blank" rel="noopener noreferrer"
             className="group flex items-start gap-1 flex-1 min-w-0">
             <span className={`text-[12px] leading-snug font-medium group-hover:text-white transition-colors ${secondary ? "text-slate-400" : "text-slate-200"}`}>
@@ -357,15 +366,6 @@ function NewsCard({ item, secondary = false }: { item: NewsItem; secondary?: boo
             </span>
             <ExternalLink size={10} className="text-slate-600 group-hover:text-slate-400 shrink-0 mt-0.5" />
           </a>
-          <div className="flex items-center gap-1 shrink-0 mt-0.5">
-            <span className="text-[9px] text-slate-600 whitespace-nowrap">{formatRelativeTime(item.publishedAt)}</span>
-            {!secondary && (
-              <button onClick={() => setExpanded(e => !e)}
-                className="text-[9px] text-slate-500 hover:text-slate-300 px-1.5 py-0.5 rounded-full border border-slate-700/30 transition-colors whitespace-nowrap">
-                {expanded ? "▲" : "▼ Analyse"}
-              </button>
-            )}
-          </div>
         </div>
 
         {item.summary && !secondary && (

@@ -23,6 +23,16 @@ const CATEGORY_LABELS: Record<string, string> = {
   trade_balance: "Balance comm.",
 };
 
+// ── Currency → ISO alpha-2 (pour flagcdn.com) ─────────────────────────────────
+
+const CCY_ISO: Record<string, string> = {
+  USD: "us", EUR: "eu", GBP: "gb", JPY: "jp",
+  CAD: "ca", AUD: "au", NZD: "nz", CHF: "ch",
+  CNY: "cn", SEK: "se", NOK: "no", DKK: "dk",
+  SGD: "sg", HKD: "hk", MXN: "mx", BRL: "br",
+  ZAR: "za", INR: "in", KRW: "kr", TRY: "tr",
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function isoToLocalDate(iso: string): string {
@@ -105,8 +115,18 @@ function EventRow({ ev, isChild, expanded, onToggle }: {
       </td>
 
       <td className="py-2 px-2 whitespace-nowrap">
-        <span className="text-sm">{meta?.flag}</span>
-        <span className="ml-1 text-xs font-semibold text-slate-300">{ev.currency}</span>
+        <div className="flex items-center gap-1.5">
+          <div className="w-5 h-5 rounded-full overflow-hidden shrink-0 bg-slate-700">
+            <img
+              src={`https://flagcdn.com/w40/${CCY_ISO[ev.currency] ?? ev.currency.slice(0,2).toLowerCase()}.png`}
+              width={20} height={20}
+              alt={ev.currency}
+              className="w-full h-full object-cover"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
+          </div>
+          <span className="text-xs font-semibold text-slate-300">{ev.currency}</span>
+        </div>
       </td>
 
       <td className="py-2 px-3">
