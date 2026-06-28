@@ -333,7 +333,9 @@ function NewsCard({ item, secondary = false }: { item: NewsItem; secondary?: boo
   return (
     <div className={`rounded-xl border ${borderCls} ${bgCls} overflow-hidden ${isPriority ? "ring-1 ring-offset-0 ring-amber-500/20" : ""}`}>
       <div className="p-3">
+        {/* Heure · Source · Catégorie · Prioritaire */}
         <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+          <span className="text-[9px] text-white whitespace-nowrap shrink-0">{formatRelativeTime(item.publishedAt)}</span>
           <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full ${SOURCE_COLORS[item.source] ?? "bg-slate-700/40 text-slate-400"}`}>
             {item.source}
           </span>
@@ -348,17 +350,14 @@ function NewsCard({ item, secondary = false }: { item: NewsItem; secondary?: boo
           )}
         </div>
 
-        {/* Heure + Analyse + Titre */}
+        {/* Analyse + Titre */}
         <div className="flex items-start gap-2 mb-1.5">
-          <div className="flex items-center gap-1 shrink-0 mt-0.5">
-            <span className="text-[9px] text-white whitespace-nowrap">{formatRelativeTime(item.publishedAt)}</span>
-            {!secondary && (
-              <button onClick={() => setExpanded(e => !e)}
-                className="text-[9px] text-slate-400 hover:text-white px-1.5 py-0.5 rounded-full border border-slate-600/50 transition-colors whitespace-nowrap">
-                {expanded ? "▲" : "▼ Analyse"}
-              </button>
-            )}
-          </div>
+          {!secondary && (
+            <button onClick={() => setExpanded(e => !e)}
+              className="text-[9px] text-slate-400 hover:text-white px-1.5 py-0.5 rounded-full border border-slate-600/50 transition-colors whitespace-nowrap shrink-0 mt-0.5">
+              {expanded ? "▲" : "▼ Analyse"}
+            </button>
+          )}
           <a href={item.url} target="_blank" rel="noopener noreferrer"
             className="group flex items-start gap-1 flex-1 min-w-0">
             <span className={`text-[12px] leading-snug font-medium group-hover:text-white transition-colors ${secondary ? "text-slate-400" : "text-slate-200"}`}>

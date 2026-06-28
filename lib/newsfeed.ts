@@ -788,6 +788,12 @@ async function fetchZeroHedgeNews(): Promise<NewsItem[]> {
       const summary      = plainText.slice(0, 300);
       const analysisText = plainText.slice(0, 800);
 
+      // Pré-filtre macro : ZeroHedge couvre de nombreux sujets non-financiers.
+      // On exige qu'un mot-clé macro explicite soit présent AVANT d'appliquer les
+      // règles de noms de gouverneurs (évite "Bailey" dans un article social UK).
+      const MACRO_CONTEXT = /\b(rate|rates|dollar|euro|pound|yen|franc|currency|currencies|forex|fx\b|economy|economic|gdp|inflation|recession|central bank|fed\b|ecb\b|boe\b|boj\b|boc\b|rba\b|rbnz\b|snb\b|fomc|treasury|bond|yield|fiscal|monetary|tariff|trade war|deficit|debt|interest rate|rate cut|rate hike|basis point)\b/i;
+      if (!MACRO_CONTEXT.test(`${title} ${analysisText}`)) continue;
+
       // Filtre de pertinence forex : garder seulement si une règle matche
       const { impacts, categories } = applyRules(`${title} ${analysisText}`);
       if (impacts.length === 0 && categories.length === 0) continue;
