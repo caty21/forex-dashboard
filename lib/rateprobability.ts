@@ -3,11 +3,35 @@
 // Collectées par GitHub Actions (toutes les heures) → data/rate-probabilities.json
 // InvestingLive (Giuseppe Dellamotta) en enrichissement CHF + deltas hebdo
 
-import { readFileSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import type { Currency } from "./types";
 import { fetchILExpectationsWithHistory } from "./investinglive";
-import type { ILExpectationsMap } from "./investinglive";
+import type { ILExpectationsMap, ILExpectationsWithHistory } from "./investinglive";
+
+// ── Cache fichier pour les données InvestingLive (évite 56 HTTP HEAD par appel) ──
+
+const IL_CACHE_FILE = join(process.cwd(), "data", "il-enrichment-cache.json");
+const IL_CACHE_TTL  = 2 * 60 * 60 * 1000; // 2h
+
+async function getCachedILHistory(): Promise<ILExpectationsWithHistory> {
+  try {
+    const raw    = readFileSync(IL_CACHE_FILE, "utf8");
+    const cached = JSON.parse(raw) as { ts: number; data: ILExpectationsWithHistory };
+    if (Date.now() - cached.ts < IL_CACHE_TTL) {
+      console.log(`[IL-cache] HIT (${Math.round((Date.now() - cached.ts) / 60000)}min old)`);
+      return cached.data;
+    }
+    console.log("[IL-cache] STALE — refetch");
+  } catch {
+    console.log("[IL-cache] MISS — premier fetch");
+  }
+  const data = await fetchILExpectationsWithHistory();
+  try {
+    writeFileSync(IL_CACHE_FILE, JSON.stringify({ ts: Date.now(), data }));
+  } catch { /* /tmp read-only en prod Vercel — ignoré */ }
+  return data;
+}
 
 // ── Types publics ──────────────────────────────────────────────────────────────
 
@@ -291,7 +315,7 @@ function parseCBBody(ccy: Currency, body: Record<string, unknown>): CBRatePath |
 export async function fetchAllCBPaths(): Promise<RateProbData> {
   // GitHub Actions met à jour data/rate-probabilities.json toutes les heures
   // (CME FedWatch pour USD, Investing.com pour les autres, InvestingLive en fallback)
-  const [ilHistory] = await Promise.all([fetchILExpectationsWithHistory()]);
+  const [ilHistory] = await Promise.all([getCachedILHistory()]);
   const ilData   = ilHistory.current;
   const ilPrev   = ilHistory.prev;
   const prevDate = ilHistory.prevDate;

@@ -84,13 +84,16 @@ export function TvAdvancedChart({
         backgroundColor:      "rgba(8,12,20,0)",
         gridColor:            "rgba(30,45,61,0.5)",
         hide_top_toolbar:     false,
+        hide_side_toolbar:    false,
         hide_legend:          false,
         allow_symbol_change:  false,
         calendar:             false,
         hide_volume:          false,
         isTransparent:        true,
         save_image:           true,
+        withdateranges:       true,
         drawings_access:      { type: "all" },
+        support_host:         "https://www.tradingview.com",
         container_id:         containerId,
       },
       height
@@ -102,13 +105,29 @@ export function TvAdvancedChart({
     };
   }, []); // eslint-disable-line
 
+  const tvUrl = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(symbol)}&interval=${interval}`;
+
   return (
     <div className="flex flex-col gap-1">
-      {label && (
-        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-          {label}
-        </p>
-      )}
+      <div className="flex items-center justify-between">
+        {label && (
+          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
+        )}
+        <a
+          href={tvUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 text-[9px] text-slate-600 hover:text-sky-400 transition-colors ml-auto"
+          title="Ouvrir dans TradingView (outils de tracé complets)"
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+          TradingView
+        </a>
+      </div>
       <div
         ref={wrapperRef}
         className="tradingview-widget-container rounded-lg overflow-hidden bg-[#0f1623]"
