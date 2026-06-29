@@ -739,10 +739,11 @@ function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange }: {
           </div>
         )}
 
-        {/* Chart 3 — Probabilités : ligne de probMovePct par réunion (style original) */}
+        {/* Chart 3 — Probabilités : LineChart probMovePct + liste réunions avec taux prévu */}
         {chartTab === "scenarios" && (
           <div>
-            <ResponsiveContainer width="100%" height={100}>
+            {/* Graphique probabilité de move par réunion */}
+            <ResponsiveContainer width="100%" height={90}>
               <LineChart
                 data={chartMeetings.map(m => ({ label: m.label, prob: m.probMovePct, isCut: m.probIsCut, impliedRate: m.impliedRate }))}
                 margin={{ top: 5, right: 5, left: -20, bottom: 0 }}
@@ -755,30 +756,25 @@ function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange }: {
                 <Tooltip
                   content={({ label, payload }) => {
                     if (!payload?.length) return null;
-                    const v  = payload[0]?.value as number;
-                    const m  = chartMeetings.find(m => m.label === label);
+                    const v = payload[0]?.value as number;
+                    const m = chartMeetings.find(m => m.label === label);
                     return (
                       <div style={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 6, padding: "4px 8px" }}>
                         <p style={{ color: "#94a3b8", fontSize: 9, margin: 0 }}>{label}</p>
-                        <p style={{ color: "#f59e0b", fontSize: 9, margin: "2px 0 0" }}>
-                          {v.toFixed(0)}% {m?.probIsCut ? "Cut" : "Hike"}
-                        </p>
-                        <p style={{ color: "#64748b", fontSize: 8, margin: "1px 0 0" }}>
-                          Implicite : {m?.impliedRate.toFixed(2)}%
-                        </p>
+                        <p style={{ color: "#f59e0b", fontSize: 9, margin: "2px 0 0" }}>Prob : {v.toFixed(0)}% {m?.probIsCut ? "Cut" : "Hike"}</p>
+                        <p style={{ color: "#64748b", fontSize: 8, margin: "1px 0 0" }}>Implicite : {m?.impliedRate.toFixed(2)}%</p>
                       </div>
                     );
                   }}
                 />
               </LineChart>
             </ResponsiveContainer>
-            {/* Résumé : pic + bps fin an + flèches vs sem. préc. */}
+
+            {/* Résumé : pic + bps fin an + flèches IL vs sem. préc. */}
             {ratePath.peakMeeting && (
               <>
                 <div className="flex items-center justify-between mt-1 text-[10px]">
-                  <span className="text-slate-600">
-                    Pic : <span className="text-slate-400">{ratePath.peakMeeting.label}</span>
-                  </span>
+                  <span className="text-slate-600">Pic : <span className="text-slate-400">{ratePath.peakMeeting.label}</span></span>
                   <span className={`font-bold ${ratePath.peakMeeting.probIsCut ? "text-sky-400" : "text-red-400"}`}>
                     {ratePath.peakMeeting.probMovePct.toFixed(0)}% {ratePath.peakMeeting.probIsCut ? "Cut" : "Hike"}
                   </span>
@@ -799,6 +795,36 @@ function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange }: {
                 )}
               </>
             )}
+
+            {/* Liste des réunions : date | barre taux implicite | taux | proba */}
+            <div className="mt-2 pt-2 border-t border-slate-700/30 space-y-1">
+              {(() => {
+                const maxR2 = Math.max(...scenariosData.map(d => d.rate), currentRate);
+                const minR2 = Math.min(...scenariosData.map(d => d.rate), currentRate) - 0.05;
+                const range = maxR2 - minR2 || 0.25;
+                return scenariosData.map(d => {
+                  const barW  = Math.max(5, Math.min(100, ((d.rate - minR2) / range) * 100));
+                  const isDown = d.rate < currentRate - 0.001;
+                  const isUp   = d.rate > currentRate + 0.001;
+                  const barCl  = isDown ? "bg-sky-500/70" : isUp ? "bg-red-500/70" : "bg-amber-500/60";
+                  const isPeak = ratePath.peakMeeting?.dateIso === d.dateIso;
+                  return (
+                    <div key={d.label} className="flex items-center gap-1.5">
+                      <span className={`text-[8px] w-9 shrink-0 tabular-nums ${isPeak ? "text-amber-300 font-bold" : "text-slate-600"}`}>
+                        {d.label}
+                      </span>
+                      <div className="flex-1 bg-slate-700/30 rounded-full h-2 overflow-hidden">
+                        <div className={`h-full ${barCl} rounded-full`} style={{ width: `${barW}%` }} />
+                      </div>
+                      <span className="text-[8px] font-mono text-slate-300 w-10 text-right shrink-0">{d.rate.toFixed(2)}%</span>
+                      {d.prob > 0 && (
+                        <span className="text-[7px] text-slate-500 w-6 text-right shrink-0">{d.prob.toFixed(0)}%</span>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
+            </div>
           </div>
         )}
       </div>
