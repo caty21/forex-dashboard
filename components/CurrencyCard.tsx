@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp, TrendingDown, Minus, Loader2, Database,
   BarChart2, Activity, Target, Zap, Eye, Layers,
-  ChevronRight, ArrowUpRight, ArrowDownRight, AlertTriangle, Info,
+  ChevronRight, ArrowUpRight, ArrowDownRight, AlertTriangle, Info, Settings, X, ExternalLink,
 } from "lucide-react";
 import {
   AreaChart, Area, LineChart, Line, BarChart, Bar, Cell,
@@ -62,6 +62,9 @@ interface Props {
   onCardTabChange?: (id: "overview" | "mispricing" | "focus") => void;
   syncSignauxSlide?: "ois" | "cot" | "sent";
   onSignauxSlideChange?: (id: "ois" | "cot" | "sent") => void;
+  syncOisChartTab?: "curve" | "implied" | "scenarios";
+  onOisChartTabChange?: (id: "curve" | "implied" | "scenarios") => void;
+  isLoading?: boolean;
 }
 
 type Tab = "overview" | "mispricing" | "focus";
@@ -334,12 +337,157 @@ function SignalBar({ strength, direction }: { strength: number; direction: Signa
   );
 }
 
+// ─── Sources popup ────────────────────────────────────────────────────────────
+
+const TE_COUNTRY: Record<string, string> = {
+  USD:"united-states", EUR:"euro-area", GBP:"united-kingdom", JPY:"japan",
+  CHF:"switzerland",   CAD:"canada",    AUD:"australia",      NZD:"new-zealand",
+};
+const IC_SLUG: Record<string, string> = {
+  USD:"fed-rate-monitor",  EUR:"ecb-rate-monitor",  GBP:"boe-rate-monitor",
+  JPY:"boj-rate-monitor",  CAD:"boc-rate-monitor",  AUD:"rba-rate-monitor",
+  NZD:"rbnz-rate-monitor", CHF:"snb-rate-monitor",
+};
+const CB_NAME: Record<string, string> = {
+  USD:"Fed (FOMC)", EUR:"BCE", GBP:"BoE MPC", JPY:"BoJ",
+  CHF:"SNB",        CAD:"BoC", AUD:"RBA",      NZD:"RBNZ",
+};
+
+function SourcesPopup({ currency, onClose }: { currency: string; onClose: () => void }) {
+  const country = TE_COUNTRY[currency] ?? currency.toLowerCase();
+  const icSlug  = IC_SLUG[currency];
+  const cbName  = CB_NAME[currency] ?? currency;
+
+  const sections: Array<{ title: string; icon: string; sources: Array<{ label: string; url: string; note?: string }> }> = [
+    {
+      title: "OIS · Futures (onglet Signaux)",
+      icon: "📡",
+      sources: [
+        ...(currency === "USD" ? [{ label: "CME FedWatch — contrats SOFR", url: "https://www.cmegroup.com/markets/interest-rates/cme-fedwatch-tool.html", note: "Probabilités Fed par réunion · source primaire USD" }] : []),
+        ...(icSlug ? [{ label: `Investing.com — ${cbName} Rate Monitor`, url: `https://www.investing.com/central-banks/${icSlug}`, note: "OIS implicites par réunion" }] : []),
+        { label: "InvestingLive — Giuseppe Dellamotta", url: "https://investinglive.com", note: "Articles hebdo : variation bps fin d'an (fallback)" },
+      ],
+    },
+    {
+      title: "COT CFTC (onglet Signaux)",
+      icon: "📊",
+      sources: [
+        { label: "CFTC — TFF Report (Traders in Financial Futures)", url: "https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm", note: "Leveraged Money (HF/CTAs) + Asset Managers · publié chaque vendredi" },
+      ],
+    },
+    {
+      title: "Sentiment retail (onglet DXM)",
+      icon: "🔄",
+      sources: [
+        { label: "Myfxbook — Community Outlook", url: "https://www.myfxbook.com/community/outlook", note: "Positions longues/courtes retail en temps réel" },
+      ],
+    },
+    {
+      title: "Politique monétaire (Aperçu → Mon.)",
+      icon: "🏦",
+      sources: [
+        { label: `Trading Economics — ${country} interest rate`, url: `https://tradingeconomics.com/${country}/interest-rate`, note: `Taux directeur ${cbName} actuel` },
+        { label: "FRED — Federal Reserve Economic Data", url: "https://fred.stlouisfed.org", note: "Spreads crédit HY/IG (BAMLH0A0HYM2, BAMLC0A0CM)" },
+      ],
+    },
+    {
+      title: "Inflation (Aperçu → Infl.)",
+      icon: "📈",
+      sources: [
+        { label: `Trading Economics — ${country} inflation`, url: `https://tradingeconomics.com/${country}/inflation-cpi`, note: "CPI, core CPI, PPI · scraping HTML" },
+      ],
+    },
+    {
+      title: "Croissance & PMI (Aperçu → Cro.)",
+      icon: "📉",
+      sources: [
+        { label: `Trading Economics — ${country} GDP`, url: `https://tradingeconomics.com/${country}/gdp-growth`, note: "PIB, PMI manufacturier & services" },
+      ],
+    },
+    {
+      title: "Emploi (Aperçu → Empl.)",
+      icon: "👷",
+      sources: [
+        { label: `Trading Economics — ${country} employment`, url: `https://tradingeconomics.com/${country}/employment-change`, note: "Variation emploi, chômage, NFP (USD), JOLTS, ADP" },
+      ],
+    },
+    {
+      title: "Rendements obligataires (Aperçu → Mon.)",
+      icon: "🔢",
+      sources: [
+        { label: `Trading Economics — ${country} government bond`, url: `https://tradingeconomics.com/${country}/government-bond-yield`, note: "Taux 10Y souverain · mise à jour horaire" },
+      ],
+    },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60" />
+      <div
+        className="relative bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/50 sticky top-0 bg-slate-900 z-10">
+          <div>
+            <div className="text-[11px] font-bold text-white tracking-wide">Sources des données · {currency}</div>
+            <div className="text-[9px] text-slate-500 mt-0.5">Toutes les données utilisées dans cette carte</div>
+          </div>
+          <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors p-1">
+            <X size={14} />
+          </button>
+        </div>
+
+        {/* Sections */}
+        <div className="p-3 space-y-3">
+          {sections.map(sec => (
+            <div key={sec.title} className="bg-slate-800/40 rounded-xl border border-slate-700/30 p-2.5">
+              <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                {sec.icon} {sec.title}
+              </div>
+              <div className="space-y-1.5">
+                {sec.sources.map(src => (
+                  <div key={src.url} className="flex items-start gap-2">
+                    <ExternalLink size={9} className="text-slate-600 shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <a
+                        href={src.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-sky-400 hover:text-sky-300 font-medium leading-snug underline-offset-2 hover:underline"
+                      >
+                        {src.label}
+                      </a>
+                      {src.note && (
+                        <p className="text-[8px] text-slate-500 mt-0.5 leading-snug">{src.note}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── OIS Enhanced Block ───────────────────────────────────────────────────────
 // Bloc OIS enrichi : summary (Current Rate → Expected, Next Meeting, Most Likely/Alt)
 // + 3 onglets graphiques : Rate Curve / Implied Points / Scénarios
 
-function OISEnhancedBlock({ ratePath }: { ratePath: CBRatePath }) {
-  const [chartTab, setChartTab] = useState<"curve" | "implied" | "scenarios">("curve");
+function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange }: {
+  ratePath: CBRatePath;
+  syncChartTab?: "curve" | "implied" | "scenarios";
+  onChartTabChange?: (id: "curve" | "implied" | "scenarios") => void;
+}) {
+  const [localChartTab, setLocalChartTab] = useState<"curve" | "implied" | "scenarios">("curve");
+  const chartTab = syncChartTab ?? localChartTab;
+  const setChartTab = (id: "curve" | "implied" | "scenarios") => {
+    setLocalChartTab(id);
+    onChartTabChange?.(id);
+  };
 
   const { currentRate, meetings, yearEndImplied, ilDelta, ilCurrent, prevMeetings, prevWeekDate } = ratePath;
   if (!meetings.length) return null;
@@ -402,91 +550,79 @@ function OISEnhancedBlock({ ratePath }: { ratePath: CBRatePath }) {
   return (
     <div className="rounded-xl border border-slate-700/30 overflow-hidden">
 
-      {/* ── Summary header ────────────────────────────────────────────────── */}
-      <div className="bg-slate-800/40 px-3 pt-2.5 pb-2">
-        {/* Title */}
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">OIS · Futures</span>
-            <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">LIVE</span>
+      {/* ── Summary compact ───────────────────────────────────────────────── */}
+      <div className="bg-slate-800/40 px-3 pt-2 pb-2">
+        {/* Ligne 1 : titre + date */}
+        <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">OIS · Futures</span>
+            <span className="text-[7px] font-bold px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">LIVE</span>
           </div>
           <span className="text-[9px] text-slate-600">au {ratePath.asOf}</span>
         </div>
 
-        {/* 3-column rates */}
-        <div className="grid grid-cols-3 gap-1 mb-2">
-          <div>
-            <div className="text-[8px] text-slate-600">Current Rate</div>
-            <div className="text-[15px] font-bold text-slate-200 tabular-nums">{currentRate.toFixed(2)}%</div>
-          </div>
-          <div>
-            <div className="text-[8px] text-slate-600">Expected</div>
-            <div className={`text-[15px] font-bold tabular-nums ${bpsCls}`}>{yearEndImplied?.toFixed(2) ?? "—"}%</div>
-          </div>
-          <div className="text-right">
-            <div className="text-[8px] text-slate-600">Next Meeting</div>
-            <div className="text-[11px] font-semibold text-slate-300">{m0.label}</div>
-          </div>
-        </div>
-
-        {/* Expected Move + Change bps + Δ fin an */}
-        <div className="flex items-center gap-3 mb-2">
-          <div>
-            <div className="text-[8px] text-slate-600">Expected Move</div>
-            <div className={`flex items-center gap-0.5 text-[12px] font-bold ${moveCls}`}>
-              <span>{moveIcon}</span><span>{moveLabel}</span>
-            </div>
-          </div>
-          <div>
-            <div className="text-[8px] text-slate-600">Change (bps)</div>
-            <div className={`text-[12px] font-bold tabular-nums ${bpsCls}`}>
-              {expectedBps > 0 ? "+" : ""}{expectedBps.toFixed(2)}
-            </div>
+        {/* Ligne 2 : taux actuel → résultat attendu prochaine réunion + Δ fin an */}
+        <div className="flex items-baseline gap-2 mb-2">
+          <span className="text-[17px] font-black text-slate-200 tabular-nums shrink-0">{currentRate.toFixed(2)}%</span>
+          <span className="text-[9px] text-slate-600 shrink-0">→</span>
+          <div className="flex items-baseline gap-1 min-w-0">
+            <span className={`text-[13px] font-bold shrink-0 ${moveCls}`}>{moveIcon} {moveLabel}</span>
+            <span className="text-[9px] text-slate-500 shrink-0">{m0.label}</span>
+            {isMoveExpected && (
+              <span className={`text-[10px] font-semibold tabular-nums shrink-0 ${bpsCls}`}>
+                ({m0.changeBps > 0 ? "+" : ""}{Math.round(m0.changeBps)}bps)
+              </span>
+            )}
           </div>
           {bpsYE !== null && (
-            <div className="ml-auto text-right">
-              <div className="text-[8px] text-slate-600">Δ fin an</div>
-              <div className={`text-[18px] font-black tabular-nums ${bpsCls}`}>
-                {bpsYE > 0 ? "+" : ""}{bpsYE}<span className="text-[9px] ml-0.5">bps</span>
+            <div className="ml-auto text-right shrink-0">
+              <div className={`text-[15px] font-black tabular-nums leading-none ${bpsCls}`}>
+                {bpsYE > 0 ? "+" : ""}{bpsYE}<span className="text-[8px] ml-0.5">bps</span>
               </div>
+              <div className="text-[7px] text-slate-600 mt-0.5">fin an</div>
             </div>
           )}
         </div>
 
-        {/* Most Likely / Alternative probability bars */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[8px] text-slate-600 w-14 shrink-0">Most Likely</span>
-            <span className={`text-[9px] font-bold w-3 text-center shrink-0 ${mlIsMove ? moveCls : "text-slate-400"}`}>{mlIsMove ? moveIcon : "="}</span>
-            <span className="text-[9px] font-bold text-slate-200 tabular-nums w-10 shrink-0">{mlRate.toFixed(2)}%</span>
-            <div className="flex-1 bg-slate-700/40 rounded-full h-1.5 overflow-hidden">
-              <div
-                className={`h-full rounded-full ${mlIsMove ? (m0.probIsCut ? "bg-sky-500" : "bg-red-500") : "bg-amber-500/70"}`}
-                style={{ width: `${mlProb}%` }}
-              />
-            </div>
-            <span className="text-[8px] font-semibold text-slate-400 w-7 text-right shrink-0">{Math.round(mlProb)}%</span>
+        {/* Ligne 3 : barre proba scénario principal */}
+        <div className="flex items-center gap-1.5">
+          <span className={`text-[9px] font-bold shrink-0 w-8 ${mlIsMove ? moveCls : "text-slate-400"}`}>
+            {mlIsMove ? moveLabel : "Hold"}
+          </span>
+          <div className="flex-1 bg-slate-700/40 rounded-full h-1.5 overflow-hidden">
+            <div
+              className={`h-full rounded-full ${mlIsMove ? (m0.probIsCut ? "bg-sky-500" : "bg-red-500") : "bg-amber-500/70"}`}
+              style={{ width: `${mlProb}%` }}
+            />
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[8px] text-slate-600 w-14 shrink-0">Alternative</span>
-            <span className={`text-[9px] font-bold w-3 text-center shrink-0 ${altIsMove ? moveCls : "text-slate-500"}`}>{altIsMove ? moveIcon : "="}</span>
-            <span className="text-[9px] font-bold text-slate-500 tabular-nums w-10 shrink-0">{altRate.toFixed(2)}%</span>
-            <div className="flex-1 bg-slate-700/40 rounded-full h-1.5 overflow-hidden">
+          <span className="text-[9px] font-semibold text-slate-300 tabular-nums shrink-0">{Math.round(mlProb)}%</span>
+          <span className="text-[9px] text-slate-500 tabular-nums shrink-0">{mlRate.toFixed(2)}%</span>
+        </div>
+        {/* Scénario alternatif seulement si proba ≥ 15% */}
+        {altProb >= 15 && (
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="text-[9px] text-slate-600 shrink-0 w-8">{altIsMove ? moveLabel : "Hold"}</span>
+            <div className="flex-1 bg-slate-700/40 rounded-full h-1 overflow-hidden">
               <div
-                className={`h-full rounded-full ${altIsMove ? (m0.probIsCut ? "bg-sky-400/40" : "bg-red-400/40") : "bg-slate-500/40"}`}
+                className={`h-full rounded-full opacity-40 ${altIsMove ? (m0.probIsCut ? "bg-sky-400" : "bg-red-400") : "bg-slate-500"}`}
                 style={{ width: `${altProb}%` }}
               />
             </div>
-            <span className="text-[8px] font-semibold text-slate-600 w-7 text-right shrink-0">{Math.round(altProb)}%</span>
+            <span className="text-[9px] text-slate-600 tabular-nums shrink-0">{Math.round(altProb)}%</span>
+            <span className="text-[9px] text-slate-700 tabular-nums shrink-0">{altRate.toFixed(2)}%</span>
           </div>
-        </div>
+        )}
       </div>
 
       {/* ── Chart section ─────────────────────────────────────────────────── */}
       <div className="border-t border-slate-700/40 px-3 pt-2 pb-2">
         {/* Tab buttons */}
         <div className="flex gap-1 mb-2">
-          {([ { id: "curve" as const, label: "Rate Curve" }, { id: "implied" as const, label: "Implied Pts" }, { id: "scenarios" as const, label: "Scénarios" } ]).map(t => (
+          {([
+            { id: "curve"     as const, label: "Rate Path" },
+            { id: "implied"   as const, label: "Implied Pts" },
+            { id: "scenarios" as const, label: "Scénarios" },
+          ]).map(t => (
             <button
               key={t.id}
               onClick={() => setChartTab(t.id)}
@@ -501,38 +637,55 @@ function OISEnhancedBlock({ ratePath }: { ratePath: CBRatePath }) {
           ))}
         </div>
 
-        {/* Chart 1 — Implied Interest Rate Curve */}
+        {/* Chart 1 — Implied Rate Path (step line) */}
         {chartTab === "curve" && (
           <div>
-            {/* Légende visuelle */}
-            <div className="flex items-center gap-3 mb-1.5">
-              <span className="text-[8px] text-slate-500">Courbe de taux implicite</span>
-              <div className="flex items-center gap-2 ml-auto">
-                <span className="flex items-center gap-1 text-[8px] text-slate-200">
-                  <span className="inline-block w-5 h-px bg-slate-200 rounded" />
-                  Actuel
+            {/* Légende */}
+            <div className="flex items-center gap-3 mb-1.5 flex-wrap">
+              <span className="flex items-center gap-1 text-[8px] text-slate-300">
+                <span className="inline-block w-5 h-0.5 bg-slate-300 rounded" />
+                Actuel
+              </span>
+              {hasPrevCurve && (
+                <span className="flex items-center gap-1 text-[8px] text-amber-400">
+                  <span className="inline-block w-5 border-t-2 border-dashed border-amber-400" />
+                  {prevCurveLabel ? `Sem. préc. (${prevCurveLabel})` : "Sem. préc."}
                 </span>
-                <span className={`flex items-center gap-1 text-[8px] ${hasPrevCurve ? "text-sky-400" : "text-slate-600"}`}>
-                  <span className={`inline-block w-5 border-t border-dashed ${hasPrevCurve ? "border-sky-400" : "border-slate-700"}`} />
-                  {hasPrevCurve && prevCurveLabel ? `Sem. préc. (${prevCurveLabel})` : hasPrevCurve ? "Sem. préc." : "Sem. préc. (indispo)"}
-                </span>
-              </div>
+              )}
+              {!hasPrevCurve && (
+                <span className="text-[8px] text-slate-600 ml-auto">Sem. préc. indispo</span>
+              )}
+              {/* dashed reference = current rate floor */}
+              <span className="flex items-center gap-1 text-[8px] text-slate-600 ml-auto">
+                <span className="inline-block w-5 border-t border-dashed border-slate-600" />
+                Taux actuel
+              </span>
             </div>
-            <ResponsiveContainer width="100%" height={120}>
+            <ResponsiveContainer width="100%" height={130}>
               <LineChart data={rateCurveData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
                 <XAxis dataKey="label" tick={{ fontSize: 7, fill: "#64748b" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
                 <YAxis tick={{ fontSize: 7, fill: "#64748b" }} axisLine={false} tickLine={false} width={32}
                   domain={[minR - yMargin, maxR + yMargin]}
                   tickFormatter={(v: number) => v.toFixed(2)} />
+                <ReferenceLine y={currentRate} stroke="#475569" strokeDasharray="3 3" strokeWidth={1} />
                 <Tooltip
-                  contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 6, fontSize: 9 }}
-                  labelStyle={{ color: "#ffffff", fontSize: 9 }}
-                  itemStyle={{ color: "#ffffff", fontSize: 9 }}
-                  formatter={(v: number, name: string) => [`${v.toFixed(3)}%`, name === "current" ? "Actuel" : "Sem. préc."]}
+                  content={({ label, payload }) => {
+                    if (!payload?.length) return null;
+                    return (
+                      <div style={{ background: "rgba(10,18,35,0.97)", border: "1px solid rgba(71,85,105,0.6)", borderRadius: 8, padding: "6px 10px", minWidth: 90 }}>
+                        <p style={{ color: "#64748b", fontSize: 8, margin: "0 0 5px", textTransform: "uppercase", letterSpacing: "0.08em" }}>{label}</p>
+                        {(payload as {dataKey: string; value: number; stroke: string}[]).map(p => (
+                          <p key={p.dataKey} style={{ color: p.stroke, fontSize: 11, fontWeight: 800, margin: "1px 0", fontVariantNumeric: "tabular-nums" }}>
+                            {p.dataKey === "current" ? "●" : "···"} {(p.value as number).toFixed(3)}%
+                          </p>
+                        ))}
+                      </div>
+                    );
+                  }}
                 />
-                <Line type="monotone" dataKey="current" stroke="#e2e8f0" strokeWidth={1.5} dot={{ r: 2, fill: "#e2e8f0" }} name="current" />
+                <Line type="stepAfter" dataKey="current" stroke="#e2e8f0" strokeWidth={2} dot={{ r: 2.5, fill: "#e2e8f0" }} name="current" />
                 {hasPrevCurve && (
-                  <Line type="monotone" dataKey="weekAgo" stroke="#38bdf8" strokeWidth={1.5} dot={{ r: 2, fill: "#38bdf8" }} strokeDasharray="4 2" name="weekAgo" />
+                  <Line type="stepAfter" dataKey="weekAgo" stroke="#f59e0b" strokeWidth={1.5} dot={{ r: 2, fill: "#f59e0b" }} strokeDasharray="4 2" name="weekAgo" />
                 )}
               </LineChart>
             </ResponsiveContainer>
@@ -587,7 +740,13 @@ function OISEnhancedBlock({ ratePath }: { ratePath: CBRatePath }) {
         {/* Chart 3 — Scénarios : taux implicite par réunion (barres horizontales) */}
         {chartTab === "scenarios" && (
           <div>
-            <div className="text-[8px] text-slate-600 mb-1.5">Taux implicite par réunion</div>
+            <div className="flex items-center mb-1.5">
+            <span className="text-[8px] text-slate-600">Taux implicite par réunion</span>
+            <div className="ml-auto flex items-center gap-4 text-[7px] text-slate-700 uppercase tracking-wide">
+              <span>Taux prévu</span>
+              <span title="Probabilité de mouvement de taux à cette réunion (OIS/futures)">Proba mvt</span>
+            </div>
+          </div>
             <div className="space-y-1">
               {(() => {
                 const maxR2 = Math.max(...scenariosData.map(d => d.rate), currentRate);
@@ -646,6 +805,7 @@ export default function CurrencyCard({
   currency, expectations, yields, sentiment, cot, ratePath, onDivergenceUpdate,
   calEvents, macroSection, syncMacroSlide, onMacroSlideChange,
   syncCardTab, onCardTabChange, syncSignauxSlide, onSignauxSlideChange,
+  syncOisChartTab, onOisChartTabChange, isLoading = false,
 }: Props) {
   const meta = CURRENCY_META[currency];
 
@@ -671,6 +831,7 @@ export default function CurrencyCard({
   const [showCotInfo, setShowCotInfo]       = useState(false);
   const [showAllMeetings, setShowAllMeetings] = useState(false);
   const [showYield10Y, setShowYield10Y]       = useState(false);
+  const [showSources, setShowSources]         = useState(false);
   const [showRecentNews, setShowRecentNews]   = useState(false);
   const [showUpcoming, setShowUpcoming]       = useState(false);
   const [sliderBlock, setSliderBlock] = useState<SliderBlock>("ois");
@@ -1328,8 +1489,18 @@ export default function CurrencyCard({
           </button>
         ))}
         <div className="flex-1" />
+        <button
+          onClick={() => setShowSources(true)}
+          title="Sources des données"
+          className="flex items-center justify-center p-2 text-slate-600 hover:text-slate-300 transition-colors"
+        >
+          <Settings size={12} />
+        </button>
         <NarrativeButton currency={currency} phase={phase} macroScore={macroScore} />
       </div>
+
+      {/* Sources popup */}
+      {showSources && <SourcesPopup currency={currency} onClose={() => setShowSources(false)} />}
 
       {/* ── Tab content ─────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden p-3">
@@ -1505,7 +1676,7 @@ export default function CurrencyCard({
                     { id: "ois", label: "OIS" },
                   ];
                   if (cot)       sigTabs.push({ id: "cot",  label: "COT" });
-                  if (sentiment) sigTabs.push({ id: "sent", label: "Sentiment" });
+                  if (sentiment) sigTabs.push({ id: "sent", label: "DXM" });
                   return (
                     <div className="space-y-1.5">
                       {sigTabs.length > 1 && (
@@ -1515,7 +1686,11 @@ export default function CurrencyCard({
                           ))}
                         </div>
                       )}
-                      <div className={`relative ${signauxSlide === "ois" && ratePath && ratePath.meetings.length > 0 ? "h-[460px]" : "h-[310px]"} overflow-hidden rounded-xl transition-all duration-300`}>
+                      <div className={`relative ${
+                        signauxSlide === "ois" && ratePath?.meetings.length ? "h-[340px] overflow-hidden"
+                          : signauxSlide === "cot" ? `h-[345px] ${showCotInfo ? "overflow-y-auto" : "overflow-hidden"}`
+                          : "h-[190px] overflow-hidden"
+                      } rounded-xl transition-all duration-300`}>
                         <AnimatePresence mode="wait" custom={signauxSlideDir}>
                           <motion.div
                             key={signauxSlide}
@@ -1534,17 +1709,45 @@ export default function CurrencyCard({
 
                             {/* OIS — nouveau bloc enrichi */}
                             {signauxSlide === "ois" && ratePath && ratePath.meetings.length > 0 && (
-                              <OISEnhancedBlock ratePath={ratePath} />
+                              <OISEnhancedBlock
+                                ratePath={ratePath}
+                                syncChartTab={syncOisChartTab}
+                                onChartTabChange={onOisChartTabChange}
+                              />
                             )}
                             {/* OIS — état indisponible */}
                             {signauxSlide === "ois" && (!ratePath || !ratePath.meetings.length) && (
-                              <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-700">
-                                <Target size={24} />
-                                <div className="text-center">
-                                  <p className="text-[11px] text-slate-500">Données OIS indisponibles</p>
-                                  <p className="text-[10px] text-slate-600 mt-1">Cache actualisé par GitHub Actions (24–48h)</p>
+                              isLoading ? (
+                                <div className="px-3 py-2 space-y-2.5 animate-pulse">
+                                  {/* Header skeleton */}
+                                  <div className="flex justify-between mb-3">
+                                    <div className="h-2 bg-slate-700/60 rounded w-28" />
+                                    <div className="h-2 bg-slate-700/40 rounded w-16" />
+                                  </div>
+                                  {/* Tab buttons skeleton */}
+                                  <div className="flex gap-1.5 mb-3">
+                                    {[48, 40, 44].map(w => (
+                                      <div key={w} className="h-5 bg-slate-700/50 rounded-full" style={{ width: w }} />
+                                    ))}
+                                  </div>
+                                  {/* Rate curve rows */}
+                                  {[70, 85, 60, 78, 65, 72].map((w, i) => (
+                                    <div key={i} className="flex items-center gap-2">
+                                      <div className="h-2 bg-slate-700/40 rounded w-10 shrink-0" />
+                                      <div className="h-3 bg-slate-700/50 rounded" style={{ width: `${w}%` }} />
+                                      <div className="h-2 bg-slate-700/30 rounded w-8 shrink-0" />
+                                    </div>
+                                  ))}
                                 </div>
-                              </div>
+                              ) : (
+                                <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-700">
+                                  <Target size={24} />
+                                  <div className="text-center">
+                                    <p className="text-[11px] text-slate-500">Données OIS indisponibles</p>
+                                    <p className="text-[10px] text-slate-600 mt-1">Cache actualisé par GitHub Actions (24–48h)</p>
+                                  </div>
+                                </div>
+                              )
                             )}
 
                             {/* COT */}
@@ -1598,96 +1801,144 @@ export default function CurrencyCard({
                         <div className="bg-slate-900 border border-slate-700/60 rounded-lg px-2.5 py-2 text-[9px] text-slate-400 space-y-1 leading-relaxed">
                           <p><span className="text-indigo-400 font-bold">AM (Asset Managers)</span> — fonds pension, souverains, assurances. Prennent des positions pour <em>couvrir</em> des expositions réelles (hedging). Leur flux pilote la devise à moyen terme.</p>
                           <p><span className="text-amber-400 font-bold">HF (Hedge Funds / CTAs)</span> — spéculation directionnelle à court terme. Réactifs aux catalyseurs macro. Retournements rapides possibles.</p>
-                          <p className="pt-0.5 border-t border-slate-700/40"><span className="text-slate-300 font-semibold">Lire :</span> Net = longs − shorts · <span className="text-emerald-400">Δ sem</span> = variation vs semaine précédente · <span className="text-slate-300">L%</span> = part de longs dans le total. Un HF net short avec des longs qui augmentent (Δ L↑) signale un potentiel retournement haussier.</p>
+                          <p className="pt-0.5 border-t border-slate-700/40"><span className="text-slate-300 font-semibold">Lire :</span> <span className="text-amber-300">Δ Net HF</span> = variation du net (longs−shorts) vs sem. précédente → chiffre clé de la pression spéculative. <span className="text-slate-300">L / S</span> = variation de chaque jambe séparément. Ex : L↑ + S↑ = les deux côtés s'accumulent ; Δ Net négatif = pression baissière nette qui s'intensifie.</p>
                         </div>
                       )}
 
-                      {/* ② Qui pilote la devise ? */}
-                      <div className="text-[10px] leading-snug text-slate-300 font-medium">
-                        {amDominates
-                          ? <><span className="text-indigo-400 font-bold">AM pilote ({amPct}%)</span> · hedge {cot.amNet > 0 ? "haussier" : "baissier"} — institutionnel / carry</>
-                          : <><span className="text-amber-400 font-bold">HF pilote ({hfPct}%)</span> · spéculation {hfIsShort ? "baissière" : "haussière"}</>
-                        }
-                      </div>
+                      {/* ② Deux cartes côte à côte : NET en gros + DELTA bien visible */}
+                      <div className="grid grid-cols-2 gap-2">
 
-                      {/* ③ Évolution hebdomadaire — le delta est la vraie lecture */}
-                      <div className="space-y-1 bg-slate-900/40 rounded-lg px-2.5 py-2">
-                        <div className="text-[8px] text-slate-500 uppercase tracking-wider mb-1.5">Évolution cette semaine</div>
-
-                        {/* AM delta */}
-                        <div className="flex items-center justify-between text-[9px]">
-                          <span className="text-indigo-400 font-semibold w-20 shrink-0">AM (hedge)</span>
-                          <span className="flex items-center gap-2 text-right">
-                            <span className={`tabular-nums text-[10px] font-bold ${cot.amNet > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                              {cot.amNet > 0 ? "LONG" : "SHORT"} {dFmt(cot.amNet)}
-                            </span>
-                            {cot.amNetDelta !== null && (
-                              <span className={`text-[9px] ${cot.amNetDelta > 0 ? "text-emerald-400" : cot.amNetDelta < 0 ? "text-red-400" : "text-slate-500"}`}>
-                                Δ{dFmt(cot.amNetDelta)}{cot.amNetDelta > 0 ? "↑" : cot.amNetDelta < 0 ? "↓" : ""}
-                              </span>
-                            )}
-                          </span>
+                        {/* Carte AM */}
+                        <div className="bg-indigo-950/50 border border-indigo-500/25 rounded-xl p-2.5">
+                          <div className="text-[8px] text-indigo-400 font-bold uppercase tracking-wider mb-2">
+                            AM · hedge {amDominates ? "▶ pilote" : ""}
+                          </div>
+                          {/* NET — très grand */}
+                          <div className={`text-[11px] font-black leading-none ${cot.amNet > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                            {cot.amNet > 0 ? "LONG" : "SHORT"}
+                          </div>
+                          <div className={`text-[19px] font-black tabular-nums leading-tight mb-2 ${cot.amNet > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                            {dFmt(cot.amNet)}
+                          </div>
+                          {/* DELTA AM — L/S séparés comme HF */}
+                          <div className="border-t border-indigo-500/15 pt-1.5">
+                            <div className="text-[7px] text-white/60 uppercase mb-0.5">Δ cette semaine</div>
+                            <div className="flex items-baseline gap-2">
+                              {cot.amLongsDelta != null && Number.isFinite(cot.amLongsDelta) ? (
+                                <div className={`text-[12px] font-black tabular-nums leading-none ${cot.amLongsDelta > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                                  L {cot.amLongsDelta > 0 ? "↑" : "↓"}{Math.abs(cot.amLongsDelta / 1000).toFixed(1)}k
+                                </div>
+                              ) : cot.amNetDelta != null && Number.isFinite(cot.amNetDelta) ? (
+                                <div className={`text-[12px] font-black tabular-nums leading-none ${cot.amNetDelta > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                                  net {cot.amNetDelta > 0 ? "↑" : "↓"}{Math.abs(cot.amNetDelta / 1000).toFixed(1)}k
+                                </div>
+                              ) : <div className="text-slate-700 text-[11px]">—</div>}
+                              {cot.amShortsDelta != null && Number.isFinite(cot.amShortsDelta) && (
+                                <div className={`text-[12px] font-black tabular-nums leading-none ${cot.amShortsDelta > 0 ? "text-red-400" : "text-emerald-400"}`}>
+                                  S {cot.amShortsDelta > 0 ? "↑" : "↓"}{Math.abs(cot.amShortsDelta / 1000).toFixed(1)}k
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
 
-                        {/* HF delta — Δlongs / Δshorts séparés : c'est ici que se lit l'accumulation */}
-                        <div className="flex items-start justify-between text-[9px]">
-                          <span className="text-amber-400 font-semibold w-20 shrink-0">HF (spécu)</span>
-                          <span className="flex flex-col items-end gap-0.5">
-                            <span className={`tabular-nums text-[10px] font-bold ${cot.net > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                              {cot.net > 0 ? "LONG" : "SHORT"} {dFmt(cot.net)}
-                            </span>
-                            <span className="flex items-center gap-2 text-[9px]">
+                        {/* Carte HF */}
+                        <div className="bg-amber-950/30 border border-amber-500/25 rounded-xl p-2.5">
+                          <div className="text-[8px] text-amber-400 font-bold uppercase tracking-wider mb-2">
+                            HF · spécu {!amDominates ? "▶ pilote" : ""}
+                          </div>
+                          {/* NET — très grand */}
+                          <div className={`text-[11px] font-black leading-none ${cot.net > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                            {cot.net > 0 ? "LONG" : "SHORT"}
+                          </div>
+                          <div className={`text-[19px] font-black tabular-nums leading-tight mb-2 ${cot.net > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                            {dFmt(cot.net)}
+                          </div>
+                          {/* DELTA — Longs / Shorts séparés + delta net */}
+                          <div className="border-t border-amber-500/15 pt-1.5">
+                            <div className="text-[7px] text-white/60 uppercase mb-0.5">Δ cette semaine</div>
+                            {/* Delta net HF — le chiffre le plus utile */}
+                            {cot.netDelta != null && Number.isFinite(cot.netDelta) && (
+                              <div className={`text-[11px] font-black tabular-nums leading-none mb-1 ${cot.netDelta > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                                Δ Net {cot.netDelta > 0 ? "+" : ""}{(cot.netDelta / 1000).toFixed(1)}k
+                              </div>
+                            )}
+                            <div className="flex items-baseline gap-2">
                               {cot.longsDelta !== null && (
-                                <span className={cot.longsDelta > 0 ? "text-emerald-400" : "text-red-400"}>
-                                  L {cot.longsDelta > 0 ? "+" : ""}{(cot.longsDelta/1000).toFixed(1)}k{cot.longsDelta > 0 ? "↑" : "↓"}
-                                </span>
+                                <div className={`text-[11px] font-black tabular-nums leading-none ${cot.longsDelta > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                                  L {cot.longsDelta > 0 ? "↑" : "↓"}{Math.abs(cot.longsDelta / 1000).toFixed(1)}k
+                                </div>
                               )}
                               {cot.shortsDelta !== null && (
-                                <span className={cot.shortsDelta > 0 ? "text-red-400" : "text-emerald-400"}>
-                                  S {cot.shortsDelta > 0 ? "+" : ""}{(cot.shortsDelta/1000).toFixed(1)}k{cot.shortsDelta > 0 ? "↑" : "↓"}
-                                </span>
+                                <div className={`text-[11px] font-black tabular-nums leading-none ${cot.shortsDelta > 0 ? "text-red-400" : "text-emerald-400"}`}>
+                                  S {cot.shortsDelta > 0 ? "↑" : "↓"}{Math.abs(cot.shortsDelta / 1000).toFixed(1)}k
+                                </div>
                               )}
-                            </span>
-                          </span>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
-                      {/* ④ Barre de dominance + signal de convergence */}
-                      <div className="space-y-1.5">
-                        <div className="flex rounded-full overflow-hidden h-1">
-                          <div className="bg-indigo-500/70 transition-all" style={{ width: `${amPct}%` }} />
-                          <div className="bg-amber-500/60 transition-all" style={{ width: `${hfPct}%` }} />
+                      {/* ③ Barre de dominance */}
+                      <div>
+                        <div className="flex rounded-full overflow-hidden h-1.5">
+                          <div className="bg-indigo-500 transition-all" style={{ width: `${amPct}%` }} />
+                          <div className="bg-amber-500/70 transition-all" style={{ width: `${hfPct}%` }} />
                         </div>
-                        <div className="flex justify-between text-[8px] text-slate-600">
+                        <div className="flex justify-between text-[8px] mt-0.5">
                           <span className="text-indigo-400/70">AM {amPct}%</span>
                           <span className="text-amber-400/70">HF {hfPct}%</span>
                         </div>
-
-                        {/* Signal de convergence : est-ce que les deux groupes convergent ? */}
-                        {(() => {
-                          const amBull = cot.amNet > 0;
-                          const convergeBull = amBull && (hfLongsGrowing || hfShortsReducing);
-                          const convergeBear = !amBull && (hfShortsGrowing || hfLongsReducing);
-                          const hfFlipping   = hfIsShort && hfLongsGrowing && hfShortsReducing;
-                          const txt = hfFlipping
-                            ? `↻ HF retournement potentiel — longs ↑ & shorts ↓ malgré position short`
-                            : convergeBull
-                            ? `▲ Convergence haussière — AM long + HF ${hfTrend}`
-                            : convergeBear
-                            ? `▼ Convergence baissière — AM short + HF ${hfTrend}`
-                            : `→ Divergence — AM ${cot.amNet > 0 ? "long" : "short"} / HF ${hfTrend}`;
-                          const cls = hfFlipping || convergeBull
-                            ? "text-emerald-400/80 bg-emerald-500/5 border-emerald-500/15"
-                            : convergeBear
-                            ? "text-red-400/80 bg-red-500/5 border-red-500/15"
-                            : "text-slate-400 bg-slate-800/30 border-slate-700/20";
-                          return (
-                            <div className={`rounded px-2 py-1.5 border text-[9px] leading-snug ${cls}`}>
-                              {txt}
-                            </div>
-                          );
-                        })()}
                       </div>
+
+                      {/* ④ Verdict — la phrase qui résume le mouvement */}
+                      {(() => {
+                        const amBull = cot.amNet > 0;
+                        let verdict = "";
+                        let sub = "";
+                        let cls = "";
+
+                        if (hfIsShort && hfLongsGrowing && hfShortsReducing) {
+                          verdict = "↻ Majorité vend — mais de + en + achètent";
+                          sub = "HF couvre ses shorts ET accumule des longs → retournement potentiel";
+                          cls = "text-emerald-400 border-emerald-500/25 bg-emerald-500/8";
+                        } else if (hfIsShort && hfLongsGrowing) {
+                          verdict = "▲ Majorité vend — longs HF en hausse";
+                          sub = "Accumulation : surveiller si les shorts commencent à baisser";
+                          cls = "text-emerald-400/80 border-emerald-500/20 bg-emerald-500/5";
+                        } else if (hfIsShort && hfShortsReducing) {
+                          verdict = "▲ Shorts HF se réduisent — pression baissière s'allège";
+                          sub = "Signal de couverture — retournement possible si longs suivent";
+                          cls = "text-emerald-400/70 border-emerald-500/15 bg-emerald-500/5";
+                        } else if (!hfIsShort && amBull) {
+                          verdict = "▲▲ Convergence haussière — AM + HF alignés";
+                          sub = "AM long (hedging) et HF long (spécu) → signal fort";
+                          cls = "text-emerald-400 border-emerald-500/25 bg-emerald-500/8";
+                        } else if (hfIsShort && !amBull) {
+                          verdict = "▼▼ Convergence baissière — AM + HF alignés";
+                          sub = "AM short (hedging) et HF short (spécu) → signal fort";
+                          cls = "text-red-400 border-red-500/25 bg-red-500/8";
+                        } else if (!hfIsShort && hfShortsGrowing && hfLongsReducing) {
+                          verdict = "▼ Majorité achète — mais distribution en cours";
+                          sub = "HF réduit ses longs ET renforce ses shorts → retournement potentiel";
+                          cls = "text-red-400 border-red-500/25 bg-red-500/8";
+                        } else if (!hfIsShort && hfShortsGrowing) {
+                          verdict = "▼ Majorité achète — shorts HF en hausse";
+                          sub = "Signal de distribution — surveiller la réduction des longs";
+                          cls = "text-red-400/80 border-red-500/20 bg-red-500/5";
+                        } else {
+                          verdict = "→ Flux mixtes AM / HF";
+                          sub = `AM ${amBull ? "long" : "short"} · HF ${hfIsShort ? "short" : "long"} · pas de signal directionnel clair`;
+                          cls = "text-slate-400 border-slate-700/30 bg-slate-800/20";
+                        }
+
+                        return (
+                          <div className={`rounded-lg border px-2.5 py-2 ${cls}`}>
+                            <div className="text-[10px] font-bold leading-snug">{verdict}</div>
+                            <div className="text-[9px] opacity-70 mt-0.5 leading-snug">{sub}</div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 })()}
