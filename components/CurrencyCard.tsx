@@ -739,55 +739,66 @@ function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange }: {
           </div>
         )}
 
-        {/* Chart 3 — Probabilités : barre de probabilité par réunion + bps cumulés */}
+        {/* Chart 3 — Probabilités : ligne de probMovePct par réunion (style original) */}
         {chartTab === "scenarios" && (
           <div>
-            <div className="flex items-center mb-1.5 gap-2">
-              <span className="text-[8px] text-slate-500 uppercase tracking-wider">Probabilités par réunion</span>
-              <div className="ml-auto flex items-center gap-2">
-                <span className="flex items-center gap-1 text-[7px] text-sky-400"><span className="inline-block w-1.5 h-1.5 rounded-full bg-sky-400" />Baisse</span>
-                <span className="flex items-center gap-1 text-[7px] text-amber-400"><span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400" />Hold</span>
-                <span className="flex items-center gap-1 text-[7px] text-red-400"><span className="inline-block w-1.5 h-1.5 rounded-full bg-red-400" />Hausse</span>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              {scenariosData.map(d => {
-                const hasProb   = d.prob > 0;
-                const mlIsMove  = d.prob >= 50;
-                const displayProb = hasProb ? (mlIsMove ? d.prob : 100 - d.prob) : 0;
-                const barColor  = !hasProb
-                  ? "#334155"
-                  : mlIsMove ? (d.isCut ? "#38bdf8" : "#f87171") : "#f59e0b";
-                const dirArrow  = !hasProb ? "?" : mlIsMove ? (d.isCut ? "▼" : "▲") : "—";
-                const arrowCls  = !hasProb ? "text-slate-700" : mlIsMove ? (d.isCut ? "text-sky-400" : "text-red-400") : "text-amber-400";
-                const isPeak    = ratePath.peakMeeting?.dateIso === d.dateIso;
-                const cum       = d.cumulBps;
-                const cumLabel  = cum === 0 ? "0bps" : `${cum > 0 ? "+" : ""}${cum}bps`;
-                const cumCls    = cum < 0 ? "text-sky-400" : cum > 0 ? "text-red-400" : "text-slate-600";
-                return (
-                  <div key={d.label} className="flex items-center gap-1.5">
-                    <span className={`text-[8px] w-9 shrink-0 font-mono tabular-nums ${isPeak ? "font-bold text-amber-300" : "text-slate-500"}`}>
-                      {d.label}
+            <ResponsiveContainer width="100%" height={100}>
+              <LineChart
+                data={chartMeetings.map(m => ({ label: m.label, prob: m.probMovePct, isCut: m.probIsCut, impliedRate: m.impliedRate }))}
+                margin={{ top: 5, right: 5, left: -20, bottom: 0 }}
+              >
+                <XAxis dataKey="label" tick={{ fontSize: 7, fill: "#64748b" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                <YAxis tick={{ fontSize: 7, fill: "#64748b" }} axisLine={false} tickLine={false} width={28}
+                  domain={[0, 100]} tickFormatter={(v: number) => `${v}%`} />
+                <ReferenceLine y={50} stroke="#334155" strokeDasharray="3 3" strokeWidth={1} />
+                <Line type="monotone" dataKey="prob" stroke="#f59e0b" strokeWidth={1.5} dot={{ r: 2, fill: "#f59e0b" }} activeDot={{ r: 3 }} />
+                <Tooltip
+                  content={({ label, payload }) => {
+                    if (!payload?.length) return null;
+                    const v  = payload[0]?.value as number;
+                    const m  = chartMeetings.find(m => m.label === label);
+                    return (
+                      <div style={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 6, padding: "4px 8px" }}>
+                        <p style={{ color: "#94a3b8", fontSize: 9, margin: 0 }}>{label}</p>
+                        <p style={{ color: "#f59e0b", fontSize: 9, margin: "2px 0 0" }}>
+                          {v.toFixed(0)}% {m?.probIsCut ? "Cut" : "Hike"}
+                        </p>
+                        <p style={{ color: "#64748b", fontSize: 8, margin: "1px 0 0" }}>
+                          Implicite : {m?.impliedRate.toFixed(2)}%
+                        </p>
+                      </div>
+                    );
+                  }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+            {/* Résumé : pic + bps fin an + flèches vs sem. préc. */}
+            {ratePath.peakMeeting && (
+              <>
+                <div className="flex items-center justify-between mt-1 text-[10px]">
+                  <span className="text-slate-600">
+                    Pic : <span className="text-slate-400">{ratePath.peakMeeting.label}</span>
+                  </span>
+                  <span className={`font-bold ${ratePath.peakMeeting.probIsCut ? "text-sky-400" : "text-red-400"}`}>
+                    {ratePath.peakMeeting.probMovePct.toFixed(0)}% {ratePath.peakMeeting.probIsCut ? "Cut" : "Hike"}
+                  </span>
+                  {bpsYE !== null && (
+                    <span className={`font-bold ${bpsCls}`} title={`→ ${yearEndImplied?.toFixed(2)}%`}>
+                      {bpsYE > 0 ? "+" : ""}{bpsYE}bps fin an
                     </span>
-                    <div className="flex-1 bg-slate-700/30 rounded-full h-2 overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-300"
-                        style={{ width: `${displayProb}%`, backgroundColor: barColor, opacity: 0.78 }}
-                      />
-                    </div>
-                    {hasProb ? (
-                      <span className="text-[9px] font-bold tabular-nums w-7 text-right shrink-0" style={{ color: barColor }}>
-                        {Math.round(displayProb)}%
-                      </span>
-                    ) : (
-                      <span className="text-[8px] text-slate-700 w-7 text-right shrink-0">n/a</span>
+                  )}
+                </div>
+                {ilDelta && (Math.abs(ilDelta.probDelta) >= 3 || Math.abs(ilDelta.bpsDelta) >= 5) && (
+                  <div className="flex items-center gap-2 mt-0.5 text-[9px] text-slate-600">
+                    <span title={`vs article du ${prevCurveLabel ?? ilDelta.prevDate}`}>vs sem. préc. :</span>
+                    <RpArrow delta={ilDelta.probDelta} isBearishIfPositive={ilDelta.isCut} suffix="%" strongT={10} modT={3} />
+                    {ilDelta.bpsDelta !== 0 && (
+                      <RpArrow delta={ilDelta.bpsDelta} isBearishIfPositive={true} suffix="bps" strongT={25} modT={5} />
                     )}
-                    <span className={`text-[9px] w-4 text-center shrink-0 ${arrowCls}`}>{dirArrow}</span>
-                    <span className={`text-[8px] font-mono tabular-nums w-12 text-right shrink-0 ${cumCls}`}>{cumLabel}</span>
                   </div>
-                );
-              })}
-            </div>
+                )}
+              </>
+            )}
           </div>
         )}
       </div>
