@@ -482,7 +482,7 @@ function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange }: {
   syncChartTab?: "curve" | "implied" | "scenarios";
   onChartTabChange?: (id: "curve" | "implied" | "scenarios") => void;
 }) {
-  const [localChartTab, setLocalChartTab] = useState<"curve" | "implied" | "scenarios">("curve");
+  const [localChartTab, setLocalChartTab] = useState<"curve" | "implied" | "scenarios">("scenarios");
   const chartTab = syncChartTab ?? localChartTab;
   const setChartTab = (id: "curve" | "implied" | "scenarios") => {
     setLocalChartTab(id);
@@ -538,6 +538,8 @@ function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange }: {
     rate: +m.impliedRate.toFixed(3),
     prob: m.probMovePct,
     isCut: m.probIsCut,
+    changeBps: m.changeBps,
+    cumulBps: Math.round((m.impliedRate - currentRate) * 100),
   }));
 
   // Y-axis domain for Rate Curve
@@ -619,9 +621,9 @@ function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange }: {
         {/* Tab buttons */}
         <div className="flex gap-1 mb-2">
           {([
+            { id: "scenarios" as const, label: "Probabilités" },
             { id: "curve"     as const, label: "Rate Path" },
             { id: "implied"   as const, label: "Implied Pts" },
-            { id: "scenarios" as const, label: "Scénarios" },
           ]).map(t => (
             <button
               key={t.id}
@@ -737,41 +739,54 @@ function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange }: {
           </div>
         )}
 
-        {/* Chart 3 — Scénarios : taux implicite par réunion (barres horizontales) */}
+        {/* Chart 3 — Probabilités : barre de probabilité par réunion + bps cumulés */}
         {chartTab === "scenarios" && (
           <div>
-            <div className="flex items-center mb-1.5">
-            <span className="text-[8px] text-slate-600">Taux implicite par réunion</span>
-            <div className="ml-auto flex items-center gap-4 text-[7px] text-slate-700 uppercase tracking-wide">
-              <span>Taux prévu</span>
-              <span title="Probabilité de mouvement de taux à cette réunion (OIS/futures)">Proba mvt</span>
+            <div className="flex items-center mb-1.5 gap-2">
+              <span className="text-[8px] text-slate-500 uppercase tracking-wider">Probabilités par réunion</span>
+              <div className="ml-auto flex items-center gap-2">
+                <span className="flex items-center gap-1 text-[7px] text-sky-400"><span className="inline-block w-1.5 h-1.5 rounded-full bg-sky-400" />Baisse</span>
+                <span className="flex items-center gap-1 text-[7px] text-amber-400"><span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400" />Hold</span>
+                <span className="flex items-center gap-1 text-[7px] text-red-400"><span className="inline-block w-1.5 h-1.5 rounded-full bg-red-400" />Hausse</span>
+              </div>
             </div>
-          </div>
-            <div className="space-y-1">
-              {(() => {
-                const maxR2 = Math.max(...scenariosData.map(d => d.rate), currentRate);
-                const minR2 = Math.min(...scenariosData.map(d => d.rate), currentRate) - 0.05;
-                const range = maxR2 - minR2 || 0.25;
-                return scenariosData.map(d => {
-                  const barW   = Math.max(5, Math.min(100, ((d.rate - minR2) / range) * 100));
-                  const isDown = d.rate < currentRate - 0.001;
-                  const isUp   = d.rate > currentRate + 0.001;
-                  const barCl  = isDown ? "bg-sky-500/70" : isUp ? "bg-red-500/70" : "bg-amber-500/60";
-                  const isPeak = ratePath.peakMeeting?.dateIso === d.dateIso;
-                  return (
-                    <div key={d.label} className="flex items-center gap-1.5">
-                      <span className={`text-[8px] w-9 shrink-0 ${isPeak ? "text-amber-300 font-bold" : "text-slate-600"}`}>
-                        {d.label}{isPeak ? "●" : ""}
-                      </span>
-                      <div className="flex-1 bg-slate-700/30 rounded-full h-2.5 overflow-hidden">
-                        <div className={`h-full ${barCl} rounded-full`} style={{ width: `${barW}%` }} />
-                      </div>
-                      <span className="text-[8px] font-mono text-slate-300 w-10 text-right shrink-0">{d.rate.toFixed(2)}%</span>
-                      <span className="text-[7px] text-slate-600 w-6 text-right shrink-0">{d.prob.toFixed(0)}%</span>
+            <div className="space-y-1.5">
+              {scenariosData.map(d => {
+                const hasProb   = d.prob > 0;
+                const mlIsMove  = d.prob >= 50;
+                const displayProb = hasProb ? (mlIsMove ? d.prob : 100 - d.prob) : 0;
+                const barColor  = !hasProb
+                  ? "#334155"
+                  : mlIsMove ? (d.isCut ? "#38bdf8" : "#f87171") : "#f59e0b";
+                const dirArrow  = !hasProb ? "?" : mlIsMove ? (d.isCut ? "▼" : "▲") : "—";
+                const arrowCls  = !hasProb ? "text-slate-700" : mlIsMove ? (d.isCut ? "text-sky-400" : "text-red-400") : "text-amber-400";
+                const isPeak    = ratePath.peakMeeting?.dateIso === d.dateIso;
+                const cum       = d.cumulBps;
+                const cumLabel  = cum === 0 ? "0bps" : `${cum > 0 ? "+" : ""}${cum}bps`;
+                const cumCls    = cum < 0 ? "text-sky-400" : cum > 0 ? "text-red-400" : "text-slate-600";
+                return (
+                  <div key={d.label} className="flex items-center gap-1.5">
+                    <span className={`text-[8px] w-9 shrink-0 font-mono tabular-nums ${isPeak ? "font-bold text-amber-300" : "text-slate-500"}`}>
+                      {d.label}
+                    </span>
+                    <div className="flex-1 bg-slate-700/30 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-300"
+                        style={{ width: `${displayProb}%`, backgroundColor: barColor, opacity: 0.78 }}
+                      />
                     </div>
-                  );
-                });
-              })()}
+                    {hasProb ? (
+                      <span className="text-[9px] font-bold tabular-nums w-7 text-right shrink-0" style={{ color: barColor }}>
+                        {Math.round(displayProb)}%
+                      </span>
+                    ) : (
+                      <span className="text-[8px] text-slate-700 w-7 text-right shrink-0">n/a</span>
+                    )}
+                    <span className={`text-[9px] w-4 text-center shrink-0 ${arrowCls}`}>{dirArrow}</span>
+                    <span className={`text-[8px] font-mono tabular-nums w-12 text-right shrink-0 ${cumCls}`}>{cumLabel}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
