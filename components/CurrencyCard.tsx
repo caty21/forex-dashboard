@@ -816,7 +816,7 @@ function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange }: {
 
               {/* Liste des réunions */}
               <div className="mt-2 pt-2 border-t border-slate-700/30 space-y-[3px]">
-                {scenariosData.map((d, i) => {
+                {scenariosData.map(d => {
                   const isPeak   = ratePath.peakMeeting?.dateIso === d.dateIso;
                   const isDown   = d.rate < currentRate - 0.001;
                   const isUp     = d.rate > currentRate + 0.001;
@@ -824,9 +824,6 @@ function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange }: {
                   const barW     = Math.max(4, Math.min(100, ((d.rate - minR2) / range) * 100));
                   const cumBps   = d.cumulBps;
                   const cumStr   = cumBps === 0 ? null : `${cumBps > 0 ? "+" : ""}${cumBps}`;
-                  // Pour la 1ère réunion : montrer STIR original si IL a surchargé la valeur
-                  const stirProb = i === 0 ? ratePath.ilCurrent?.stirProbPct : undefined;
-                  const ilFused  = stirProb !== undefined && Math.abs(d.prob - stirProb) > 5;
                   return (
                     <div key={d.label}
                       className={`flex items-center gap-1.5 rounded-md px-1 py-[2px] ${isPeak ? "bg-amber-500/8" : ""}`}
@@ -845,19 +842,6 @@ function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange }: {
                           {cumStr}bps
                         </span>
                       )}
-                      {/* Probabilité : si fusion IL/STIR, afficher les deux sources */}
-                      {ilFused ? (
-                        <span className="flex items-center gap-0.5 shrink-0">
-                          <span className={`text-[8px] font-bold tabular-nums ${isDown ? "text-sky-400" : "text-red-400"}`} title="Probabilité analyste InvestingLive">
-                            {d.prob.toFixed(0)}%
-                          </span>
-                          <span className="text-[6px] text-slate-700" title={`Probabilité STIR/IC : ${stirProb?.toFixed(0)}%`}>
-                            ({stirProb?.toFixed(0)}%)
-                          </span>
-                        </span>
-                      ) : d.prob > 0 ? (
-                        <span className="text-[7px] text-slate-600 w-5 text-right shrink-0">{d.prob.toFixed(0)}%</span>
-                      ) : null}
                     </div>
                   );
                 })}
