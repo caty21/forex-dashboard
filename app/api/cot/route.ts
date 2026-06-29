@@ -7,18 +7,7 @@ export const dynamic = "force-dynamic";
 
 // ── CFTC Traders in Financial Futures (TFF) — fichier annuel ZIP ──────────────
 // URL : https://www.cftc.gov/files/dea/history/fut_fin_txt_YYYY.zip
-// Contient toutes les semaines de l'année en ordre décroissant.
-// On extrait les 2 dernières semaines par devise pour calculer les deltas.
-//
-// Colonnes (0-based, séparées par virgule) :
-//   0  Market_and_Exchange_Names
-//   1  As_of_Date_In_Form_YYMMDD
-//   2  Report_Date_as_YYYY-MM-DD
-//   3  CFTC_Contract_Market_Code
-//  11  Asset_Mgr_Positions_Long_All
-//  12  Asset_Mgr_Positions_Short_All
-//  14  Lev_Money_Positions_Long_All   ← hedge funds
-//  15  Lev_Money_Positions_Short_All
+// Colonnes : 3=code, 2=date, 11=AM long, 12=AM short, 14=HF long, 15=HF short
 
 const IDX_CODE      = 3;
 const IDX_DATE      = 2;
@@ -26,6 +15,14 @@ const IDX_AM_LONG   = 11;
 const IDX_AM_SHORT  = 12;
 const IDX_LEV_LONG  = 14;
 const IDX_LEV_SHORT = 15;
+
+// ── CFTC Legacy COT (Non-Commercial) — via Socrata API ────────────────────────
+// Dataset : 6dca-aqww  (Legacy Futures Only)
+// Fields  : noncomm_positions_long_all, noncomm_positions_short_all + changes
+
+const SODA_BASE   = "https://publicreporting.cftc.gov/resource";
+const CODES_LIST  = Object.values(COT_CODES).map(c => `'${c}'`).join(",");
+const SODA_WHERE  = `cftc_contract_market_code in(${CODES_LIST}) AND futonly_or_combined='FutOnly'`;
 
 function cftcZipUrl(): string {
   return `https://www.cftc.gov/files/dea/history/fut_fin_txt_${new Date().getFullYear()}.zip`;
@@ -48,16 +45,71 @@ function cacheTtl(): number {
 
 export type { CotEntry } from "@/lib/types";
 
+// ── NC (Non-Commercial Legacy) via Socrata ─────────────────────────────────────
+
+interface LegacyRow {
+  cftc_contract_market_code:  string;
+  report_date_as_yyyy_mm_dd:  string;
+  noncomm_positions_long_all:  string;
+  noncomm_positions_short_all: string;
+  change_in_noncomm_long_all:  string;
+  change_in_noncomm_short_all: string;
+}
+
+interface NcData {
+  longs: number; shorts: number;
+  longsDelta: number | null; shortsDelta: number | null;
+}
+
+async function fetchNcData(): Promise<Record<string, NcData>> {
+  const url = `${SODA_BASE}/6dca-aqww.json?$where=${encodeURIComponent(SODA_WHERE)}&$limit=20&$order=report_date_as_yyyy_mm_dd DESC`;
+  const rows: LegacyRow[] = await fetch(url, { cache: "no-store" }).then(r => r.json()).catch(() => []);
+
+  // On garde max 2 semaines par devise (ordre DESC = plus récente en premier)
+  const seen: Record<string, LegacyRow[]> = {};
+  for (const row of rows) {
+    const code = row.cftc_contract_market_code;
+    if (!seen[code]) seen[code] = [];
+    if (seen[code].length < 2) seen[code].push(row);
+  }
+
+  const codeMap = Object.fromEntries(
+    (Object.entries(COT_CODES) as [Currency, string][]).map(([ccy, code]) => [code, ccy])
+  );
+
+  const result: Record<string, NcData> = {};
+  for (const [code, weeks] of Object.entries(seen)) {
+    const ccy = codeMap[code];
+    if (!ccy || weeks.length === 0) continue;
+    const cur  = weeks[0];
+    const prev = weeks[1] ?? null;
+    const longs  = parseInt(cur.noncomm_positions_long_all  ?? "0", 10) || 0;
+    const shorts = parseInt(cur.noncomm_positions_short_all ?? "0", 10) || 0;
+    const prevL  = prev ? parseInt(prev.noncomm_positions_long_all  ?? "0", 10) || 0 : null;
+    const prevS  = prev ? parseInt(prev.noncomm_positions_short_all ?? "0", 10) || 0 : null;
+    result[ccy] = {
+      longs, shorts,
+      longsDelta:  prevL !== null ? longs  - prevL : null,
+      shortsDelta: prevS !== null ? shorts - prevS : null,
+    };
+  }
+  return result;
+}
+
 export async function GET() {
   if (_cache && Date.now() - _cache.ts < cacheTtl()) {
     return NextResponse.json(_cache.data);
   }
 
   try {
-    const res = await fetch(cftcZipUrl(), {
-      cache: "no-store",
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; ForexDashboard/1.0)" },
-    });
+    const [res, ncRaw] = await Promise.all([
+      fetch(cftcZipUrl(), {
+        cache: "no-store",
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; ForexDashboard/1.0)" },
+      }),
+      fetchNcData(),
+    ]);
+
     if (!res.ok) {
       return NextResponse.json({ error: `CFTC fetch failed: ${res.status}` }, { status: 502 });
     }
@@ -66,7 +118,7 @@ export async function GET() {
     const text   = extractFirstFileFromZip(zipBuf);
     if (!text) return NextResponse.json({ error: "ZIP parse failed" }, { status: 502 });
 
-    const result = parseCOT(text);
+    const result = parseCOT(text, ncRaw);
     _cache = { data: result, ts: Date.now() };
     return NextResponse.json(result);
   } catch (err) {
@@ -113,7 +165,7 @@ type RawWeek = {
   weekDate: string;
 };
 
-function parseCOT(csv: string): Record<string, CotEntry> {
+function parseCOT(csv: string, nc: Record<string, NcData>): Record<string, CotEntry> {
   const lines       = csv.split("\n");
   const targetCodes = new Set(Object.values(COT_CODES));
   const raw: Record<string, RawWeek[]> = {};
@@ -134,7 +186,6 @@ function parseCOT(csv: string): Record<string, CotEntry> {
 
     const weekDate = cols[IDX_DATE]?.trim() ?? "";
     if (!raw[code]) raw[code] = [];
-    // Keep only the 2 most-recent weeks (file is in descending date order)
     if (raw[code].length < 2) raw[code].push({ hfLongs, hfShorts, amLongs, amShorts, weekDate });
   }
 
@@ -153,26 +204,40 @@ function parseCOT(csv: string): Record<string, CotEntry> {
     const amTotal = cur.amLongs + cur.amShorts;
     const amNet   = cur.amLongs - cur.amShorts;
 
+    const ncEntry  = nc[currency] ?? null;
+    const ncLongs  = ncEntry?.longs  ?? 0;
+    const ncShorts = ncEntry?.shorts ?? 0;
+    const ncTotal  = ncLongs + ncShorts;
+    const ncNet    = ncLongs - ncShorts;
+
     result[currency] = {
-      net:          hfNet,
-      hfLongs:      cur.hfLongs,
-      hfShorts:     cur.hfShorts,
-      longPct:      hfTotal > 0 ? Math.round((cur.hfLongs  / hfTotal) * 100) : 50,
-      shortPct:     hfTotal > 0 ? Math.round((cur.hfShorts / hfTotal) * 100) : 50,
-      totalLev:     hfTotal,
+      net:           hfNet,
+      hfLongs:       cur.hfLongs,
+      hfShorts:      cur.hfShorts,
+      longPct:       hfTotal > 0 ? Math.round((cur.hfLongs  / hfTotal) * 100) : 50,
+      shortPct:      hfTotal > 0 ? Math.round((cur.hfShorts / hfTotal) * 100) : 50,
+      totalLev:      hfTotal,
       amNet,
-      amLongs:      cur.amLongs,
-      amShorts:     cur.amShorts,
-      amLongPct:    amTotal > 0 ? Math.round((cur.amLongs / amTotal) * 100) : 50,
+      amLongs:       cur.amLongs,
+      amShorts:      cur.amShorts,
+      amLongPct:     amTotal > 0 ? Math.round((cur.amLongs / amTotal) * 100) : 50,
       amTotal,
+      ncNet,
+      ncLongs,
+      ncShorts,
+      ncLongPct:     ncTotal > 0 ? Math.round((ncLongs / ncTotal) * 100) : 50,
+      ncTotal,
       netDelta:      prev !== null ? hfNet - (prev.hfLongs - prev.hfShorts) : null,
       longsDelta:    prev !== null ? cur.hfLongs  - prev.hfLongs  : null,
       shortsDelta:   prev !== null ? cur.hfShorts - prev.hfShorts : null,
       amNetDelta:    prev !== null ? amNet - (prev.amLongs - prev.amShorts) : null,
       amLongsDelta:  prev !== null ? cur.amLongs  - prev.amLongs  : null,
       amShortsDelta: prev !== null ? cur.amShorts - prev.amShorts : null,
-      weekDate:     cur.weekDate,
-      prevWeekDate: prev?.weekDate ?? null,
+      ncNetDelta:    ncEntry?.longsDelta != null && ncEntry?.shortsDelta != null ? ncEntry.longsDelta - ncEntry.shortsDelta : null,
+      ncLongsDelta:  ncEntry?.longsDelta  ?? null,
+      ncShortsDelta: ncEntry?.shortsDelta ?? null,
+      weekDate:      cur.weekDate,
+      prevWeekDate:  prev?.weekDate ?? null,
     };
   }
 

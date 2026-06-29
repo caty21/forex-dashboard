@@ -1793,35 +1793,119 @@ export default function CurrencyCard({
 
                             {/* COT */}
                             {signauxSlide === "cot" && cot && (() => {
-                  const hfIsShort       = cot.net < 0;
-                  const amDominates     = Math.abs(cot.amNet) > Math.abs(cot.net);
+                  // ── helpers ───────────────────────────────────────────────
+                  const netFmt = (v: number) => `${v > 0 ? "+" : ""}${(v / 1000).toFixed(1)}k`;
+
+                  function evolText(isLong: boolean, dL: number | null, dS: number | null): { text: string; cls: string } {
+                    if (dL == null && dS == null) return { text: "pas de données semaine précédente", cls: "text-slate-600" };
+                    const ld = dL ?? 0, sd = dS ?? 0;
+                    if (isLong) {
+                      if (ld > 0 && sd < 0) return { text: "↑↑ renforcement haussier — accumule longs + couvre shorts", cls: "text-emerald-400" };
+                      if (ld > 0 && sd > 0) return { text: "↑ accumule des longs (+ aussi des shorts)", cls: "text-emerald-400/70" };
+                      if (ld > 0)           return { text: "↑ prend des positions inverses — rachète des longs", cls: "text-emerald-400/80" };
+                      if (sd > 0 && ld < 0) return { text: "↓↓ retournement baissier en cours — réduit longs + ajoute shorts", cls: "text-red-400" };
+                      if (sd > 0)           return { text: "↓ ajoute des shorts — signal de distribution", cls: "text-red-400/80" };
+                      if (ld < 0)           return { text: "↓ réduit les longs", cls: "text-red-400/70" };
+                    } else {
+                      if (sd > 0 && ld < 0) return { text: "↓↓ renforcement baissier — accumule shorts + réduit longs", cls: "text-red-400" };
+                      if (sd > 0 && ld > 0) return { text: "↓ renforce les shorts (+ rachète des longs)", cls: "text-red-400/70" };
+                      if (sd > 0)           return { text: "↓ renforce les shorts", cls: "text-red-400/80" };
+                      if (ld > 0 && sd < 0) return { text: "↑↑ retournement haussier en cours — rachète longs + couvre shorts", cls: "text-emerald-400" };
+                      if (ld > 0)           return { text: "↑ prend des positions inverses — rachète des longs", cls: "text-emerald-400/80" };
+                      if (sd < 0)           return { text: "↑ couvre des shorts", cls: "text-emerald-400/70" };
+                    }
+                    return { text: "stable — pas de mouvement significatif", cls: "text-slate-500" };
+                  }
+
+                  // ── groupes ───────────────────────────────────────────────
+                  const groups = [
+                    {
+                      id: "hf", label: "HF", desc: "Hedge Funds · CTAs (Leveraged Money CFTC)",
+                      accentT: "text-amber-400", accentB: "border-amber-500/25", accentBg: "bg-amber-950/30",
+                      net: cot.net, longs: cot.hfLongs, shorts: cot.hfShorts,
+                      dL: cot.longsDelta, dS: cot.shortsDelta,
+                    },
+                    {
+                      id: "am", label: "AM", desc: "Asset Managers · institutionnels (TFF CFTC)",
+                      accentT: "text-indigo-400", accentB: "border-indigo-500/25", accentBg: "bg-indigo-950/50",
+                      net: cot.amNet, longs: cot.amLongs, shorts: cot.amShorts,
+                      dL: cot.amLongsDelta, dS: cot.amShortsDelta,
+                    },
+                    {
+                      id: "nc", label: "NC", desc: "Non-Commercial · grands spéculateurs (rapport Legacy CFTC)",
+                      accentT: "text-purple-400", accentB: "border-purple-500/25", accentBg: "bg-purple-950/30",
+                      net: cot.ncNet, longs: cot.ncLongs, shorts: cot.ncShorts,
+                      dL: cot.ncLongsDelta, dS: cot.ncShortsDelta,
+                    },
+                  ];
+
+                  // ── verdict ───────────────────────────────────────────────
+                  const hfIsShort      = cot.net < 0;
+                  const amDominates    = Math.abs(cot.amNet) > Math.abs(cot.net);
                   const hfLongsGrowing  = cot.longsDelta  !== null && cot.longsDelta  > 0;
                   const hfShortsReducing= cot.shortsDelta !== null && cot.shortsDelta < 0;
                   const hfShortsGrowing = cot.shortsDelta !== null && cot.shortsDelta > 0;
                   const hfLongsReducing = cot.longsDelta  !== null && cot.longsDelta  < 0;
-
-                  let hfTrend = "";
-                  if (hfIsShort) {
-                    if (hfLongsGrowing && hfShortsReducing) hfTrend = "retournement en cours (L↑ S↓)";
-                    else if (hfLongsGrowing)    hfTrend = "accumulation de longs (L↑)";
-                    else if (hfShortsReducing)  hfTrend = "couverture de shorts (S↓)";
-                    else hfTrend = "exposition baissière stable";
-                  } else {
-                    if (hfShortsGrowing && hfLongsReducing) hfTrend = "retournement baissier (S↑ L↓)";
-                    else if (hfShortsGrowing) hfTrend = "ajout de shorts (S↑)";
-                    else if (hfLongsReducing) hfTrend = "réduction de longs (L↓)";
-                    else hfTrend = "exposition haussière stable";
-                  }
-
-                  // Poids relatif AM vs HF (barre de dominance)
                   const totalAbs = Math.abs(cot.amNet) + Math.abs(cot.net);
                   const amPct    = totalAbs > 0 ? Math.round(Math.abs(cot.amNet) / totalAbs * 100) : 50;
                   const hfPct    = 100 - amPct;
-                  const dFmt     = (v: number) => `${v > 0 ? "+" : ""}${(v / 1000).toFixed(1)}k`;
+
+                  const amBull   = cot.amNet > 0;
+                  const amPilote = amDominates;
+                  let verdict = "", sub = "", vCls = "";
+                  if (!hfIsShort && amBull) {
+                    verdict = "▲▲ Convergence haussière — AM + HF long alignés";
+                    sub = "AM et HF achètent tous les deux → signal fort";
+                    vCls = "text-emerald-400 border-emerald-500/25 bg-emerald-500/8";
+                  } else if (hfIsShort && !amBull) {
+                    verdict = "▼▼ Convergence baissière — AM + HF short alignés";
+                    sub = "AM et HF vendent tous les deux → signal fort";
+                    vCls = "text-red-400 border-red-500/25 bg-red-500/8";
+                  } else if (amPilote && amBull && hfIsShort) {
+                    verdict = (hfLongsGrowing || hfShortsReducing)
+                      ? `▲ AM long pilote (${amPct}%) — HF couvre ses shorts`
+                      : `▲ AM long pilote (${amPct}%) — HF short minoritaire`;
+                    sub = (hfLongsGrowing || hfShortsReducing)
+                      ? "AM dominant et les HF commencent à se retourner → momentum haussier"
+                      : "AM achète massivement · HF vend mais reste minoritaire par volume";
+                    vCls = "text-emerald-400/80 border-emerald-500/20 bg-emerald-500/5";
+                  } else if (amPilote && !amBull && !hfIsShort) {
+                    verdict = (hfShortsGrowing || hfLongsReducing)
+                      ? `▼ AM short pilote (${amPct}%) — HF commence à vendre`
+                      : `▼ AM short pilote (${amPct}%) — HF long minoritaire`;
+                    sub = (hfShortsGrowing || hfLongsReducing)
+                      ? "AM dominant et HF rejoint → signal baissier"
+                      : "AM vend massivement · HF long mais minoritaire par volume";
+                    vCls = "text-red-400/80 border-red-500/20 bg-red-500/5";
+                  } else if (!amPilote && hfIsShort && hfLongsGrowing && hfShortsReducing) {
+                    verdict = "↻ HF short pilote — retournement haussier en cours";
+                    sub = "HF couvre ses shorts ET rachète des longs → signal de retournement";
+                    vCls = "text-emerald-400 border-emerald-500/25 bg-emerald-500/8";
+                  } else if (!amPilote && hfIsShort && hfLongsGrowing) {
+                    verdict = "▲ HF short — mais prend des positions inverses (longs)";
+                    sub = "Signal d'accumulation → surveiller si les shorts baissent aussi";
+                    vCls = "text-emerald-400/80 border-emerald-500/20 bg-emerald-500/5";
+                  } else if (!amPilote && hfIsShort && hfShortsReducing) {
+                    verdict = "▲ HF short — couvre ses positions";
+                    sub = "Pression baissière qui s'allège → retournement possible";
+                    vCls = "text-emerald-400/70 border-emerald-500/15 bg-emerald-500/5";
+                  } else if (!amPilote && !hfIsShort && hfShortsGrowing && hfLongsReducing) {
+                    verdict = "↻ HF long pilote — retournement baissier en cours";
+                    sub = "HF réduit ses longs ET ajoute des shorts → signal de retournement";
+                    vCls = "text-red-400 border-red-500/25 bg-red-500/8";
+                  } else if (!amPilote && !hfIsShort && hfShortsGrowing) {
+                    verdict = "▼ HF long — prend des positions inverses (shorts)";
+                    sub = "Signal de distribution → surveiller si les longs baissent aussi";
+                    vCls = "text-red-400/80 border-red-500/20 bg-red-500/5";
+                  } else {
+                    verdict = "→ Flux mixtes";
+                    sub = `AM ${amBull ? "long" : "short"} (${amPct}%) · HF ${hfIsShort ? "short" : "long"} (${hfPct}%) · pas de signal directionnel clair`;
+                    vCls = "text-slate-400 border-slate-700/30 bg-slate-800/20";
+                  }
 
                   return (
                     <div className="rounded-xl border border-slate-700/40 bg-slate-800/20 p-3 space-y-2">
-                      {/* ① Header */}
+                      {/* Header */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5 text-[9px] text-slate-300 uppercase tracking-widest">
                           <BarChart2 size={9} />
@@ -1830,156 +1914,123 @@ export default function CurrencyCard({
                             onClick={() => setShowCotInfo(v => !v)}
                             className="ml-0.5 text-slate-500 hover:text-slate-300 transition-colors"
                             title="Comprendre ces données"
-                          >
-                            <Info size={10} />
-                          </button>
+                          ><Info size={10} /></button>
                         </div>
                         <span className="text-[9px] text-slate-400">{cot.prevWeekDate ? `vs ${cot.prevWeekDate}` : ""}</span>
                       </div>
 
-                      {/* ⓘ Tooltip explicatif */}
+                      {/* Tooltip explicatif */}
                       {showCotInfo && (
                         <div className="bg-slate-900 border border-slate-700/60 rounded-lg px-2.5 py-2 text-[9px] text-slate-400 space-y-1 leading-relaxed">
-                          <p><span className="text-indigo-400 font-bold">AM (Asset Managers)</span> — fonds pension, souverains, assurances. Prennent des positions pour <em>couvrir</em> des expositions réelles (hedging). Leur flux pilote la devise à moyen terme.</p>
-                          <p><span className="text-amber-400 font-bold">HF (Hedge Funds / CTAs)</span> — spéculation directionnelle à court terme. Réactifs aux catalyseurs macro. Retournements rapides possibles.</p>
-                          <p className="pt-0.5 border-t border-slate-700/40"><span className="text-slate-300 font-semibold">Lire :</span> <span className="text-amber-300">Δ Net HF</span> = variation du net (longs−shorts) vs sem. précédente → chiffre clé de la pression spéculative. <span className="text-slate-300">L / S</span> = variation de chaque jambe séparément. Ex : L↑ + S↑ = les deux côtés s'accumulent ; Δ Net négatif = pression baissière nette qui s'intensifie.</p>
+                          <p><span className="text-amber-400 font-bold">HF</span> — Hedge Funds / CTAs. Spéculation directionnelle, court terme. Réactifs aux catalyseurs macro.</p>
+                          <p><span className="text-indigo-400 font-bold">AM</span> — Asset Managers (fonds pension, souverains). Flux de couverture institutionnel. Pilote la devise à moyen terme.</p>
+                          <p><span className="text-purple-400 font-bold">NC</span> — Non-Commercial (rapport Legacy CFTC). Tous les grands spéculateurs non commerciaux, catégorie historique.</p>
+                          <p className="pt-0.5 border-t border-slate-700/40">
+                            <span className="font-semibold text-slate-300">Volume :</span> k = milliers de contrats futures standardisés CFTC.
+                            <br />Ex : 1 contrat EUR/USD = 125 000 € · GBP = 62 500 £ · JPY = 12 500 000 ¥ · USD Index = 1 000 × indice.
+                          </p>
                         </div>
                       )}
 
-                      {/* ② Deux cartes côte à côte : NET en gros + DELTA bien visible */}
-                      <div className="grid grid-cols-2 gap-2">
-
-                        {/* Carte AM */}
-                        <div className="bg-indigo-950/50 border border-indigo-500/25 rounded-xl p-2.5">
-                          <div className="text-[8px] text-indigo-400 font-bold uppercase tracking-wider mb-2">
-                            AM · hedge {amDominates ? "▶ pilote" : ""}
-                          </div>
-                          {/* NET — très grand */}
-                          <div className={`text-[11px] font-black leading-none ${cot.amNet > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                            {cot.amNet > 0 ? "LONG" : "SHORT"}
-                          </div>
-                          <div className={`text-[19px] font-black tabular-nums leading-tight mb-2 ${cot.amNet > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                            {dFmt(cot.amNet)}
-                          </div>
-                          {/* DELTA AM — L/S séparés comme HF */}
-                          <div className="border-t border-indigo-500/15 pt-1.5">
-                            <div className="text-[7px] text-white/60 uppercase mb-0.5">Δ cette semaine</div>
-                            <div className="flex items-baseline gap-2">
-                              {cot.amLongsDelta != null && Number.isFinite(cot.amLongsDelta) ? (
-                                <div className={`text-[12px] font-black tabular-nums leading-none ${cot.amLongsDelta > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                                  L {cot.amLongsDelta > 0 ? "↑" : "↓"}{Math.abs(cot.amLongsDelta / 1000).toFixed(1)}k
-                                </div>
-                              ) : cot.amNetDelta != null && Number.isFinite(cot.amNetDelta) ? (
-                                <div className={`text-[12px] font-black tabular-nums leading-none ${cot.amNetDelta > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                                  net {cot.amNetDelta > 0 ? "↑" : "↓"}{Math.abs(cot.amNetDelta / 1000).toFixed(1)}k
-                                </div>
-                              ) : <div className="text-slate-700 text-[11px]">—</div>}
-                              {cot.amShortsDelta != null && Number.isFinite(cot.amShortsDelta) && (
-                                <div className={`text-[12px] font-black tabular-nums leading-none ${cot.amShortsDelta > 0 ? "text-red-400" : "text-emerald-400"}`}>
-                                  S {cot.amShortsDelta > 0 ? "↑" : "↓"}{Math.abs(cot.amShortsDelta / 1000).toFixed(1)}k
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Carte HF */}
-                        <div className="bg-amber-950/30 border border-amber-500/25 rounded-xl p-2.5">
-                          <div className="text-[8px] text-amber-400 font-bold uppercase tracking-wider mb-2">
-                            HF · spécu {!amDominates ? "▶ pilote" : ""}
-                          </div>
-                          {/* NET — très grand */}
-                          <div className={`text-[11px] font-black leading-none ${cot.net > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                            {cot.net > 0 ? "LONG" : "SHORT"}
-                          </div>
-                          <div className={`text-[19px] font-black tabular-nums leading-tight mb-2 ${cot.net > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                            {dFmt(cot.net)}
-                          </div>
-                          {/* DELTA — Longs / Shorts séparés + delta net */}
-                          <div className="border-t border-amber-500/15 pt-1.5">
-                            <div className="text-[7px] text-white/60 uppercase mb-0.5">Δ cette semaine</div>
-                            {/* Delta net HF — le chiffre le plus utile */}
-                            {cot.netDelta != null && Number.isFinite(cot.netDelta) && (
-                              <div className={`text-[11px] font-black tabular-nums leading-none mb-1 ${cot.netDelta > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                                Δ Net {cot.netDelta > 0 ? "+" : ""}{(cot.netDelta / 1000).toFixed(1)}k
-                              </div>
-                            )}
-                            <div className="flex items-baseline gap-2">
-                              {cot.longsDelta !== null && (
-                                <div className={`text-[11px] font-black tabular-nums leading-none ${cot.longsDelta > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                                  L {cot.longsDelta > 0 ? "↑" : "↓"}{Math.abs(cot.longsDelta / 1000).toFixed(1)}k
-                                </div>
-                              )}
-                              {cot.shortsDelta !== null && (
-                                <div className={`text-[11px] font-black tabular-nums leading-none ${cot.shortsDelta > 0 ? "text-red-400" : "text-emerald-400"}`}>
-                                  S {cot.shortsDelta > 0 ? "↑" : "↓"}{Math.abs(cot.shortsDelta / 1000).toFixed(1)}k
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* ③ Barre de dominance */}
-                      <div>
-                        <div className="flex rounded-full overflow-hidden h-1.5">
-                          <div className="bg-indigo-500 transition-all" style={{ width: `${amPct}%` }} />
-                          <div className="bg-amber-500/70 transition-all" style={{ width: `${hfPct}%` }} />
-                        </div>
-                        <div className="flex justify-between text-[8px] mt-0.5">
-                          <span className="text-indigo-400/70">AM {amPct}%</span>
-                          <span className="text-amber-400/70">HF {hfPct}%</span>
-                        </div>
-                      </div>
-
-                      {/* ④ Verdict — la phrase qui résume le mouvement */}
+                      {/* Chart COT — barres bidirectionnelles */}
                       {(() => {
-                        const amBull = cot.amNet > 0;
-                        let verdict = "";
-                        let sub = "";
-                        let cls = "";
-
-                        if (hfIsShort && hfLongsGrowing && hfShortsReducing) {
-                          verdict = "↻ Majorité vend — mais de + en + achètent";
-                          sub = "HF couvre ses shorts ET accumule des longs → retournement potentiel";
-                          cls = "text-emerald-400 border-emerald-500/25 bg-emerald-500/8";
-                        } else if (hfIsShort && hfLongsGrowing) {
-                          verdict = "▲ Majorité vend — longs HF en hausse";
-                          sub = "Accumulation : surveiller si les shorts commencent à baisser";
-                          cls = "text-emerald-400/80 border-emerald-500/20 bg-emerald-500/5";
-                        } else if (hfIsShort && hfShortsReducing) {
-                          verdict = "▲ Shorts HF se réduisent — pression baissière s'allège";
-                          sub = "Signal de couverture — retournement possible si longs suivent";
-                          cls = "text-emerald-400/70 border-emerald-500/15 bg-emerald-500/5";
-                        } else if (!hfIsShort && amBull) {
-                          verdict = "▲▲ Convergence haussière — AM + HF alignés";
-                          sub = "AM long (hedging) et HF long (spécu) → signal fort";
-                          cls = "text-emerald-400 border-emerald-500/25 bg-emerald-500/8";
-                        } else if (hfIsShort && !amBull) {
-                          verdict = "▼▼ Convergence baissière — AM + HF alignés";
-                          sub = "AM short (hedging) et HF short (spécu) → signal fort";
-                          cls = "text-red-400 border-red-500/25 bg-red-500/8";
-                        } else if (!hfIsShort && hfShortsGrowing && hfLongsReducing) {
-                          verdict = "▼ Majorité achète — mais distribution en cours";
-                          sub = "HF réduit ses longs ET renforce ses shorts → retournement potentiel";
-                          cls = "text-red-400 border-red-500/25 bg-red-500/8";
-                        } else if (!hfIsShort && hfShortsGrowing) {
-                          verdict = "▼ Majorité achète — shorts HF en hausse";
-                          sub = "Signal de distribution — surveiller la réduction des longs";
-                          cls = "text-red-400/80 border-red-500/20 bg-red-500/5";
-                        } else {
-                          verdict = "→ Flux mixtes AM / HF";
-                          sub = `AM ${amBull ? "long" : "short"} · HF ${hfIsShort ? "short" : "long"} · pas de signal directionnel clair`;
-                          cls = "text-slate-400 border-slate-700/30 bg-slate-800/20";
-                        }
+                        const maxAbs = Math.max(...groups.map(g => Math.abs(g.net)), 1);
+                        const dk = (v: number | null, invert = false): React.ReactNode =>
+                          v == null
+                            ? <span className="text-slate-700">—</span>
+                            : <span className={(v > 0) !== invert ? "text-emerald-400/90" : "text-rose-400/90"}>{v >= 0 ? "+" : ""}{(v / 1000).toFixed(1)}k</span>;
 
                         return (
-                          <div className={`rounded-lg border px-2.5 py-2 ${cls}`}>
-                            <div className="text-[10px] font-bold leading-snug">{verdict}</div>
-                            <div className="text-[9px] opacity-70 mt-0.5 leading-snug">{sub}</div>
+                          <div className="space-y-4">
+                            {/* Axe */}
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 shrink-0" />
+                              <div className="flex-1 flex items-center text-[7px] uppercase tracking-widest">
+                                <div className="flex-1 flex items-center justify-end gap-1 text-rose-400/35 pr-2">
+                                  <span>Short</span><span>←</span>
+                                </div>
+                                <div className="w-[2px] h-3 bg-slate-600/60 rounded-full shrink-0" />
+                                <div className="flex-1 flex items-center gap-1 text-emerald-400/35 pl-2">
+                                  <span>→</span><span>Long</span>
+                                </div>
+                              </div>
+                              <div className="w-20 shrink-0" />
+                            </div>
+
+                            {groups.map(g => {
+                              const isLong  = g.net >= 0;
+                              const total   = g.longs + g.shorts;
+                              const longPct = total > 0 ? Math.round(g.longs / total * 100) : 50;
+                              const barPct  = Math.abs(g.net) / maxAbs * 100;
+                              const posClr  = isLong ? "text-emerald-400" : "text-rose-400";
+                              const evol    = evolText(isLong, g.dL, g.dS);
+                              const gradLong  = "linear-gradient(to right, rgba(52,211,153,0.80) 0%, rgba(52,211,153,0.15) 100%)";
+                              const gradShort = "linear-gradient(to left,  rgba(248,113,113,0.80) 0%, rgba(248,113,113,0.15) 100%)";
+                              const grad = isLong ? gradLong : gradShort;
+
+                              return (
+                                <div key={g.id}>
+                                  {/* Barre + valeur */}
+                                  <div className="flex items-center gap-2">
+                                    <span className={`text-[9px] font-semibold w-8 shrink-0 ${g.accentT}`}>{g.label}</span>
+
+                                    {/* Barre bidirectionnelle */}
+                                    <div className="flex-1 flex h-7 rounded-md overflow-hidden ring-1 ring-slate-700/30">
+                                      {/* Track short */}
+                                      <div className="w-1/2 h-full bg-slate-800/60 flex items-center justify-end overflow-hidden rounded-l-md">
+                                        {!isLong && (
+                                          <div className="h-full" style={{ width: `${barPct}%`, background: grad }} />
+                                        )}
+                                      </div>
+                                      {/* Séparateur zéro */}
+                                      <div className="w-[2px] h-full bg-slate-500/70 shrink-0" />
+                                      {/* Track long */}
+                                      <div className="w-1/2 h-full bg-slate-800/60 flex items-center overflow-hidden rounded-r-md">
+                                        {isLong && (
+                                          <div className="h-full" style={{ width: `${barPct}%`, background: grad }} />
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Valeur */}
+                                    <div className="w-20 shrink-0 pl-1">
+                                      <div className={`text-[11px] font-bold tabular-nums font-mono leading-none ${posClr}`}>
+                                        {netFmt(g.net)}
+                                      </div>
+                                      <div className="text-[7px] text-slate-500 tabular-nums mt-0.5 font-mono">{longPct}% long</div>
+                                    </div>
+                                  </div>
+
+                                  {/* Ligne L/S split sous la barre */}
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <div className="w-8 shrink-0" />
+                                    <div className="flex-1 flex rounded-sm overflow-hidden h-[3px]">
+                                      <div className="bg-emerald-500/50" style={{ width: `${longPct}%` }} />
+                                      <div className="bg-rose-500/35"    style={{ width: `${100 - longPct}%` }} />
+                                    </div>
+                                    <div className="w-20 shrink-0" />
+                                  </div>
+
+                                  {/* Deltas */}
+                                  {(g.dL != null || g.dS != null) && (
+                                    <div className="flex items-center gap-2 pl-10 mt-1.5 text-[8px] font-mono">
+                                      <span className="text-slate-500 shrink-0">ΔL {dk(g.dL)} · ΔS {dk(g.dS, true)}</span>
+                                      <span className="text-slate-700 shrink-0">·</span>
+                                      <span className={`${evol.cls} truncate`}>{evol.text}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         );
                       })()}
+
+                      {/* Verdict */}
+                      <div className={`rounded-lg border px-2.5 py-1.5 ${vCls}`}>
+                        <div className="text-[9px] font-semibold leading-snug">{verdict}</div>
+                        <div className="text-[8px] opacity-60 mt-0.5 leading-snug">{sub}</div>
+                      </div>
                     </div>
                   );
                 })()}
@@ -1987,31 +2038,75 @@ export default function CurrencyCard({
                             {/* Sentiment */}
                             {signauxSlide === "sent" && sentiment && (() => {
                               const sentDir = sentiment.longPct < 30 ? "bullish" : sentiment.longPct > 70 ? "bearish" : "neutral";
-                              const sentCls = sentDir === "bullish" ? "text-emerald-400" : sentDir === "bearish" ? "text-red-400" : "text-slate-400";
-                              const sentBg  = sentDir === "bullish" ? "border-emerald-500/20 bg-emerald-500/5" : sentDir === "bearish" ? "border-red-500/20 bg-red-500/5" : "border-slate-700/40 bg-slate-800/20";
+                              const sentCls = sentDir === "bullish" ? "text-emerald-400" : sentDir === "bearish" ? "text-rose-400" : "text-slate-400";
+                              // Pour chaque paire : "long paire" = long devise BASE
+                              // Si longIsBaseLong=false (ccy est cotation), le "long devise" = short paire
+                              const pairsToShow = (sentiment.pairs ?? []).slice(0, 6);
+
                               return (
-                                <div className="rounded-xl border border-slate-700/40 bg-slate-800/20 p-3 h-full space-y-3">
-                                  <div className="flex items-center gap-1.5 text-[9px] text-slate-300 uppercase tracking-widest">
-                                    <Activity size={9} />
-                                    Sentiment Retail (DXM)
-                                  </div>
-                                  <div className="flex items-center gap-4">
-                                    <div className="text-center shrink-0">
-                                      <div className="text-[9px] text-slate-400 mb-0.5">Long</div>
-                                      <div className="text-[26px] font-black tabular-nums text-emerald-400 leading-none">{sentiment.longPct.toFixed(0)}%</div>
+                                <div className="rounded-xl border border-slate-700/40 bg-slate-800/20 p-3 space-y-2.5">
+                                  {/* Header */}
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-1.5 text-[9px] text-slate-300 uppercase tracking-widest">
+                                      <Activity size={9} />
+                                      Sentiment Retail · Myfxbook
                                     </div>
-                                    <div className="flex-1 space-y-1">
-                                      <div className="flex rounded-full overflow-hidden h-2.5">
-                                        <div className="bg-emerald-500/70 transition-all" style={{ width: `${sentiment.longPct}%` }} />
-                                        <div className="bg-red-500/60 transition-all" style={{ width: `${sentiment.shortPct}%` }} />
+                                    <span className="text-[8px] text-slate-600">{sentiment.pair}</span>
+                                  </div>
+
+                                  {/* Résumé agrégé */}
+                                  <div className={`rounded-lg border px-2.5 py-1.5 flex items-center gap-3 ${
+                                    sentDir === "bullish" ? "border-emerald-500/20 bg-emerald-500/5"
+                                    : sentDir === "bearish" ? "border-rose-500/20 bg-rose-500/5"
+                                    : "border-slate-700/30 bg-slate-800/20"
+                                  }`}>
+                                    <div>
+                                      <div className="text-[7px] text-slate-500 uppercase mb-0.5">Long {currency} (agrégé)</div>
+                                      <span className={`text-[18px] font-bold tabular-nums font-mono leading-none ${sentCls}`}>
+                                        {sentiment.longPct.toFixed(0)}%
+                                      </span>
+                                    </div>
+                                    <div className="flex-1 space-y-0.5">
+                                      <div className="flex rounded-full overflow-hidden h-1.5">
+                                        <div className="bg-emerald-500/60" style={{ width: `${sentiment.longPct}%` }} />
+                                        <div className="bg-rose-500/45"    style={{ width: `${sentiment.shortPct}%` }} />
                                       </div>
-                                      <div className="flex justify-between text-[8px] text-slate-400"><span>Long</span><span>Short</span></div>
+                                      <div className="flex justify-between text-[7px] text-slate-600">
+                                        <span>{sentiment.longPct.toFixed(0)}% long</span>
+                                        <span>{sentiment.shortPct.toFixed(0)}% short</span>
+                                      </div>
                                     </div>
-                                    <div className="text-center shrink-0">
-                                      <div className="text-[9px] text-slate-400 mb-0.5">Short</div>
-                                      <div className="text-[26px] font-black tabular-nums text-red-400 leading-none">{sentiment.shortPct.toFixed(0)}%</div>
+                                    <div className={`text-[8px] font-semibold ${sentCls}`}>
+                                      {sentDir === "bullish" ? "Signal ▲" : sentDir === "bearish" ? "Signal ▼" : "Neutre"}
                                     </div>
                                   </div>
+
+                                  {/* Données brutes par paire (source directe Myfxbook) */}
+                                  {pairsToShow.length > 0 && (
+                                    <div className="border border-slate-700/25 rounded-lg overflow-hidden divide-y divide-slate-700/20">
+                                      <div className="px-2.5 py-1 bg-slate-800/40 flex items-center gap-1">
+                                        <span className="text-[7px] text-slate-500 uppercase tracking-wider">Paire</span>
+                                        <span className="ml-auto text-[7px] text-slate-500 uppercase tracking-wider">% Long paire</span>
+                                        <span className="w-16 ml-2 text-[7px] text-slate-500 uppercase tracking-wider text-right">% Short paire</span>
+                                      </div>
+                                      {pairsToShow.map(p => (
+                                        <div key={p.name} className="px-2.5 py-1.5 flex items-center gap-2 bg-slate-800/15 hover:bg-slate-800/30 transition-colors">
+                                          <span className="text-[9px] font-mono text-slate-300 w-14 shrink-0">{p.name}</span>
+                                          {/* Barre */}
+                                          <div className="flex flex-1 rounded-full overflow-hidden h-1">
+                                            <div className="bg-emerald-500/50" style={{ width: `${p.longPct}%` }} />
+                                            <div className="bg-rose-500/40"    style={{ width: `${p.shortPct}%` }} />
+                                          </div>
+                                          <span className="text-[9px] tabular-nums font-mono text-emerald-400/80 w-8 text-right shrink-0">{p.longPct.toFixed(0)}%</span>
+                                          <span className="text-[9px] tabular-nums font-mono text-rose-400/70  w-8 text-right shrink-0">{p.shortPct.toFixed(0)}%</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  <p className="text-[7px] text-slate-700">
+                                    Signal contrarian : majorité retail long → bearish · majorité retail short → bullish
+                                  </p>
                                 </div>
                               );
                             })()}

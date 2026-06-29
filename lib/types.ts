@@ -143,36 +143,53 @@ export interface FXRates {
   timestamp: number;
 }
 
+export interface SentimentPair {
+  name:     string;   // ex: "EURUSD"
+  longPct:  number;   // % retail long SUR LA PAIRE (pas la devise)
+  shortPct: number;
+  longIsBaseLong: boolean; // si true, long paire = long devise affichée
+}
+
 export interface SentimentEntry {
-  longPct:  number;
+  longPct:  number;   // agrégé pondéré (gardé pour les signaux existants)
   shortPct: number;
   pair:     string;
+  pairs:    SentimentPair[];  // données brutes paire par paire
 }
 
 export type MacroSection = "all" | "inflation" | "pmi" | "employment" | "gdp" | "policy";
 
 export interface CotEntry {
-  // HF — Leveraged Money (spéculation directionnelle, hedge funds / CTAs)
-  net:          number;    // longs - shorts
-  hfLongs:      number;    // contrats long bruts
-  hfShorts:     number;    // contrats short bruts
-  longPct:      number;    // % longs / total HF
-  shortPct:     number;    // % shorts / total HF
-  totalLev:     number;    // total contrats HF
-  // AM — Asset Manager (hedging institutionnel, fonds pension / souverains)
-  amNet:        number;
-  amLongs:      number;
-  amShorts:     number;
-  amLongPct:    number;    // % longs / total AM
-  amTotal:      number;
+  // HF — Leveraged Money (hedge funds / CTAs — spéculation directionnelle)
+  net:           number;   // longs - shorts
+  hfLongs:       number;   // contrats long bruts
+  hfShorts:      number;   // contrats short bruts
+  longPct:       number;   // % longs / total HF
+  shortPct:      number;   // % shorts / total HF
+  totalLev:      number;   // total contrats HF
+  // AM — Asset Manager (fonds pension / souverains — hedging institutionnel)
+  amNet:         number;
+  amLongs:       number;
+  amShorts:      number;
+  amLongPct:     number;   // % longs / total AM
+  amTotal:       number;
+  // NC — Non-Commercial Legacy (grands spéculateurs — rapport COT classique CFTC)
+  ncNet:         number;
+  ncLongs:       number;
+  ncShorts:      number;
+  ncLongPct:     number;   // % longs / total NC
+  ncTotal:       number;
   // Δ semaine précédente (null si pas de données J-7)
   netDelta:      number | null;   // Δ net HF
-  longsDelta:    number | null;   // Δ longs HF (+= ajout de longs)
-  shortsDelta:   number | null;   // Δ shorts HF (+= ajout de shorts)
+  longsDelta:    number | null;   // Δ longs HF
+  shortsDelta:   number | null;   // Δ shorts HF
   amNetDelta:    number | null;   // Δ net AM
   amLongsDelta:  number | null;   // Δ longs AM
   amShortsDelta: number | null;   // Δ shorts AM
+  ncNetDelta:    number | null;   // Δ net NC
+  ncLongsDelta:  number | null;   // Δ longs NC
+  ncShortsDelta: number | null;   // Δ shorts NC
   // Métadonnées
-  weekDate:     string;
-  prevWeekDate: string | null;
+  weekDate:      string;
+  prevWeekDate:  string | null;
 }

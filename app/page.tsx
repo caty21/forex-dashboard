@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { RefreshCw, Database, Activity, Maximize2, Minimize2, X, BarChart2 } from "lucide-react";
 import { CURRENCIES, CURRENCY_META } from "@/lib/constants";
-import type { Currency, DriverData, SentimentEntry, CotEntry, MacroSection } from "@/lib/types";
+import type { Currency, DriverData, SentimentEntry, SentimentPair, CotEntry, MacroSection } from "@/lib/types";
 import type { RateProbData } from "@/lib/rateprobability";
 import { saveCache, loadCache, formatCacheDate } from "@/lib/localCache";
 import CurrencyCard from "@/components/CurrencyCard";
@@ -103,36 +103,42 @@ export default function Dashboard() {
     const OUR_CCYS = ["USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "NZD"];
     const longWeighted: Record<string, number>  = {};
     const totalPos:     Record<string, number>  = {};
-    const pairCount:    Record<string, number>  = {};
+    // paire par paire pour affichage direct
+    const rawPairs: Record<string, SentimentPair[]> = {};
 
     for (const sym of symbols) {
       const def = PAIR_DEF[sym.name];
-      if (!def || sym.totalPositions <= 0) continue;
+      if (!def) continue;
       const { base, quote } = def;
+      const hasPos = sym.totalPositions > 0 || sym.longPercentage > 0 || sym.shortPercentage > 0;
+      if (!hasPos) continue;
+      const total = sym.totalPositions || 100; // fallback si totalPositions absent
 
-      // Base currency : long la paire = long la base
+      // Base currency
       if (OUR_CCYS.includes(base)) {
-        longWeighted[base] = (longWeighted[base] ?? 0) + sym.longPercentage * sym.totalPositions;
-        totalPos[base]     = (totalPos[base]     ?? 0) + sym.totalPositions;
-        pairCount[base]    = (pairCount[base]    ?? 0) + 1;
+        longWeighted[base] = (longWeighted[base] ?? 0) + sym.longPercentage * total;
+        totalPos[base]     = (totalPos[base]     ?? 0) + total;
+        if (!rawPairs[base]) rawPairs[base] = [];
+        rawPairs[base].push({ name: sym.name, longPct: sym.longPercentage, shortPct: sym.shortPercentage, longIsBaseLong: true });
       }
-      // Quote currency : long la paire = short la cotation → long cotation = shortPercentage
+      // Quote currency : long paire = short cotation
       if (OUR_CCYS.includes(quote)) {
-        longWeighted[quote] = (longWeighted[quote] ?? 0) + sym.shortPercentage * sym.totalPositions;
-        totalPos[quote]     = (totalPos[quote]     ?? 0) + sym.totalPositions;
-        pairCount[quote]    = (pairCount[quote]    ?? 0) + 1;
+        longWeighted[quote] = (longWeighted[quote] ?? 0) + sym.shortPercentage * total;
+        totalPos[quote]     = (totalPos[quote]     ?? 0) + total;
+        if (!rawPairs[quote]) rawPairs[quote] = [];
+        rawPairs[quote].push({ name: sym.name, longPct: sym.longPercentage, shortPct: sym.shortPercentage, longIsBaseLong: false });
       }
     }
 
     const result: Record<string, SentimentEntry> = {};
     for (const ccy of OUR_CCYS) {
       const total = totalPos[ccy] ?? 0;
-      if (total === 0) continue;
-      const n       = pairCount[ccy] ?? 1;
-      const longPct = Math.round(longWeighted[ccy] / total);
-      // Label : "DXY (7 paires)" pour USD, "EUR (6 paires)" pour EUR, etc.
-      const label   = ccy === "USD" ? `DXY (${n} paires)` : `${ccy} (${n} paire${n > 1 ? "s" : ""})`;
-      result[ccy]   = { pair: label, longPct, shortPct: 100 - longPct };
+      const pairs = rawPairs[ccy] ?? [];
+      if (total === 0 && pairs.length === 0) continue;
+      const longPct = total > 0 ? Math.round(longWeighted[ccy] / total) : 50;
+      const n = pairs.length;
+      const label = ccy === "USD" ? `DXY (${n} paires)` : `${ccy} (${n} paire${n > 1 ? "s" : ""})`;
+      result[ccy] = { pair: label, longPct, shortPct: 100 - longPct, pairs };
     }
 
     return result;
