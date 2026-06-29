@@ -57,7 +57,7 @@ const CURRENCIES = new Set<string>(["USD", "EUR", "GBP", "JPY", "CHF", "CAD", "A
 function detectCategory(title: string): EventCategory {
   const t = title.toLowerCase();
 
-  if (/nonfarm|non.farm|employment\s+change|jobs\s+added|employment\s+report|claimant|jobless\s+claims|unemployment\s+rate|jobless\s+rate/.test(t))
+  if (/nonfarm|non.farm|employment\s+change|jobs\s+added|employment\s+report|claimant|jobless\s+claims|unemployment\s+rate|jobless\s+rate|\badp\b|jolts|job\s+openings|job\s+quits|ism\s+\w+\s+employ/.test(t))
     return "employment";
 
   if (/\bpmi\b|purchasing\s+managers/.test(t))
@@ -69,13 +69,13 @@ function detectCategory(title: string): EventCategory {
   if (/speaks?|press\s+conf|testimony|speech|statement\b|governor|chair\b|president\b/.test(t))
     return "cb_speech";
 
-  if (/\bcpi\b|\bhicp\b|core\s+inflation|flash\s+cpi|inflation\s+rate|consumer\s+price/.test(t))
+  if (/\bcpi\b|\bhicp\b|core\s+inflation|flash\s+cpi|inflation\s+rate|consumer\s+price|\bppi\b|producer\s+price/.test(t))
     return "inflation";
 
   if (/\bgdp\b|gross\s+domestic/.test(t))
     return "gdp";
 
-  if (/retail\s+sales|core\s+retail/.test(t))
+  if (/retail\s+sales|core\s+retail|household\s+spending/.test(t))
     return "retail_sales";
 
   if (/trade\s+balance|current\s+account/.test(t))
@@ -104,16 +104,25 @@ function displayTitle(rawTitle: string, currency: string): string {
   // USD-specific
   if (/nonfarm\s+payrolls/i.test(t) && currency === "USD") return "NFP (Non-Farm Payrolls)";
   if (/adp\s+non.farm/i.test(t))                           return "ADP Employment";
+  if (/jobless.*4.?week|4.?week.*jobless|claims.*4.?week/i.test(t)) return "Dem. alloc. (moy. 4 sem.)";
   if (/unemployment\s+claims/i.test(t))                    return "Demandes d'allocations";
   if (/unemployment\s+rate/i.test(t))                      return "Taux de chômage";
   if (/employment\s+change/i.test(t))                      return "Emploi Δ";
+  if (/jolts|job\s+openings/i.test(t))                     return "JOLTS (offres d'emploi)";
+  if (/job\s+quits/i.test(t))                              return "JOLTS (démissions)";
+  if (/ism\s+\w+\s+employ/i.test(t))                      return "ISM Emploi Manufacturier";
+  if (/procure\.ch/i.test(t))                               return "PMI Manufacturier";
   if (/manufacturing\s+pmi|mfg\s+pmi/i.test(t))           return "PMI Manufacturier";
   if (/services?\s+pmi/i.test(t))                          return "PMI Services";
   if (/composite\s+pmi/i.test(t))                          return "PMI Composite";
   if (/ism\s+non.manufactur/i.test(t))                     return "ISM Services PMI";
   if (/ism\s+manufactur/i.test(t))                         return "ISM Manufacturier";
-  if (/flash.*cpi|cpi.*flash/i.test(t))                    return "IPC Flash (YoY)";
+  if (/flash.*cpi|cpi.*flash/i.test(t))                    return "IPC Flash";
+  if (/final.*cpi|cpi.*final/i.test(t))                   return "IPC Final";
   if (/core.*cpi/i.test(t))                                return "IPC Core";
+  if (/ppi.*m.?m|producer.*price.*m.?m/i.test(t))        return "IPP (MoM)";
+  if (/ppi.*y.?y|producer.*price.*y.?y/i.test(t))        return "IPP (YoY)";
+  if (/\bppi\b|producer\s+price/i.test(t))                return "IPP";
   if (/\bhicp\b/i.test(t))                                 return "HICP (YoY)";
   if (/\bcpi\b.*y.*y/i.test(t))                           return "IPC (YoY)";
   if (/\bcpi\b.*m.*m/i.test(t))                           return "IPC (MoM)";
@@ -122,6 +131,9 @@ function displayTitle(rawTitle: string, currency: string): string {
   if (/gdp.*m.*m/i.test(t))                               return "PIB (MoM)";
   if (/\bgdp\b/i.test(t))                                  return "PIB";
   if (/core\s+retail/i.test(t))                            return "Ventes détail Core";
+  if (/household\s+spending.*m.?m/i.test(t))              return "Dép. ménages (MoM)";
+  if (/household\s+spending.*y.?y/i.test(t))              return "Dép. ménages (YoY)";
+  if (/household\s+spending/i.test(t))                    return "Dép. ménages";
   if (/retail\s+sales/i.test(t))                          return "Ventes au détail";
   if (/trade\s+balance/i.test(t))                          return "Balance commerciale";
   if (/interest\s+rate|rate\s+decision/i.test(t))          return "Décision de taux";
@@ -145,7 +157,7 @@ interface GroupingResult {
 const EMPLOYMENT_PARENTS = /nonfarm|non.farm|employment\s+change|claimant|jobless\s+claims/i;
 const EMPLOYMENT_CHILDREN = /unemployment\s+rate|jobless\s+rate/i;
 const PMI_PARENTS  = /composite\s+pmi|ism\s+(manufactur|non.manufactur)/i;
-const PMI_CHILDREN = /manufacturing\s+pmi|services?\s+pmi|mfg\s+pmi/i;
+const PMI_CHILDREN = /manufacturing\s+pmi|services?\s+pmi|mfg\s+pmi|procure\.ch/i;
 const CPI_PARENTS  = /\bcpi\b.*y.*y|flash.*cpi|\bhicp\b/i;
 const CPI_CHILDREN = /core.*cpi|core.*inflation/i;
 

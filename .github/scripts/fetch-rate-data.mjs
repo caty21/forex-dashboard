@@ -137,9 +137,10 @@ const IC_SLUGS = {
 };
 
 // Taux directeurs actuels — fallback si non trouvés dans le HTML
+// NZD : RBNZ a coupé à 2.25% (juin 2026) ; CHF : SNB à 0.00%
 const FALLBACK_RATES = {
-  USD: 4.33, EUR: 2.40, GBP: 4.25, JPY: 0.50,
-  CAD: 2.75, AUD: 4.10, NZD: 3.25, CHF: 0.00,
+  USD: 4.33, EUR: 2.40, GBP: 3.75, JPY: 0.50,
+  CAD: 2.25, AUD: 4.10, NZD: 2.25, CHF: 0.00,
 };
 
 async function fetchInvestingCom(ccy) {
@@ -339,14 +340,21 @@ async function fetchInvestingLive() {
   for (let daysAgo = 0; daysAgo <= 14; daysAgo++) {
     const d = new Date(Date.now() - daysAgo * 86_400_000);
     const yyyymmdd = d.toISOString().slice(0,10).replace(/-/g,"");
-    const url = `https://investinglive.com/news/how-have-interest-rate-expectations-changed-after-this-weeks-event-${yyyymmdd}/`;
-    try {
-      const res = await fetch(url, { headers: { "User-Agent": CHROME_HEADERS["User-Agent"] } });
-      if (!res.ok) continue;
-      const html = await res.text();
-      console.log(`[IL] found article ${yyyymmdd}`);
-      return { data: parseILArticle(html), date: d.toISOString().slice(0,10) };
-    } catch {}
+    const candidates = [
+      `https://investinglive.com/centralbank/how-have-interest-rate-expectations-changed-after-this-weeks-events-${yyyymmdd}/`,
+      `https://investinglive.com/centralbank/how-have-interest-rate-expectations-changed-after-this-weeks-event-${yyyymmdd}/`,
+      `https://investinglive.com/news/how-have-interest-rate-expectations-changed-after-this-weeks-events-${yyyymmdd}/`,
+      `https://investinglive.com/news/how-have-interest-rate-expectations-changed-after-this-weeks-event-${yyyymmdd}/`,
+    ];
+    for (const url of candidates) {
+      try {
+        const res = await fetch(url, { headers: { "User-Agent": CHROME_HEADERS["User-Agent"] } });
+        if (!res.ok) continue;
+        const html = await res.text();
+        console.log(`[IL] found article ${yyyymmdd} at ${url}`);
+        return { data: parseILArticle(html), date: d.toISOString().slice(0,10) };
+      } catch {}
+    }
   }
   return { data: {}, date: null };
 }
@@ -406,9 +414,11 @@ console.log("\n=== CME FedWatch ===");
 const cmeData = await fetchCMEFedWatch();
 if (cmeData) { results["USD"] = cmeData; console.log("[CME] USD ✓"); }
 
-// 2 — Investing.com → all CBs (USD as backup if CME failed)
+// 2 — Investing.com → CBs qui ont une page rate-monitor (pas CHF ni NZD → 404)
+// CHF (snb-rate-monitor) et NZD (rbnz-rate-monitor) n'existent pas sur Investing.com
+const IC_SUPPORTED = CCYS.filter(c => c !== "CHF" && c !== "NZD");
 console.log("\n=== Investing.com Rate Monitors ===");
-for (const ccy of CCYS) {
+for (const ccy of IC_SUPPORTED) {
   if (results[ccy]) { console.log(`[IC/${ccy}] skipped (CME)`); continue; }
   const data = await fetchInvestingCom(ccy);
   if (data) results[ccy] = data;
@@ -428,18 +438,34 @@ if (missing.length) {
   }
 }
 
-// ── Previous week rotation ────────────────────────────────────────────────────
-let previousWeek = null, previousWeekFetchedAt = null;
+// ── Multi-week snapshot rotation ──────────────────────────────────────────────
+// snapshots = tableau chronologique (plus récent en [0]) de jusqu'à 12 semaines
+let snapshots = [];
+let previousWeek = null, previousWeekFetchedAt = null; // rétrocompatibilité
 try {
   const existing = JSON.parse(readFileSync("data/rate-probabilities.json","utf8"));
   const ageMs = Date.now() - new Date(existing.fetchedAt).getTime();
   const day   = 86400000;
+
+  // Récupère les snapshots existants et filtre < 12 semaines
+  const existingSnaps = existing.snapshots ?? [];
+  const validSnaps = existingSnaps.filter(s => {
+    const age = Date.now() - new Date(s.fetchedAt).getTime();
+    return age < 84 * day;
+  });
+
+  // Si les données actuelles ont 5-9 jours → les pousser en snapshot[0]
   if (ageMs >= 5*day && ageMs <= 9*day) {
-    previousWeek = existing.data; previousWeekFetchedAt = existing.fetchedAt;
-    console.log(`\nRotated ${(ageMs/day).toFixed(1)}d-old data → previousWeek`);
-  } else if (existing.previousWeek) {
-    const prevAge = Date.now() - new Date(existing.previousWeekFetchedAt).getTime();
-    if (prevAge < 11*day) { previousWeek = existing.previousWeek; previousWeekFetchedAt = existing.previousWeekFetchedAt; }
+    snapshots = [{ data: existing.data, fetchedAt: existing.fetchedAt }, ...validSnaps].slice(0, 12);
+    console.log(`\nRotated ${(ageMs/day).toFixed(1)}d-old data → snapshots[${snapshots.length}]`);
+  } else {
+    snapshots = validSnaps;
+  }
+
+  // Rétrocompatibilité previousWeek
+  if (snapshots[0]) {
+    previousWeek = snapshots[0].data;
+    previousWeekFetchedAt = snapshots[0].fetchedAt;
   }
 } catch {}
 
@@ -447,6 +473,7 @@ mkdirSync("data", { recursive: true });
 writeFileSync("data/rate-probabilities.json", JSON.stringify({
   data: results,
   fetchedAt: new Date().toISOString(),
+  snapshots,
   ...(previousWeek ? { previousWeek, previousWeekFetchedAt } : {}),
 }, null, 2));
 

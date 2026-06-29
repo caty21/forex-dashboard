@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { RefreshCw, Zap, Database, Activity, Maximize2, Minimize2, X, BarChart2 } from "lucide-react";
+import { RefreshCw, Database, Activity, Maximize2, Minimize2, X, BarChart2 } from "lucide-react";
 import { CURRENCIES, CURRENCY_META } from "@/lib/constants";
 import type { Currency, DriverData, SentimentEntry, CotEntry, MacroSection } from "@/lib/types";
 import type { RateProbData } from "@/lib/rateprobability";
@@ -50,6 +50,7 @@ export default function Dashboard() {
   const [globalMacroSlide,   setGlobalMacroSlide]   = useState<"mon"|"infl"|"cro"|"empl">("mon");
   const [globalCardTab,      setGlobalCardTab]      = useState<"overview"|"mispricing"|"focus">("overview");
   const [globalSignauxSlide, setGlobalSignauxSlide] = useState<"ois"|"cot"|"sent">("ois");
+  const [globalOisChartTab,  setGlobalOisChartTab]  = useState<"curve"|"implied"|"scenarios">("curve");
   const [macroSyncEnabled,   setMacroSyncEnabled]   = useState(false);
 
   // ── Sentiment multi-paires Myfxbook → {CCY: {longPct, shortPct, pair}} ──────
@@ -139,15 +140,16 @@ export default function Dashboard() {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
+      const NO_CACHE = { cache: "no-store" } as const;
       const [driversRes, expectRes, yieldsRes, fxRes, sentimentRes, cotRes, calRes, rateProbRes] = await Promise.allSettled([
-        fetch("/api/drivers").then((r) => r.json()),
-        fetch("/api/expectations").then((r) => r.json()),
-        fetch("/api/yields").then((r) => r.json()),
-        fetch("/api/fx").then((r) => r.json()),
-        fetch("/api/sentiment").then((r) => r.json()),
-        fetch("/api/cot").then((r) => r.json()),
-        fetch("/api/calendar").then((r) => r.json()),
-        fetch("/api/rate-probabilities").then((r) => r.json()),
+        fetch("/api/drivers",           NO_CACHE).then((r) => r.json()),
+        fetch("/api/expectations",      NO_CACHE).then((r) => r.json()),
+        fetch("/api/yields",            NO_CACHE).then((r) => r.json()),
+        fetch("/api/fx",                NO_CACHE).then((r) => r.json()),
+        fetch("/api/sentiment",         NO_CACHE).then((r) => r.json()),
+        fetch("/api/cot",               NO_CACHE).then((r) => r.json()),
+        fetch("/api/calendar",          NO_CACHE).then((r) => r.json()),
+        fetch("/api/rate-probabilities",NO_CACHE).then((r) => r.json()),
       ]);
 
       // ── Drivers ───────────────────────────────────────────────────────────
@@ -299,26 +301,13 @@ export default function Dashboard() {
             <Activity size={15} className="text-black" />
           </div>
           <div>
-            <span className="text-sm font-bold text-white tracking-tight">
+            <span className="text-sm font-bold text-white tracking-tight" suppressHydrationWarning>
               {new Date().getHours() < 18 ? "Bonjour" : "Bonsoir"} 👋
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          {divergenceCount > 0 && (
-            <button
-              onClick={() => setActiveTab("dashboard")}
-              title="Devises avec score macro ≥ 2 — cliquer pour voir le dashboard"
-              className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 rounded-full px-3 py-1.5 hover:bg-amber-500/20 transition-colors"
-            >
-              <Zap size={12} className="text-amber-400" />
-              <span className="text-xs font-medium text-amber-400">
-                {divergenceCount} divergence{divergenceCount > 1 ? "s" : ""} active{divergenceCount > 1 ? "s" : ""}
-              </span>
-            </button>
-          )}
-
           <div className="flex items-center gap-2 text-[11px] text-slate-500">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             {driversFromCache && driversCacheAge && (
@@ -327,7 +316,7 @@ export default function Dashboard() {
                 <span>cache {driversCacheAge}</span>
               </span>
             )}
-            <span>{lastRefresh.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
+            <span suppressHydrationWarning>{lastRefresh.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
           </div>
 
           <button
@@ -373,8 +362,8 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Global drivers bar — visible sur les deux onglets */}
-      {drivers && <DriversBar drivers={drivers} />}
+      {/* Global drivers bar — uniquement sur le dashboard */}
+      {activeTab === "dashboard" && drivers && <DriversBar drivers={drivers} />}
 
       {activeTab === "dashboard" && (
         <>
@@ -593,6 +582,9 @@ export default function Dashboard() {
                 onCardTabChange={macroSyncEnabled ? (setGlobalCardTab as (id: "overview"|"mispricing"|"focus") => void) : undefined}
                 syncSignauxSlide={macroSyncEnabled ? globalSignauxSlide : undefined}
                 onSignauxSlideChange={macroSyncEnabled ? setGlobalSignauxSlide : undefined}
+                syncOisChartTab={macroSyncEnabled ? globalOisChartTab : undefined}
+                onOisChartTabChange={macroSyncEnabled ? setGlobalOisChartTab : undefined}
+                isLoading={loading}
               />
             ))}
           </div>
@@ -607,10 +599,10 @@ export default function Dashboard() {
             <div className="h-px flex-1 bg-sky-500/20" />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <TvAdvancedChart symbol="FOREXCOM:SPXUSD" label="S&P 500 · Daily"           interval="D" height={220} />
-            <TvAdvancedChart symbol="CBOE:VIX"       label="VIX · Daily"               interval="D" height={220} />
-            <TvAdvancedChart symbol="CAPITALCOM:DXY" label="DXY Dollar Index · Weekly" interval="W" height={220} />
-            <TvAdvancedChart symbol="TVC:GOLD"       label="Or (XAU/USD) · Weekly"     interval="W" height={220} />
+            <TvAdvancedChart symbol="FOREXCOM:SPXUSD" label="S&P 500"          interval="D" height={220} />
+            <TvAdvancedChart symbol="PEPPERSTONE:VIX" label="VIX"              interval="D" height={220} />
+            <TvAdvancedChart symbol="CAPITALCOM:DXY"  label="DXY Dollar Index" interval="W" height={220} />
+            <TvAdvancedChart symbol="TVC:GOLD"        label="Or (XAU/USD)"     interval="W" height={220} />
           </div>
         </div>
       )}

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { readFileSync } from "fs";
 import { join } from "path";
 
+export const dynamic = "force-dynamic";
+
 const AUTHOR_URL   = "https://investinglive.com/author/giuseppe-dellamotta/";
 const CATEGORY_URL = "https://investinglive.com/CentralBanks";
 const RSS_URLS     = [
@@ -186,16 +188,22 @@ async function candidatesFromHtml(): Promise<string[]> {
 }
 
 // ── Étape 0 : scan URL-date direct (le plus fiable, publié chaque semaine) ────
-// Pattern : /news/how-have-interest-rate-expectations-changed-after-this-weeks-event-YYYYMMDD/
+// Pattern : /centralbank/...events-YYYYMMDD/ (+ fallbacks /news/, singulier/pluriel)
 // On teste les 14 derniers jours (une publication par semaine environ)
 async function candidatesFromUrlScan(): Promise<string[]> {
   const results: string[] = [];
   const now = Date.now();
+  // 4 variantes d'URL par jour (la structure du site a changé mi-2026)
   const checks = Array.from({ length: 14 }, (_, i) => {
     const d = new Date(now - i * 86400000);
     const s = d.toISOString().slice(0, 10).replace(/-/g, "");
-    return `https://investinglive.com/news/how-have-interest-rate-expectations-changed-after-this-weeks-event-${s}/`;
-  });
+    return [
+      `https://investinglive.com/centralbank/how-have-interest-rate-expectations-changed-after-this-weeks-events-${s}/`,
+      `https://investinglive.com/centralbank/how-have-interest-rate-expectations-changed-after-this-weeks-event-${s}/`,
+      `https://investinglive.com/news/how-have-interest-rate-expectations-changed-after-this-weeks-events-${s}/`,
+      `https://investinglive.com/news/how-have-interest-rate-expectations-changed-after-this-weeks-event-${s}/`,
+    ];
+  }).flat();
   // HEAD requests en parallèle (rapide, peu de bande passante)
   const settled = await Promise.allSettled(
     checks.map(url =>
@@ -204,10 +212,14 @@ async function candidatesFromUrlScan(): Promise<string[]> {
         .catch(() => null)
     )
   );
+  const seen = new Set<string>();
   for (const r of settled) {
-    if (r.status === "fulfilled" && r.value) results.push(r.value);
+    if (r.status === "fulfilled" && r.value && !seen.has(r.value)) {
+      seen.add(r.value);
+      results.push(r.value);
+    }
   }
-  return results; // déjà triés du plus récent au plus ancien
+  return results; // triés du plus récent au plus ancien (ordre du .flat())
 }
 
 async function loadRemoteExpectation() {

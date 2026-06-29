@@ -1,6 +1,6 @@
 // lib/investinglive.ts
 // Scrapes Giuseppe Dellamotta's recurring rate-expectations article on investinglive.com
-// URL pattern: /news/how-have-interest-rate-expectations-changed-after-this-weeks-event-YYYYMMDD/
+// URL pattern: /centralbank/how-have-interest-rate-expectations-changed-after-this-weeks-events-YYYYMMDD/ (+ fallbacks)
 // Published after major market events (typically on Fridays or post-CB-decision)
 //
 // Data format in articleBody JSON-LD:
@@ -50,18 +50,26 @@ async function tryUrl(daysAgo: number): Promise<ArticleRef | null> {
   const d = new Date(Date.now() - daysAgo * 86_400_000);
   const yyyymmdd = d.toISOString().slice(0, 10).replace(/-/g, "");
   const dateStr  = `${yyyymmdd.slice(0,4)}-${yyyymmdd.slice(4,6)}-${yyyymmdd.slice(6,8)}`;
-  const url = `https://investinglive.com/news/how-have-interest-rate-expectations-changed-after-this-weeks-event-${yyyymmdd}/`;
-  try {
-    const res = await fetch(url, {
-      method:  "GET",
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36" },
-      cache:   "no-store",
-    });
-    if (!res.ok) return null;
-    // Cancel séparé pour ne pas masquer le succès en cas d'erreur de libération
-    res.body?.cancel().catch(() => {});
-    return { url, dateStr, daysAgo };
-  } catch { return null; }
+  // Tester les 4 variantes : /centralbank/ ou /news/, events (pluriel) ou event (singulier)
+  const candidates = [
+    `https://investinglive.com/centralbank/how-have-interest-rate-expectations-changed-after-this-weeks-events-${yyyymmdd}/`,
+    `https://investinglive.com/centralbank/how-have-interest-rate-expectations-changed-after-this-weeks-event-${yyyymmdd}/`,
+    `https://investinglive.com/news/how-have-interest-rate-expectations-changed-after-this-weeks-events-${yyyymmdd}/`,
+    `https://investinglive.com/news/how-have-interest-rate-expectations-changed-after-this-weeks-event-${yyyymmdd}/`,
+  ];
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url, {
+        method:  "GET",
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36" },
+        cache:   "no-store",
+      });
+      if (!res.ok) { res.body?.cancel().catch(() => {}); continue; }
+      res.body?.cancel().catch(() => {});
+      return { url, dateStr, daysAgo };
+    } catch { continue; }
+  }
+  return null;
 }
 
 async function findArticleRefs(): Promise<{ current: ArticleRef | null; previous: ArticleRef | null }> {
