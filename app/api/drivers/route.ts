@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { fetchTEBondYields } from "@/lib/tebonds";
 
+export const dynamic = "force-dynamic";
+
 // ── FRED (spreads crédit + rendements) ───────────────────────────────────────
 // VIX et S&P500 ne passent plus par FRED (lag 1-2j) → Yahoo Finance (temps réel)
 
@@ -294,5 +296,5 @@ export async function GET() {
     // Compat
     copper: null,
     timestamp: Date.now(),
-  });
+  }, { headers: { "Cache-Control": "no-store" } });
 }

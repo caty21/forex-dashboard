@@ -42,11 +42,11 @@ function teCategory(cat: string, eventName?: string): EventCategory {
   if (/\bpmi\b|purchasing\s+managers/.test(c))                                  return "pmi";
   if (/interest\s+rate|monetary\s+policy|rate\s+decision|bank\s+rate/.test(c)) return "policy_rate";
   if (/speech|speaks?|testimony|press\s+conf|central\s+bank/.test(c))          return "cb_speech";
-  if (/inflation|cpi|hicp|consumer\s+price|ppi/.test(c))                       return "inflation";
+  if (/inflation|cpi|hicp|consumer\s+price|ppi|producer\s+price/.test(c))      return "inflation";
   if (/\bgdp\b|gross\s+domestic|growth\s+rate/.test(c))                        return "gdp";
-  if (/retail\s+sales|core\s+retail/.test(c))                                  return "retail_sales";
+  if (/retail\s+sales|core\s+retail|household\s+spending/.test(c))             return "retail_sales";
   if (/trade\s+balance|current\s+account|balance\s+of\s+trade/.test(c))       return "trade_balance";
-  if (/employment|payrolls|nonfarm|jobless|unemployment|job\s+creation/.test(c)) return "employment";
+  if (/employment|payrolls|nonfarm|jobless|unemployment|job\s+creation|\badp\b|jolts|job\s+openings|job\s+quits|ism\s+\w+\s+employ/.test(c)) return "employment";
   return "other";
 }
 

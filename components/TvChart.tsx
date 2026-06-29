@@ -87,10 +87,10 @@ export function TvAdvancedChart({
         hide_legend:          false,
         allow_symbol_change:  false,
         calendar:             false,
-        hide_volume:          true,
+        hide_volume:          false,
         isTransparent:        true,
         save_image:           true,
-        drawings_access:      { type: "all", tools: [{ name: "Regression Trend" }] },
+        drawings_access:      { type: "all" },
         container_id:         containerId,
       },
       height

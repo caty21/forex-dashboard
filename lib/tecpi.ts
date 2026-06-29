@@ -702,10 +702,10 @@ export async function fetchTEGDPGrowthRate(): Promise<CoreCPIMap> {
 // USD : /united-states/non-farm-payrolls → en milliers, MoM
 // GBP : /united-kingdom/employment-change → en milliers, MoM (3 mois glissants)
 // AUD : /australia/employment-change → en personnes → /1000
-// EUR : /euro-area/employment-change → QoQ%
+// EUR : /euro-area/employment-change → QoQ% converti en milliers via le niveau total
 
 export interface TEEmploymentEntry {
-  value: number;   // k pour USD/GBP/AUD, QoQ% pour EUR
+  value: number;   // milliers de personnes (toutes devises, EUR converti depuis le %)
   prev:  number | null;
 }
 
@@ -734,12 +734,16 @@ export async function fetchTEEmploymentChange(): Promise<Partial<Record<Currency
           if (!res.ok) return null;
           const html = await res.text();
 
-          // Current value from meta description
+          // Current value — meta description (préféré) OU body HTML si absent
           const metaM = html.match(/name=["']description["'][^>]*content=["']([^"']+)["']/i)
                      ?? html.match(/content=["']([^"']+)["'][^>]*name=["']description["']/i);
-          const desc = metaM?.[1] ?? "";
-          const incrM = desc.match(/increased\s+by\s+([\d,]+\.?\d*)/i);
-          const decrM = desc.match(/decreased\s+by\s+([\d,]+\.?\d*)/i);
+          // Fallback : chercher le passage clé directement dans le body (supprime les balises)
+          const bodyText = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+          const desc = metaM?.[1] ?? bodyText.slice(0, 3000); // body limité à 3k chars
+
+          // Verbes positifs/négatifs larges (grew/rose/fell/dropped/etc.)
+          const incrM = desc.match(/(?:increased|grew|rose|gained|expanded|climbed)\s+by\s+([\d,]+\.?\d*)/i);
+          const decrM = desc.match(/(?:decreased|fell|dropped|declined|contracted|shrank|slipped)\s+by\s+([\d,]+\.?\d*)/i);
           if (!incrM && !decrM) return null;
 
           const sign    = incrM ? 1 : -1;
@@ -747,6 +751,7 @@ export async function fetchTEEmploymentChange(): Promise<Partial<Record<Currency
           const curRaw  = sign * absVal;
 
           // Find previous from table: groups of (value, prev, unit-label)
+          // Pour EUR : la colonne unité contient "%" pas "percent" → vérifier les deux
           const tdVals: string[] = [];
           const tdRe = /<td[^>]*>([^<]+)<\/td>/g;
           let m: RegExpExecArray | null;
@@ -754,12 +759,32 @@ export async function fetchTEEmploymentChange(): Promise<Partial<Record<Currency
 
           let prevRaw: number | null = null;
           for (let i = 0; i < tdVals.length - 2; i++) {
-            const a = parseFloat(tdVals[i].replace(/,/g, ""));
-            const b = parseFloat(tdVals[i + 1].replace(/,/g, ""));
+            const a = parseFloat(tdVals[i].replace(/[,%]/g, ""));
+            const b = parseFloat(tdVals[i + 1].replace(/[,%]/g, ""));
             const c = tdVals[i + 2].toLowerCase();
-            if (isNaN(a) || isNaN(b) || !c.includes(unitKw)) continue;
+            const unitMatch = unitKw === "percent"
+              ? (c.includes("percent") || c.includes("%"))
+              : c.includes(unitKw);
+            if (isNaN(a) || isNaN(b) || !unitMatch) continue;
             const tol = Math.max(1, Math.abs(curRaw) * 0.02);
             if (Math.abs(a - curRaw) <= tol) { prevRaw = b; break; }
+          }
+
+          // EUR : la page donne un % QoQ → convertir en Δ milliers de personnes.
+          // Niveau total d'emploi dans le body ("to 176.308 million") → Δk = niveau_k × %/100.
+          // Fallback hardcodé ≈ 176 000k (zone euro Q1 2026) si le niveau n'est pas parseable.
+          if (unitKw === "percent") {
+            const lvlM = desc.match(/to\s+([\d.]+)\s*(million|thousand)/i)
+                      ?? bodyText.match(/to\s+([\d.]+)\s*(million|thousand)/i);
+            let levelK = 176000; // fallback ≈ zone euro
+            if (lvlM) {
+              const lvlNum = parseFloat(lvlM[1]);
+              levelK = /million/i.test(lvlM[2]) ? lvlNum * 1000 : lvlNum;
+            }
+            return [ccy, {
+              value: parseFloat((levelK * curRaw / 100).toFixed(1)),
+              prev:  prevRaw !== null ? parseFloat((levelK * prevRaw / 100).toFixed(1)) : null,
+            }] as [Currency, TEEmploymentEntry];
           }
 
           return [ccy, {

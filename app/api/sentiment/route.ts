@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 // ── Myfxbook Community Outlook API ────────────────────────────────────────────
 // Source : https://www.myfxbook.com/community/outlook
 // Auth   : login.json → session token → get-community-outlook.json

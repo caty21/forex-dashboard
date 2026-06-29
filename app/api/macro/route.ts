@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FRED_SERIES } from "@/lib/constants";
 import type { Currency } from "@/lib/types";
+
+export const dynamic = "force-dynamic";
 import cpiOverridesRaw   from "@/data/cpi_overrides.json";
 import rateDecisionsRaw  from "@/data/rate_decisions.json";
 import { fetchFFThisWeek, fetchFFEvents } from "@/lib/forexfactory";

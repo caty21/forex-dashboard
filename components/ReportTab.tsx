@@ -7,7 +7,7 @@ import type { DriverData } from "@/lib/types";
 import type { FxWeeklyEntry } from "@/app/api/fx-weekly/route";
 import type { CotHistory } from "@/app/api/cot-history/route";
 import { CURRENCY_META } from "@/lib/constants";
-import { TvMiniChart, TvAdvancedChart } from "@/components/TvChart";
+import { TvAdvancedChart } from "@/components/TvChart";
 
 interface Props {
   calEvents:  CalendarEvent[];
@@ -509,12 +509,12 @@ export default function ReportTab({ calEvents, drivers, cotHistory }: Props) {
               <div className="h-px flex-1 bg-sky-500/30" />
             </div>
 
-            {/* Macro overview : S&P, VIX, DXY, Or */}
+            {/* Macro overview : S&P, VIX, DXY, Or — bougies interactives avec outils de dessin */}
             <div className="grid grid-cols-2 gap-4">
-              <TvMiniChart symbol="SP:SPX"    label="S&P 500 · Daily"          dateRange="12M" height={200} />
-              <TvMiniChart symbol="TVC:VIX"   label="VIX · Daily"              dateRange="12M" height={200} />
-              <TvMiniChart symbol="TVC:DXY"   label="DXY Dollar Index · Weekly" dateRange="60M" height={200} />
-              <TvMiniChart symbol="TVC:GOLD"  label="Or (XAU/USD) · Weekly"    dateRange="60M" height={200} />
+              <TvAdvancedChart symbol="SP:SPX"   label="S&P 500"          interval="D" height={750} />
+              <TvAdvancedChart symbol="TVC:VIX"  label="VIX"              interval="D" height={750} />
+              <TvAdvancedChart symbol="TVC:DXY"  label="DXY Dollar Index" interval="W" height={750} />
+              <TvAdvancedChart symbol="TVC:GOLD" label="Or (XAU/USD)"     interval="W" height={750} />
             </div>
 
             <div className="flex items-center gap-4 pt-2">

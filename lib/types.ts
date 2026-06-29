@@ -166,10 +166,12 @@ export interface CotEntry {
   amLongPct:    number;    // % longs / total AM
   amTotal:      number;
   // Δ semaine précédente (null si pas de données J-7)
-  netDelta:     number | null;   // Δ net HF
-  longsDelta:   number | null;   // Δ longs HF (+= ajout de longs)
-  shortsDelta:  number | null;   // Δ shorts HF (+= ajout de shorts)
-  amNetDelta:   number | null;   // Δ net AM
+  netDelta:      number | null;   // Δ net HF
+  longsDelta:    number | null;   // Δ longs HF (+= ajout de longs)
+  shortsDelta:   number | null;   // Δ shorts HF (+= ajout de shorts)
+  amNetDelta:    number | null;   // Δ net AM
+  amLongsDelta:  number | null;   // Δ longs AM
+  amShortsDelta: number | null;   // Δ shorts AM
   // Métadonnées
   weekDate:     string;
   prevWeekDate: string | null;

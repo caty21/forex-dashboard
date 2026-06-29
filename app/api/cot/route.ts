@@ -3,6 +3,8 @@ import { inflateRawSync } from "zlib";
 import { COT_CODES } from "@/lib/constants";
 import type { Currency, CotEntry } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+
 // ── CFTC Traders in Financial Futures (TFF) — fichier annuel ZIP ──────────────
 // URL : https://www.cftc.gov/files/dea/history/fut_fin_txt_YYYY.zip
 // Contient toutes les semaines de l'année en ordre décroissant.
@@ -163,10 +165,12 @@ function parseCOT(csv: string): Record<string, CotEntry> {
       amShorts:     cur.amShorts,
       amLongPct:    amTotal > 0 ? Math.round((cur.amLongs / amTotal) * 100) : 50,
       amTotal,
-      netDelta:     prev !== null ? hfNet - (prev.hfLongs - prev.hfShorts) : null,
-      longsDelta:   prev !== null ? cur.hfLongs  - prev.hfLongs  : null,
-      shortsDelta:  prev !== null ? cur.hfShorts - prev.hfShorts : null,
-      amNetDelta:   prev !== null ? amNet - (prev.amLongs - prev.amShorts) : null,
+      netDelta:      prev !== null ? hfNet - (prev.hfLongs - prev.hfShorts) : null,
+      longsDelta:    prev !== null ? cur.hfLongs  - prev.hfLongs  : null,
+      shortsDelta:   prev !== null ? cur.hfShorts - prev.hfShorts : null,
+      amNetDelta:    prev !== null ? amNet - (prev.amLongs - prev.amShorts) : null,
+      amLongsDelta:  prev !== null ? cur.amLongs  - prev.amLongs  : null,
+      amShortsDelta: prev !== null ? cur.amShorts - prev.amShorts : null,
       weekDate:     cur.weekDate,
       prevWeekDate: prev?.weekDate ?? null,
     };

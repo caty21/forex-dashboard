@@ -178,6 +178,7 @@ function PairRow({ pairName, sym, base, quote, showVol }: {
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function SentimentPairsTab({ symbols }: Props) {
   const [showVol, setShowVol] = useState(true);
+  const [showContrariens, setShowContrariens] = useState(false);
 
   const symMap: Record<string, MyfxSymbol> = {};
   for (const s of symbols ?? []) symMap[s.name] = s;
@@ -221,30 +222,38 @@ export default function SentimentPairsTab({ symbols }: Props) {
         </label>
       </div>
 
-      {/* Résumé signaux contrarien */}
+      {/* Résumé signaux contrariens — compact / déroulant */}
       {contrarians.length > 0 && (
-        <div className="bg-amber-500/8 border border-amber-500/20 rounded-xl p-3">
-          <p className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider mb-2">
-            ⚡ {contrarians.length} signal{contrarians.length > 1 ? "s" : ""} contrarien{contrarians.length > 1 ? "s" : ""}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {contrarians.slice(0, 8).map(p => {
-              const dir = p.sym!.longPercentage >= 70 ? "short" : "long";
-              return (
-                <div key={p.std} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium ${
-                  dir === "short"
-                    ? "bg-red-500/10 border-red-500/20 text-red-300"
-                    : "bg-emerald-500/10 border-emerald-500/20 text-emerald-300"
-                }`}>
-                  <span>{CURRENCY_META[p.base]?.flag}{CURRENCY_META[p.quote]?.flag}</span>
-                  <span className="font-bold">{p.std}</span>
-                  <span className="text-[10px] opacity-70">
-                    {p.sym!.longPercentage}%L → signal {dir === "short" ? "↓ SELL" : "↑ BUY"}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+        <div className="border border-amber-500/20 rounded-xl overflow-hidden">
+          <button
+            onClick={() => setShowContrariens(s => !s)}
+            className="w-full flex items-center justify-between px-3 py-2 bg-amber-500/8 hover:bg-amber-500/12 transition-colors"
+          >
+            <span className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider">
+              ⚡ {contrarians.length} signal{contrarians.length > 1 ? "s" : ""} contrarien{contrarians.length > 1 ? "s" : ""}
+            </span>
+            <span className="text-amber-400/60 text-[10px]">{showContrariens ? "▲" : "▼"}</span>
+          </button>
+          {showContrariens && (
+            <div className="flex flex-wrap gap-2 px-3 py-2.5 bg-amber-500/5">
+              {contrarians.slice(0, 12).map(p => {
+                const dir = p.sym!.longPercentage >= 70 ? "short" : "long";
+                return (
+                  <div key={p.std} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium ${
+                    dir === "short"
+                      ? "bg-red-500/10 border-red-500/20 text-red-300"
+                      : "bg-emerald-500/10 border-emerald-500/20 text-emerald-300"
+                  }`}>
+                    <span>{CURRENCY_META[p.base]?.flag}{CURRENCY_META[p.quote]?.flag}</span>
+                    <span className="font-bold">{p.std}</span>
+                    <span className="text-[10px] opacity-70">
+                      {p.sym!.longPercentage}%L → {dir === "short" ? "↓ SELL" : "↑ BUY"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

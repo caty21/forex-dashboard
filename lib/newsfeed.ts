@@ -561,8 +561,33 @@ function parseRssItems(xml: string, source: string): NewsItem[] {
 
     if (!title || !url.startsWith("http")) continue;
 
-    const combined = `${title} ${summary ?? ""}`;
-    const { impacts, categories } = applyRules(combined);
+    const combined    = `${title} ${summary ?? ""}`;
+    const bodyResult  = applyRules(combined);
+    const titleResult = applyRules(title);
+
+    // Mêmes filtres que ZeroHedge :
+    // - person cats uniquement si nom dans le titre
+    // - "Crise" uniquement si mot-clé de crise dans le titre
+    // - si uniquement person cats → titre doit avoir mot-clé macro
+    const PERSON_CATS_RSS    = new Set(["Discours BC", "Chef d'État"]);
+    const CRISIS_TITLE_KW_RSS = /\b(bank|banking|financial|crisis|crash|collapse|systemic|meltdown|turmoil|default|contagion|insolvency|bail.?out|credit crunch|debt crisis)\b/i;
+    const MACRO_TITLE_RSS    = /\b(rate|rates|inflation|gdp|economy|monetary|bond|yield|forex|currency|dollar|euro|pound|yen|franc|tariff|recession|deficit|trade war|rate cut|rate hike|interest)\b/i;
+
+    const categories = bodyResult.categories.filter(c => {
+      if (PERSON_CATS_RSS.has(c)) return titleResult.categories.includes(c);
+      if (c === "Crise") return CRISIS_TITLE_KW_RSS.test(title);
+      return true;
+    });
+    const impacts = bodyResult.impacts;
+    if (impacts.length === 0 && categories.length === 0) continue;
+
+    const onlyPersonCats = categories.length > 0 && categories.every(c => PERSON_CATS_RSS.has(c));
+    if (onlyPersonCats && !MACRO_TITLE_RSS.test(title)) continue;
+
+    // Si aucun impact devise spécifique : le titre doit mentionner l'une de nos 8 devises/BC
+    // Évite Corée du Sud, Philippines, Turquie etc. qui déclenchent "Décision Taux" sans rapport
+    const OUR_CB_KW = /\b(fed|fomc|ecb|boe|boj|rba|rbnz|snb|boc|powell|lagarde|bailey|ueda|bullock|orr|jordan|macklem|dollar|euro|pound|sterling|yen|franc|loonie|aussie|kiwi|usd|eur|gbp|jpy|chf|cad|aud|nzd|g7|g10|forex)\b/i;
+    if (impacts.length === 0 && !OUR_CB_KW.test(title)) continue;
 
     items.push({
       id:          `rss-${Buffer.from(url).toString("base64").slice(0, 12)}`,
@@ -788,18 +813,28 @@ async function fetchZeroHedgeNews(): Promise<NewsItem[]> {
       const summary      = plainText.slice(0, 300);
       const analysisText = plainText.slice(0, 800);
 
-      // Filtre de pertinence forex : garder seulement si une règle matche.
-      // IMPORTANT : "Discours BC" et "Chef d'État" (déclenchées par des noms propres)
-      // ne sont valides que si le nom apparaît dans le TITRE — évite "Bailey" dans
-      // un article social UK dont le body parle aussi de la "pound" ou de l'"economy".
+      // Filtre de pertinence forex ZeroHedge (3 niveaux) :
+      // 1. "Discours BC" / "Chef d'État" uniquement si nom dans le TITRE
+      // 2. "Crise" uniquement si titre contient mot-clé de crise financière explicite
+      //    (évite les articles d'opinion avec doom-language dans le body)
+      // 3. Si seule rétention = catégorie personne, titre doit avoir mot-clé macro
       const bodyResult  = applyRules(`${title} ${analysisText}`);
       const titleResult = applyRules(title);
-      const PERSON_CATS = new Set(["Discours BC", "Chef d'État"]);
-      const categories  = bodyResult.categories.filter(
-        c => !PERSON_CATS.has(c) || titleResult.categories.includes(c)
-      );
+      const PERSON_CATS    = new Set(["Discours BC", "Chef d'État"]);
+      const CRISIS_TITLE_KW = /\b(bank|banking|financial|crisis|crash|collapse|systemic|meltdown|turmoil|default|contagion|insolvency|bail.?out|credit crunch|debt crisis)\b/i;
+      const categories  = bodyResult.categories.filter(c => {
+        if (PERSON_CATS.has(c)) return titleResult.categories.includes(c);
+        if (c === "Crise") return CRISIS_TITLE_KW.test(title);
+        return true;
+      });
       const impacts = bodyResult.impacts;
       if (impacts.length === 0 && categories.length === 0) continue;
+
+      // Si toutes les catégories viennent uniquement de noms propres, exiger un
+      // mot-clé macro dans le titre (rate, inflation, gdp, etc.)
+      const MACRO_TITLE = /\b(rate|rates|inflation|gdp|economy|monetary|bond|yield|forex|currency|dollar|euro|pound|yen|franc|tariff|recession|deficit|trade war|rate cut|rate hike|interest)\b/i;
+      const onlyPersonCats = categories.length > 0 && categories.every(c => PERSON_CATS.has(c));
+      if (onlyPersonCats && !MACRO_TITLE.test(title)) continue;
 
       const dateStr = dateM?.[1]?.trim() ?? "";
       items.push({

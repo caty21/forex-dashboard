@@ -46,6 +46,7 @@ export interface CBRatePath {
   ilDelta?:       ILWeeklyDelta;           // delta vs article IL semaine précédente
   prevMeetings?:  RateProbMeeting[];       // réunions semaine précédente (snapshot RP)
   prevWeekDate?:  string;                  // date du snapshot semaine précédente
+  history?:       Array<{ date: string; meetings: RateProbMeeting[] }>; // snapshots hebdo accumulés
 }
 
 export type RateProbData = Partial<Record<Currency, CBRatePath>>;
@@ -81,7 +82,7 @@ function getCurrentRate(ccy: Currency, today: Record<string, unknown>): number {
     case "JPY": return (today["current_target"]        as number) ?? 0;
     case "CAD": return (today["Overnight Rate Target"] as number) ?? 0;
     case "AUD": return (today["cash_rate_target"]      as number) ?? 0;
-    case "NZD": return (today["Official Cash Rate (OCR)"] as number) ?? (today["current_target"] as number) ?? 0;
+    case "NZD": return (today["Official Cash Rate (OCR)"] as number) ?? (today["current_target"] as number) ?? (today["midpoint"] as number) ?? 0;
     default:    return 0;
   }
 }
@@ -106,6 +107,64 @@ const SNB_MEETINGS: string[] = [
   "2027-09-23",
   "2027-12-09",
 ];
+
+// ── RBNZ meeting dates (7 par an) ─────────────────────────────────────────────
+// Source officielle : rbnz.govt.nz — mise à jour annuelle
+
+const RBNZ_MEETINGS: string[] = [
+  // 2026
+  "2026-07-09",
+  "2026-08-19",
+  "2026-10-14",
+  "2026-11-25",
+  // 2027
+  "2027-02-24",
+  "2027-04-09",
+  "2027-05-26",
+  "2027-07-14",
+  "2027-08-18",
+  "2027-10-13",
+  "2027-11-24",
+];
+
+// Construit un CBRatePath NZD depuis InvestingLive + calendrier RBNZ officiel
+function buildRBNZPath(il: ILExpectationsMap, currentRate: number): CBRatePath | null {
+  const nzdData = il["NZD"];
+  if (!nzdData) return null;
+
+  const nowIso = new Date().toISOString().slice(0, 10);
+  const upcomingMeetings = RBNZ_MEETINGS.filter(d => d >= nowIso);
+  if (upcomingMeetings.length === 0) return null;
+
+  const yearEndIsCut = nzdData.bpsYearEnd < 0;
+
+  const meetings: RateProbMeeting[] = upcomingMeetings.map((dateIso, i) => {
+    const isNext      = i === 0;
+    const probMovePct = isNext ? nzdData.nextMeetingProbPct : 0;
+    const probIsCut   = isNext
+      ? (nzdData.nextMeetingIsNoChange ? yearEndIsCut : !nzdData.nextMeetingIsHike)
+      : yearEndIsCut;
+    const changeBps   = isNext ? (probMovePct > 50 ? (probIsCut ? -25 : 25) : 0) : 0;
+    const impliedRate = isNext && probMovePct > 50
+      ? parseFloat((currentRate + (probIsCut ? -0.25 : 0.25)).toFixed(4))
+      : currentRate;
+
+    return { label: dateIso.slice(0, 7), dateIso, impliedRate, probMovePct, probIsCut, changeBps };
+  });
+
+  const peakMeeting = meetings.reduce((best, m) =>
+    m.probMovePct > best.probMovePct ? m : best, meetings[0]
+  );
+
+  return {
+    currency:       "NZD",
+    asOf:           nzdData.publishedDate,
+    currentRate,
+    meetings,
+    peakMeeting:    peakMeeting.probMovePct > 0 ? peakMeeting : null,
+    yearEndImplied: meetings.at(-1)?.impliedRate ?? null,
+  };
+}
 
 // Construit un CBRatePath CHF depuis les données InvestingLive (probabilités OIS-équivalent)
 function buildSNBPath(il: ILExpectationsMap, currentRate: number): CBRatePath | null {
@@ -172,6 +231,16 @@ function loadCachedRPBody(ccy: string, _slug: string): Record<string, unknown> |
     console.log(`[rate-prob] ${ccy} loaded from GitHub Actions cache (${Math.round(ageMs / 60000)}min old)`);
     return entry;
   } catch { return null; }
+}
+
+function loadHistorySnapshots(): Array<{ date: string; raw: Record<string, unknown> }> {
+  try {
+    const filePath = join(process.cwd(), "data", "rate-probabilities.json");
+    const raw = readFileSync(filePath, "utf8");
+    const parsed = JSON.parse(raw) as { snapshots?: Array<{ data: Record<string, unknown>; fetchedAt: string }> };
+    if (!parsed.snapshots?.length) return [];
+    return parsed.snapshots.map(s => ({ date: s.fetchedAt.slice(0, 10), raw: s.data }));
+  } catch { return []; }
 }
 
 function loadPrevWeekCachedBody(ccy: string): { body: Record<string, unknown>; date: string } | null {
@@ -249,11 +318,37 @@ export async function fetchAllCBPaths(): Promise<RateProbData> {
     }
   }
 
-  // CHF/SNB : Investing.com rate monitor couvre SNB → déjà dans le JSON si dispo.
-  // InvestingLive reste en backup si le JSON n'a pas CHF.
+  // Historique multi-semaines (snapshots accumulés par GitHub Actions)
+  const historySnaps = loadHistorySnapshots();
+  if (historySnaps.length) {
+    for (const ccy of CB_KEYS) {
+      const path = data[ccy];
+      if (!path) continue;
+      const history: CBRatePath["history"] = [];
+      for (const snap of historySnaps) {
+        const entry = snap.raw[ccy] as Record<string, unknown> | undefined;
+        if (!entry) continue;
+        const snapPath = parseCBBody(ccy, entry);
+        if (snapPath?.meetings.length) {
+          history.push({ date: snap.date, meetings: snapPath.meetings });
+        }
+      }
+      if (history.length) data[ccy] = { ...path, history };
+    }
+  }
+
+  // CHF/SNB : Investing.com n'a pas de page SNB → InvestingLive seule source.
   if (!data["CHF"] && ilData["CHF"]) {
     const snbPath = buildSNBPath(ilData, 0.00);
     if (snbPath) data["CHF"] = snbPath;
+  }
+
+  // NZD/RBNZ : Investing.com n'a pas de page RBNZ → InvestingLive + calendrier RBNZ.
+  // Si les données JSON ont ≤ 1 réunion (buildILFallback n'en met qu'une) → reconstruire.
+  if ((!data["NZD"] || data["NZD"].meetings.length <= 1) && ilData["NZD"]) {
+    const rate = data["NZD"]?.currentRate || 2.25; // RBNZ OCR juin 2026
+    const rbnzPath = buildRBNZPath(ilData, rate);
+    if (rbnzPath) data["NZD"] = rbnzPath;
   }
 
   // Enrichissement IL : deltas hebdo pour toutes les devises
