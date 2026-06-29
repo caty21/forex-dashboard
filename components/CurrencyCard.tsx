@@ -739,94 +739,119 @@ function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange }: {
           </div>
         )}
 
-        {/* Chart 3 — Probabilités : LineChart probMovePct + liste réunions avec taux prévu */}
-        {chartTab === "scenarios" && (
-          <div>
-            {/* Graphique probabilité de move par réunion */}
-            <ResponsiveContainer width="100%" height={90}>
-              <LineChart
-                data={chartMeetings.map(m => ({ label: m.label, prob: m.probMovePct, isCut: m.probIsCut, impliedRate: m.impliedRate }))}
-                margin={{ top: 5, right: 5, left: -20, bottom: 0 }}
-              >
-                <XAxis dataKey="label" tick={{ fontSize: 7, fill: "#64748b" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-                <YAxis tick={{ fontSize: 7, fill: "#64748b" }} axisLine={false} tickLine={false} width={28}
-                  domain={[0, 100]} tickFormatter={(v: number) => `${v}%`} />
-                <ReferenceLine y={50} stroke="#334155" strokeDasharray="3 3" strokeWidth={1} />
-                <Line type="monotone" dataKey="prob" stroke="#f59e0b" strokeWidth={1.5} dot={{ r: 2, fill: "#f59e0b" }} activeDot={{ r: 3 }} />
-                <Tooltip
-                  content={({ label, payload }) => {
-                    if (!payload?.length) return null;
-                    const v = payload[0]?.value as number;
-                    const m = chartMeetings.find(m => m.label === label);
-                    return (
-                      <div style={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 6, padding: "4px 8px" }}>
-                        <p style={{ color: "#94a3b8", fontSize: 9, margin: 0 }}>{label}</p>
-                        <p style={{ color: "#f59e0b", fontSize: 9, margin: "2px 0 0" }}>Prob : {v.toFixed(0)}% {m?.probIsCut ? "Cut" : "Hike"}</p>
-                        <p style={{ color: "#64748b", fontSize: 8, margin: "1px 0 0" }}>Implicite : {m?.impliedRate.toFixed(2)}%</p>
-                      </div>
-                    );
-                  }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+        {/* Chart 3 — Probabilités : AreaChart auto-scale + résumé + liste réunions */}
+        {chartTab === "scenarios" && (() => {
+          const probValues = chartMeetings.map(m => m.probMovePct);
+          const pMin = Math.max(0,   Math.min(...probValues) - 12);
+          const pMax = Math.min(100, Math.max(...probValues) + 12);
+          const maxR2 = Math.max(...scenariosData.map(d => d.rate), currentRate);
+          const minR2 = Math.min(...scenariosData.map(d => d.rate), currentRate) - 0.05;
+          const range = maxR2 - minR2 || 0.25;
+          const peakIsCut = !!ratePath.peakMeeting?.probIsCut;
+          const gradId = `probGrad_${currency}`;
+          const gradColor = peakIsCut ? "#38bdf8" : "#f59e0b";
+          return (
+            <div>
+              {/* Graphique AreaChart auto-scale */}
+              <ResponsiveContainer width="100%" height={90}>
+                <AreaChart
+                  data={chartMeetings.map(m => ({ label: m.label, prob: m.probMovePct, isCut: m.probIsCut, impliedRate: m.impliedRate }))}
+                  margin={{ top: 4, right: 4, left: -22, bottom: 0 }}
+                >
+                  <defs>
+                    <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor={gradColor} stopOpacity={0.25} />
+                      <stop offset="95%" stopColor={gradColor} stopOpacity={0}    />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="label" tick={{ fontSize: 7, fill: "#64748b" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                  <YAxis tick={{ fontSize: 7, fill: "#64748b" }} axisLine={false} tickLine={false} width={26}
+                    domain={[pMin, pMax]} tickFormatter={(v: number) => `${v}%`} />
+                  <ReferenceLine y={50} stroke="#334155" strokeDasharray="4 3" strokeWidth={1} />
+                  <Area type="monotone" dataKey="prob" stroke={gradColor} strokeWidth={1.5}
+                    fill={`url(#${gradId})`} dot={{ r: 2.5, fill: gradColor, strokeWidth: 0 }} activeDot={{ r: 3.5, fill: gradColor }} />
+                  <Tooltip
+                    content={({ label, payload }) => {
+                      if (!payload?.length) return null;
+                      const v = payload[0]?.value as number;
+                      const m = chartMeetings.find(m => m.label === label);
+                      const bpsCum = m ? Math.round((m.impliedRate - currentRate) * 100) : 0;
+                      return (
+                        <div style={{ background: "rgba(10,18,35,0.97)", border: "1px solid #334155", borderRadius: 7, padding: "5px 9px" }}>
+                          <p style={{ color: "#94a3b8", fontSize: 9, margin: 0, fontWeight: 600 }}>{label}</p>
+                          <p style={{ color: gradColor, fontSize: 9, margin: "2px 0 0" }}>Prob : {v.toFixed(0)}% {m?.probIsCut ? "Cut" : "Hike"}</p>
+                          <p style={{ color: "#64748b", fontSize: 8, margin: "1px 0 0" }}>
+                            {m?.impliedRate.toFixed(2)}% {bpsCum !== 0 ? `(${bpsCum > 0 ? "+" : ""}${bpsCum}bps)` : ""}
+                          </p>
+                        </div>
+                      );
+                    }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
 
-            {/* Résumé : pic + bps fin an + flèches IL vs sem. préc. */}
-            {ratePath.peakMeeting && (
-              <>
-                <div className="flex items-center justify-between mt-1 text-[10px]">
-                  <span className="text-slate-600">Pic : <span className="text-slate-400">{ratePath.peakMeeting.label}</span></span>
-                  <span className={`font-bold ${ratePath.peakMeeting.probIsCut ? "text-sky-400" : "text-red-400"}`}>
-                    {ratePath.peakMeeting.probMovePct.toFixed(0)}% {ratePath.peakMeeting.probIsCut ? "Cut" : "Hike"}
+              {/* Résumé compact : pic · proba · bps fin an · delta IL */}
+              {ratePath.peakMeeting && (
+                <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                  <span className="text-[9px] text-slate-500">Pic&nbsp;:&nbsp;<span className="text-slate-300 font-semibold">{ratePath.peakMeeting.label}</span></span>
+                  <span className={`text-[10px] font-bold ${peakIsCut ? "text-sky-400" : "text-red-400"}`}>
+                    {ratePath.peakMeeting.probMovePct.toFixed(0)}% {peakIsCut ? "Cut" : "Hike"}
                   </span>
                   {bpsYE !== null && (
-                    <span className={`font-bold ${bpsCls}`} title={`→ ${yearEndImplied?.toFixed(2)}%`}>
-                      {bpsYE > 0 ? "+" : ""}{bpsYE}bps fin an
+                    <span className={`text-[10px] font-bold ml-auto ${bpsCls}`} title={`→ ${yearEndImplied?.toFixed(2)}%`}>
+                      {bpsYE > 0 ? "+" : ""}{bpsYE}bps fin&nbsp;an
+                    </span>
+                  )}
+                  {ilDelta && (Math.abs(ilDelta.probDelta) >= 3 || Math.abs(ilDelta.bpsDelta) >= 5) && (
+                    <span className="text-[9px] text-slate-600 flex items-center gap-1 w-full">
+                      <span title={`vs article du ${prevCurveLabel ?? ilDelta.prevDate}`}>vs sem. préc. :</span>
+                      <RpArrow delta={ilDelta.probDelta} isBearishIfPositive={ilDelta.isCut} suffix="%" strongT={10} modT={3} />
+                      {ilDelta.bpsDelta !== 0 && (
+                        <RpArrow delta={ilDelta.bpsDelta} isBearishIfPositive={true} suffix="bps" strongT={25} modT={5} />
+                      )}
                     </span>
                   )}
                 </div>
-                {ilDelta && (Math.abs(ilDelta.probDelta) >= 3 || Math.abs(ilDelta.bpsDelta) >= 5) && (
-                  <div className="flex items-center gap-2 mt-0.5 text-[9px] text-slate-600">
-                    <span title={`vs article du ${prevCurveLabel ?? ilDelta.prevDate}`}>vs sem. préc. :</span>
-                    <RpArrow delta={ilDelta.probDelta} isBearishIfPositive={ilDelta.isCut} suffix="%" strongT={10} modT={3} />
-                    {ilDelta.bpsDelta !== 0 && (
-                      <RpArrow delta={ilDelta.bpsDelta} isBearishIfPositive={true} suffix="bps" strongT={25} modT={5} />
-                    )}
-                  </div>
-                )}
-              </>
-            )}
+              )}
 
-            {/* Liste des réunions : date | barre taux implicite | taux | proba */}
-            <div className="mt-2 pt-2 border-t border-slate-700/30 space-y-1">
-              {(() => {
-                const maxR2 = Math.max(...scenariosData.map(d => d.rate), currentRate);
-                const minR2 = Math.min(...scenariosData.map(d => d.rate), currentRate) - 0.05;
-                const range = maxR2 - minR2 || 0.25;
-                return scenariosData.map(d => {
-                  const barW  = Math.max(5, Math.min(100, ((d.rate - minR2) / range) * 100));
-                  const isDown = d.rate < currentRate - 0.001;
-                  const isUp   = d.rate > currentRate + 0.001;
-                  const barCl  = isDown ? "bg-sky-500/70" : isUp ? "bg-red-500/70" : "bg-amber-500/60";
-                  const isPeak = ratePath.peakMeeting?.dateIso === d.dateIso;
+              {/* Liste des réunions */}
+              <div className="mt-2 pt-2 border-t border-slate-700/30 space-y-[3px]">
+                {scenariosData.map(d => {
+                  const isPeak   = ratePath.peakMeeting?.dateIso === d.dateIso;
+                  const isDown   = d.rate < currentRate - 0.001;
+                  const isUp     = d.rate > currentRate + 0.001;
+                  const barColor = isDown ? "#38bdf8" : isUp ? "#f87171" : "#f59e0b";
+                  const barW     = Math.max(4, Math.min(100, ((d.rate - minR2) / range) * 100));
+                  const cumBps   = d.cumulBps;
+                  const cumStr   = cumBps === 0 ? null : `${cumBps > 0 ? "+" : ""}${cumBps}`;
                   return (
-                    <div key={d.label} className="flex items-center gap-1.5">
-                      <span className={`text-[8px] w-9 shrink-0 tabular-nums ${isPeak ? "text-amber-300 font-bold" : "text-slate-600"}`}>
+                    <div key={d.label}
+                      className={`flex items-center gap-1.5 rounded-md px-1 py-[2px] ${isPeak ? "bg-amber-500/8" : ""}`}
+                    >
+                      <span className={`text-[8px] w-[34px] shrink-0 tabular-nums font-mono ${isPeak ? "text-amber-300 font-bold" : "text-slate-500"}`}>
                         {d.label}
                       </span>
-                      <div className="flex-1 bg-slate-700/30 rounded-full h-2 overflow-hidden">
-                        <div className={`h-full ${barCl} rounded-full`} style={{ width: `${barW}%` }} />
+                      <div className="flex-1 bg-slate-700/25 rounded-full h-[5px] overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: `${barW}%`, backgroundColor: barColor, opacity: 0.7 }} />
                       </div>
-                      <span className="text-[8px] font-mono text-slate-300 w-10 text-right shrink-0">{d.rate.toFixed(2)}%</span>
+                      <span className={`text-[8px] font-mono w-9 text-right shrink-0 ${isPeak ? "text-slate-200" : "text-slate-400"}`}>
+                        {d.rate.toFixed(2)}%
+                      </span>
+                      {cumStr && (
+                        <span className={`text-[7px] font-semibold w-9 text-right shrink-0 ${isDown ? "text-sky-500" : "text-red-400"}`}>
+                          {cumStr}bps
+                        </span>
+                      )}
                       {d.prob > 0 && (
-                        <span className="text-[7px] text-slate-500 w-6 text-right shrink-0">{d.prob.toFixed(0)}%</span>
+                        <span className="text-[7px] text-slate-600 w-5 text-right shrink-0">{d.prob.toFixed(0)}%</span>
                       )}
                     </div>
                   );
-                });
-              })()}
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* ── IL footer (analyste InvestingLive) ────────────────────────────── */}
