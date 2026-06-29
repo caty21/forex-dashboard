@@ -29,7 +29,8 @@ export interface ILWeeklyDelta {
 
 export interface ILCurrent {
   bpsYearEnd:  number;   // bps fin d'an selon l'article IL courant
-  probPct:     number;   // probabilité de move à la prochaine réunion (IL)
+  probPct:     number;   // probabilité de move à la prochaine réunion (IL analyste)
+  stirProbPct?: number;  // probabilité originale STIR/IC (avant fusion IL)
   isNoChange:  boolean;  // l'analyste anticipe un statu quo
   isCut:       boolean;  // l'analyste anticipe une baisse
   articleDate: string;   // date de publication de l'article (YYYY-MM-DD)
@@ -351,7 +352,7 @@ export async function fetchAllCBPaths(): Promise<RateProbData> {
     if (rbnzPath) data["NZD"] = rbnzPath;
   }
 
-  // Enrichissement IL : deltas hebdo pour toutes les devises
+  // Enrichissement IL : fusion proba première réunion + deltas hebdo
   for (const [ccyStr, ilEntry] of Object.entries(ilData)) {
     const ccy = ccyStr as keyof RateProbData;
     const path = data[ccy];
@@ -374,15 +375,50 @@ export async function fetchAllCBPaths(): Promise<RateProbData> {
       };
     }
 
+    const ilProb    = ilEntry.nextMeetingProbPct;
+    const ilIsCut   = !ilEntry.nextMeetingIsHike && !ilEntry.nextMeetingIsNoChange;
+    const m0        = path.meetings[0];
+    const stirProb  = m0?.probMovePct ?? 0;
+
     const ilCurrent: ILCurrent = {
-      bpsYearEnd:  ilEntry.bpsYearEnd,
-      probPct:     ilEntry.nextMeetingProbPct,
-      isNoChange:  ilEntry.nextMeetingIsNoChange,
-      isCut:       !ilEntry.nextMeetingIsHike && !ilEntry.nextMeetingIsNoChange,
-      articleDate: ilEntry.publishedDate,
+      bpsYearEnd:   ilEntry.bpsYearEnd,
+      probPct:      ilProb,
+      stirProbPct:  stirProb || undefined,
+      isNoChange:   ilEntry.nextMeetingIsNoChange,
+      isCut:        ilIsCut,
+      articleDate:  ilEntry.publishedDate,
     };
 
-    data[ccy] = { ...path, yearEndImplied, ilCurrent, ...(ilDelta ? { ilDelta } : {}) };
+    // Fusion STIR + IL pour la première réunion :
+    // Si l'IL a une proba valide ET qu'elle diffère du STIR de plus de 8pp → on fusionne
+    // (le STIR IC peut avoir des artefacts de parsing ; l'analyste IL lit la même donnée proprement)
+    let updatedMeetings = path.meetings;
+    if (m0 && ilProb > 0 && !ilEntry.nextMeetingIsNoChange && Math.abs(ilProb - stirProb) > 8) {
+      const updatedM0: RateProbMeeting = {
+        ...m0,
+        probMovePct: ilProb,
+        probIsCut:   ilIsCut,
+        changeBps:   ilProb > 50 ? (ilIsCut ? -25 : 25) : 0,
+        impliedRate: ilProb > 50
+          ? parseFloat((path.currentRate + (ilIsCut ? -0.25 : 0.25)).toFixed(4))
+          : path.currentRate,
+      };
+      updatedMeetings = [updatedM0, ...path.meetings.slice(1)];
+    }
+
+    // Recalcule peakMeeting après fusion
+    const peakMeeting = updatedMeetings.length
+      ? updatedMeetings.reduce((best, m) => m.probMovePct > best.probMovePct ? m : best, updatedMeetings[0])
+      : null;
+
+    data[ccy] = {
+      ...path,
+      meetings:       updatedMeetings,
+      peakMeeting:    peakMeeting && peakMeeting.probMovePct > 0 ? peakMeeting : path.peakMeeting,
+      yearEndImplied,
+      ilCurrent,
+      ...(ilDelta ? { ilDelta } : {}),
+    };
   }
 
   return data;
