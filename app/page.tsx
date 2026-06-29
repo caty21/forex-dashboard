@@ -14,6 +14,7 @@ import YieldsTab from "@/components/YieldsTab";
 import NewsTab from "@/components/NewsTab";
 import CotTab from "@/components/CotTab";
 import ReportTab from "@/components/ReportTab";
+import IdeesTab  from "@/components/IdeesTab";
 import { TvAdvancedChart } from "@/components/TvChart";
 import type { CalendarEvent } from "@/app/api/calendar/route";
 import type { NewsItem } from "@/app/api/news/route";
@@ -29,7 +30,7 @@ export default function Dashboard() {
   const [cot,          setCot]          = useState<Record<string, CotEntry> | null>(null);
   const [calEvents,    setCalEvents]    = useState<CalendarEvent[]>([]);
   const [nextWeekAvail, setNextWeekAvail] = useState(false);
-  const [activeTab,    setActiveTab]    = useState<"dashboard" | "calendar" | "pairs" | "yields" | "news" | "cot" | "report" | "markets">("dashboard");
+  const [activeTab,    setActiveTab]    = useState<"dashboard" | "calendar" | "pairs" | "yields" | "news" | "cot" | "report" | "markets" | "idees">("dashboard");
   const [newsItems,    setNewsItems]    = useState<NewsItem[]>([]);
   const [newsLoading,  setNewsLoading]  = useState(false);
   const [cotHistory,   setCotHistory]   = useState<CotHistory | null>(null);
@@ -340,7 +341,7 @@ export default function Dashboard() {
 
       {/* Tab navigation */}
       <div className="flex gap-0 border-b border-slate-800 mb-4">
-        {(["dashboard", "markets", "calendar", "pairs", "yields", "news", "cot", "report"] as const).map((tab) => (
+        {(["dashboard", "markets", "idees", "calendar", "pairs", "yields", "news", "cot", "report"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -352,6 +353,7 @@ export default function Dashboard() {
           >
             {tab === "dashboard" ? "Dashboard"
               : tab === "markets"  ? "🌍 Marchés"
+              : tab === "idees"    ? "💡 Idées"
               : tab === "calendar" ? "📅 Calendrier"
               : tab === "pairs"   ? "↕ Paires"
               : tab === "yields"  ? "📈 Yields 10Y"
@@ -626,6 +628,8 @@ export default function Dashboard() {
       {activeTab === "cot" && (
         <CotTab history={cotHistory} loading={cotLoading} />
       )}
+
+      {activeTab === "idees" && <IdeesTab />}
 
       {activeTab === "report" && (
         <ReportTab calEvents={calEvents} drivers={drivers} cotHistory={cotHistory} />
