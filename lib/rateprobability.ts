@@ -225,7 +225,7 @@ function loadCachedRPBody(ccy: string, _slug: string): Record<string, unknown> |
     const entry = parsed.data?.[ccy] as Record<string, unknown> | undefined;
     if (!entry) return null;
     const ageMs = Date.now() - new Date(parsed.fetchedAt).getTime();
-    if (ageMs > 48 * 60 * 60 * 1000) { // ignore si > 48h (GitHub Actions peut ne pas tourner quotidiennement)
+    if (ageMs > 168 * 60 * 60 * 1000) { // ignore si > 7 jours
       console.warn(`[rate-prob] cache stale (${Math.round(ageMs / 3600000)}h), skipping`);
       return null;
     }
@@ -358,11 +358,12 @@ export async function fetchAllCBPaths(): Promise<RateProbData> {
     const path = data[ccy];
     if (!path) continue;
     if (typeof ilEntry.bpsYearEnd !== "number") continue;
-    if (ilEntry.nextMeetingIsNoChange && Math.abs(ilEntry.bpsYearEnd) < 10) continue;
+    if (ilEntry.nextMeetingIsNoChange && Math.abs(ilEntry.bpsYearEnd) < 5) continue;
 
-    const yearEndImplied = ccy === "CHF"
-      ? parseFloat((path.currentRate + ilEntry.bpsYearEnd / 100).toFixed(4))
-      : path.yearEndImplied;
+    // Giuseppe lit le STIR complet (toutes les réunions jusqu'en déc) et publie le cumul bps year-end.
+    // Le Rate Monitor Investing.com ne capture parfois que 2-3 réunions → yearEndImplied partiel.
+    // → On utilise toujours Giuseppe comme source authoritative pour le cumul fin d'année.
+    const yearEndImplied = parseFloat((path.currentRate + ilEntry.bpsYearEnd / 100).toFixed(4));
 
     let ilDelta: ILWeeklyDelta | undefined;
     const prevEntry = ilPrev[ccy];
@@ -370,13 +371,15 @@ export async function fetchAllCBPaths(): Promise<RateProbData> {
       ilDelta = {
         probDelta: parseFloat((ilEntry.nextMeetingProbPct - prevEntry.nextMeetingProbPct).toFixed(1)),
         bpsDelta:  ilEntry.bpsYearEnd - prevEntry.bpsYearEnd,
-        isCut:     !ilEntry.nextMeetingIsHike && !ilEntry.nextMeetingIsNoChange,
+        isCut:     ilEntry.bpsYearEnd < 0,
         prevDate,
       };
     }
 
     const ilProb    = ilEntry.nextMeetingProbPct;
-    const ilIsCut   = !ilEntry.nextMeetingIsHike && !ilEntry.nextMeetingIsNoChange;
+    // Direction basée sur le signe de bpsYearEnd (plus fiable que nextMeetingIsHike
+    // qui est faux quand Giuseppe dit "no change" à la prochaine réunion mais hausse year-end)
+    const ilIsCut   = ilEntry.bpsYearEnd < 0;
     const m0        = path.meetings[0];
     const stirProb  = m0?.probMovePct ?? 0;
 

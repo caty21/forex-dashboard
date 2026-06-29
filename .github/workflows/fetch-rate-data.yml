@@ -5,6 +5,9 @@ on:
     - cron: '0 * * * *'   # toutes les heures
   workflow_dispatch:        # déclenchement manuel
 
+permissions:
+  contents: write
+
 jobs:
   fetch:
     runs-on: ubuntu-latest
@@ -12,12 +15,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
 
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Fetch rate probabilities from rateprobability.com
+      - name: Fetch rate probabilities (CME FedWatch / Investing.com / InvestingLive)
         run: node .github/scripts/fetch-rate-data.mjs
 
       - name: Commit updated data (if changed)

@@ -62,8 +62,8 @@ interface Props {
   onCardTabChange?: (id: "overview" | "mispricing" | "focus") => void;
   syncSignauxSlide?: "ois" | "cot" | "sent";
   onSignauxSlideChange?: (id: "ois" | "cot" | "sent") => void;
-  syncOisChartTab?: "curve" | "implied" | "scenarios";
-  onOisChartTabChange?: (id: "curve" | "implied" | "scenarios") => void;
+  syncOisChartTab?: "curve" | "probas" | "meetings";
+  onOisChartTabChange?: (id: "curve" | "probas" | "meetings") => void;
   isLoading?: boolean;
 }
 
@@ -477,14 +477,25 @@ function SourcesPopup({ currency, onClose }: { currency: string; onClose: () => 
 // Bloc OIS enrichi : summary (Current Rate → Expected, Next Meeting, Most Likely/Alt)
 // + 3 onglets graphiques : Rate Curve / Implied Points / Scénarios
 
+const STIR_INSTRUMENT: Partial<Record<string, { instrument: string; exchange: string; convention: string; note?: string }>> = {
+  USD: { instrument: "SOFR 1M Futures",       exchange: "CME",      convention: "mensuel" },
+  EUR: { instrument: "€STR OIS Swaps",         exchange: "ECB / OTC", convention: "meeting-date", note: "Euribor 3M comme proxy liquide" },
+  GBP: { instrument: "SONIA 1M Futures",       exchange: "ICE",      convention: "mensuel" },
+  JPY: { instrument: "TONA OIS Swaps",         exchange: "OTC",      convention: "meeting-date", note: "Faible liquidité — proxy OSE TIBOR" },
+  CHF: { instrument: "SARON Futures",          exchange: "Eurex",    convention: "4×/an (trim.)" },
+  CAD: { instrument: "CORRA 1M Futures",       exchange: "MX",       convention: "mensuel" },
+  AUD: { instrument: "ASX 30-Day IB Futures",  exchange: "ASX",      convention: "mensuel" },
+  NZD: { instrument: "OIS NZD (swaps)", exchange: "ASX OTC / Bloomberg NDOIS1M", convention: "maturité exacte / réunion", note: "Pas de futures standardisés. RBNZ publie les probas dans ses MPS." },
+};
+
 function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange }: {
   ratePath: CBRatePath;
-  syncChartTab?: "curve" | "implied" | "scenarios";
-  onChartTabChange?: (id: "curve" | "implied" | "scenarios") => void;
+  syncChartTab?: "curve" | "probas" | "meetings";
+  onChartTabChange?: (id: "curve" | "probas" | "meetings") => void;
 }) {
-  const [localChartTab, setLocalChartTab] = useState<"curve" | "implied" | "scenarios">("scenarios");
+  const [localChartTab, setLocalChartTab] = useState<"curve" | "probas" | "meetings">("curve");
   const chartTab = syncChartTab ?? localChartTab;
-  const setChartTab = (id: "curve" | "implied" | "scenarios") => {
+  const setChartTab = (id: "curve" | "probas" | "meetings") => {
     setLocalChartTab(id);
     onChartTabChange?.(id);
   };
@@ -549,71 +560,38 @@ function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange }: {
   const maxR = Math.max(...allRates);
   const yMargin = Math.max(0.05, (maxR - minR) * 0.25);
 
+  // Shared for Réunions tab
+  const maxR2 = Math.max(...scenariosData.map(d => d.rate), currentRate);
+  const minR2 = Math.min(...scenariosData.map(d => d.rate), currentRate) - 0.05;
+  const range  = maxR2 - minR2 || 0.25;
+
+  // Probas tab
+  const probValues     = chartMeetings.map(m => m.probMovePct);
+  const pMin           = Math.max(0,   Math.min(...probValues) - 12);
+  const pMax           = Math.min(100, Math.max(...probValues) + 12);
+  const peakIsCut      = !!ratePath.peakMeeting?.probIsCut;
+  const probGradId     = `oisProbGrad_${ratePath.currency}`;
+  const probGradColor  = peakIsCut ? "#38bdf8" : "#f59e0b";
+  const probaData      = chartMeetings.map(m => ({ label: m.label.slice(0, 6), prob: m.probMovePct, isCut: m.probIsCut, impliedRate: m.impliedRate, bps: m.changeBps }));
+
   return (
     <div className="rounded-xl border border-slate-700/30 overflow-hidden">
 
-      {/* ── Summary compact ───────────────────────────────────────────────── */}
-      <div className="bg-slate-800/40 px-3 pt-2 pb-2">
-        {/* Ligne 1 : titre + date */}
-        <div className="flex items-center justify-between mb-1.5">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">OIS · Futures</span>
-            <span className="text-[7px] font-bold px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">LIVE</span>
-          </div>
-          <span className="text-[9px] text-slate-600">au {ratePath.asOf}</span>
-        </div>
-
-        {/* Ligne 2 : taux actuel → résultat attendu prochaine réunion + Δ fin an */}
-        <div className="flex items-baseline gap-2 mb-2">
-          <span className="text-[17px] font-black text-slate-200 tabular-nums shrink-0">{currentRate.toFixed(2)}%</span>
-          <span className="text-[9px] text-slate-600 shrink-0">→</span>
-          <div className="flex items-baseline gap-1 min-w-0">
-            <span className={`text-[13px] font-bold shrink-0 ${moveCls}`}>{moveIcon} {moveLabel}</span>
-            <span className="text-[9px] text-slate-500 shrink-0">{m0.label}</span>
-            {isMoveExpected && (
-              <span className={`text-[10px] font-semibold tabular-nums shrink-0 ${bpsCls}`}>
-                ({m0.changeBps > 0 ? "+" : ""}{Math.round(m0.changeBps)}bps)
-              </span>
-            )}
-          </div>
-          {bpsYE !== null && (
-            <div className="ml-auto text-right shrink-0">
-              <div className={`text-[15px] font-black tabular-nums leading-none ${bpsCls}`}>
-                {bpsYE > 0 ? "+" : ""}{bpsYE}<span className="text-[8px] ml-0.5">bps</span>
-              </div>
-              <div className="text-[7px] text-slate-600 mt-0.5">fin an</div>
-            </div>
-          )}
-        </div>
-
-        {/* Ligne 3 : barre proba scénario principal */}
-        <div className="flex items-center gap-1.5">
-          <span className={`text-[9px] font-bold shrink-0 w-8 ${mlIsMove ? moveCls : "text-slate-400"}`}>
-            {mlIsMove ? moveLabel : "Hold"}
-          </span>
-          <div className="flex-1 bg-slate-700/40 rounded-full h-1.5 overflow-hidden">
-            <div
-              className={`h-full rounded-full ${mlIsMove ? (m0.probIsCut ? "bg-sky-500" : "bg-red-500") : "bg-amber-500/70"}`}
-              style={{ width: `${mlProb}%` }}
-            />
-          </div>
-          <span className="text-[9px] font-semibold text-slate-300 tabular-nums shrink-0">{Math.round(mlProb)}%</span>
-          <span className="text-[9px] text-slate-500 tabular-nums shrink-0">{mlRate.toFixed(2)}%</span>
-        </div>
-        {/* Scénario alternatif seulement si proba ≥ 15% */}
-        {altProb >= 15 && (
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="text-[9px] text-slate-600 shrink-0 w-8">{altIsMove ? moveLabel : "Hold"}</span>
-            <div className="flex-1 bg-slate-700/40 rounded-full h-1 overflow-hidden">
-              <div
-                className={`h-full rounded-full opacity-40 ${altIsMove ? (m0.probIsCut ? "bg-sky-400" : "bg-red-400") : "bg-slate-500"}`}
-                style={{ width: `${altProb}%` }}
-              />
-            </div>
-            <span className="text-[9px] text-slate-600 tabular-nums shrink-0">{Math.round(altProb)}%</span>
-            <span className="text-[9px] text-slate-700 tabular-nums shrink-0">{altRate.toFixed(2)}%</span>
-          </div>
+      {/* ── Summary — ligne unique ────────────────────────────────────────── */}
+      <div className="bg-slate-800/40 px-3 py-2 flex items-center gap-2">
+        <span className={`text-[14px] font-black shrink-0 ${moveCls}`}>{moveIcon} {moveLabel}</span>
+        <span className={`text-[12px] font-bold tabular-nums shrink-0 ${mlIsMove ? moveCls : "text-slate-400"}`}>{Math.round(mlProb)}%</span>
+        {isMoveExpected && (
+          <span className="text-[9px] text-slate-500 tabular-nums shrink-0 font-mono">({m0.changeBps > 0 ? "+" : ""}{Math.round(m0.changeBps)}bps)</span>
         )}
+        {/* Alt seulement si scénario différent (évite "Hold 70% · Hold 30%") */}
+        {altProb >= 15 && altIsMove !== mlIsMove && (
+          <>
+            <span className="text-[8px] text-slate-700 shrink-0">·</span>
+            <span className="text-[9px] text-slate-500 shrink-0">{Math.round(altProb)}% {altIsMove ? moveLabel : "Hold"}</span>
+          </>
+        )}
+        <span className="ml-auto text-[7px] text-slate-700 shrink-0">au {ratePath.asOf}</span>
       </div>
 
       {/* ── Chart section ─────────────────────────────────────────────────── */}
@@ -621,9 +599,9 @@ function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange }: {
         {/* Tab buttons */}
         <div className="flex gap-1 mb-2">
           {([
-            { id: "scenarios" as const, label: "Probabilités" },
-            { id: "curve"     as const, label: "Rate Path" },
-            { id: "implied"   as const, label: "Implied Pts" },
+            { id: "curve"    as const, label: "Courbe" },
+            { id: "probas"   as const, label: "Probabilités" },
+            { id: "meetings" as const, label: "Réunions" },
           ]).map(t => (
             <button
               key={t.id}
@@ -660,215 +638,195 @@ function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange }: {
               {/* dashed reference = current rate floor */}
               <span className="flex items-center gap-1 text-[8px] text-slate-600 ml-auto">
                 <span className="inline-block w-5 border-t border-dashed border-slate-600" />
-                Taux actuel
+                <span className="font-mono font-semibold text-slate-400">{currentRate.toFixed(2)}%</span>
+                <span className="text-slate-600">Taux actuel</span>
               </span>
             </div>
-            <ResponsiveContainer width="100%" height={130}>
-              <LineChart data={rateCurveData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
-                <XAxis dataKey="label" tick={{ fontSize: 7, fill: "#64748b" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-                <YAxis tick={{ fontSize: 7, fill: "#64748b" }} axisLine={false} tickLine={false} width={32}
+            <ResponsiveContainer width="100%" height={135}>
+              <LineChart data={rateCurveData} margin={{ top: 6, right: 6, left: 2, bottom: 0 }}>
+                <defs>
+                  <filter id={`glow_${ratePath.currency}`} x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="2" result="blur" />
+                    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                  </filter>
+                </defs>
+                <XAxis dataKey="label" tick={{ fontSize: 7, fill: "#475569" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                <YAxis
+                  tick={{ fontSize: 7, fill: "#475569" }}
+                  axisLine={false} tickLine={false} width={38}
                   domain={[minR - yMargin, maxR + yMargin]}
-                  tickFormatter={(v: number) => v.toFixed(2)} />
-                <ReferenceLine y={currentRate} stroke="#475569" strokeDasharray="3 3" strokeWidth={1} />
+                  tickFormatter={(v: number) => `${v.toFixed(2)}%`}
+                />
+                <ReferenceLine y={currentRate} stroke="#334155" strokeDasharray="4 3" strokeWidth={1} />
                 <Tooltip
                   content={({ label, payload }) => {
                     if (!payload?.length) return null;
+                    const cur  = (payload as {dataKey:string;value:number}[]).find(p => p.dataKey === "current");
+                    const prev = (payload as {dataKey:string;value:number}[]).find(p => p.dataKey === "weekAgo");
+                    const delta = cur && prev ? cur.value - prev.value : null;
                     return (
-                      <div style={{ background: "rgba(10,18,35,0.97)", border: "1px solid rgba(71,85,105,0.6)", borderRadius: 8, padding: "6px 10px", minWidth: 90 }}>
-                        <p style={{ color: "#64748b", fontSize: 8, margin: "0 0 5px", textTransform: "uppercase", letterSpacing: "0.08em" }}>{label}</p>
-                        {(payload as {dataKey: string; value: number; stroke: string}[]).map(p => (
-                          <p key={p.dataKey} style={{ color: p.stroke, fontSize: 11, fontWeight: 800, margin: "1px 0", fontVariantNumeric: "tabular-nums" }}>
-                            {p.dataKey === "current" ? "●" : "···"} {(p.value as number).toFixed(3)}%
-                          </p>
-                        ))}
+                      <div style={{ background: "rgba(8,14,28,0.97)", border: "1px solid #1e293b", borderRadius: 10, padding: "8px 12px", minWidth: 120, boxShadow: "0 4px 24px rgba(0,0,0,0.5)" }}>
+                        <p style={{ color: "#475569", fontSize: 8, margin: "0 0 6px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>{label}</p>
+                        {cur && (
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: prev ? 3 : 0 }}>
+                            <span style={{ color: "#94a3b8", fontSize: 8 }}>Actuel</span>
+                            <span style={{ color: "#e2e8f0", fontSize: 12, fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{cur.value.toFixed(3)}%</span>
+                          </div>
+                        )}
+                        {prev && (
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                            <span style={{ color: "#78716c", fontSize: 8 }}>Sem. préc.</span>
+                            <span style={{ color: "#f59e0b", fontSize: 11, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{prev.value.toFixed(3)}%</span>
+                          </div>
+                        )}
+                        {delta !== null && (
+                          <>
+                            <div style={{ borderTop: "1px solid #1e293b", margin: "5px 0 4px" }} />
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                              <span style={{ color: "#475569", fontSize: 8 }}>Δ sem.</span>
+                              <span style={{ color: delta > 0.0001 ? "#f87171" : delta < -0.0001 ? "#38bdf8" : "#64748b", fontSize: 9, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
+                                {delta > 0 ? "+" : ""}{(delta * 100).toFixed(1)} bps
+                              </span>
+                            </div>
+                          </>
+                        )}
                       </div>
                     );
                   }}
                 />
-                <Line type="stepAfter" dataKey="current" stroke="#e2e8f0" strokeWidth={2} dot={{ r: 2.5, fill: "#e2e8f0" }} name="current" />
+                <Line type="stepAfter" dataKey="current" stroke="#cbd5e1" strokeWidth={2}
+                  dot={{ r: 3, fill: "#1e293b", stroke: "#cbd5e1", strokeWidth: 1.5 }}
+                  activeDot={{ r: 4, fill: "#cbd5e1", strokeWidth: 0 }} />
                 {hasPrevCurve && (
-                  <Line type="stepAfter" dataKey="weekAgo" stroke="#f59e0b" strokeWidth={1.5} dot={{ r: 2, fill: "#f59e0b" }} strokeDasharray="4 2" name="weekAgo" />
+                  <Line type="stepAfter" dataKey="weekAgo" stroke="#f59e0b" strokeWidth={1.5}
+                    strokeDasharray="5 3"
+                    dot={{ r: 2.5, fill: "#1e293b", stroke: "#f59e0b", strokeWidth: 1.5 }}
+                    activeDot={{ r: 3.5, fill: "#f59e0b", strokeWidth: 0 }} />
                 )}
               </LineChart>
             </ResponsiveContainer>
           </div>
         )}
 
-        {/* Chart 2 — Implied Points (bps cumulatifs par réunion) */}
-        {chartTab === "implied" && (
+        {/* Probas — AreaChart probabilité de move par réunion */}
+        {chartTab === "probas" && (
           <div>
-            {/* Légende couleurs barres */}
-            <div className="flex items-center gap-3 mb-1.5">
-              <span className="text-[8px] text-slate-500">Implied Points (bps par réunion)</span>
-              <div className="flex items-center gap-2 ml-auto">
-                <span className="flex items-center gap-1 text-[8px] text-emerald-400">
-                  <span className="inline-block w-2 h-2 rounded-sm bg-emerald-400/80" /> Hausse
-                </span>
-                <span className="flex items-center gap-1 text-[8px] text-pink-400">
-                  <span className="inline-block w-2 h-2 rounded-sm bg-pink-400/80" /> Baisse
-                </span>
-              </div>
-            </div>
-            <ResponsiveContainer width="100%" height={120}>
-              <BarChart data={impliedPtsData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
+            <ResponsiveContainer width="100%" height={100}>
+              <AreaChart data={probaData} margin={{ top: 4, right: 4, left: -4, bottom: 0 }}>
+                <defs>
+                  <linearGradient id={probGradId} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor={probGradColor} stopOpacity={0.25} />
+                    <stop offset="95%" stopColor={probGradColor} stopOpacity={0}    />
+                  </linearGradient>
+                </defs>
                 <XAxis dataKey="label" tick={{ fontSize: 7, fill: "#64748b" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-                <YAxis tick={{ fontSize: 7, fill: "#64748b" }} axisLine={false} tickLine={false} width={36}
-                  tickFormatter={(v: number) => `${v}bps`} />
-                <ReferenceLine y={0} stroke="#334155" strokeWidth={0.5} />
+                <YAxis tick={{ fontSize: 7, fill: "#64748b" }} axisLine={false} tickLine={false} width={30}
+                  domain={[pMin, pMax]} tickFormatter={(v: number) => `${v}%`} />
+                <ReferenceLine y={50} stroke="#334155" strokeDasharray="4 3" strokeWidth={1} />
+                <Area type="monotone" dataKey="prob" stroke={probGradColor} strokeWidth={1.5}
+                  fill={`url(#${probGradId})`} dot={{ r: 2.5, fill: probGradColor, strokeWidth: 0 }} activeDot={{ r: 3.5, fill: probGradColor }} />
                 <Tooltip
                   content={({ label, payload }) => {
                     if (!payload?.length) return null;
                     const v = payload[0]?.value as number;
+                    const m = probaData.find(d => d.label === label);
+                    const bpsRaw = m ? Math.round(m.bps) : 0;
+                    const deltaStr = bpsRaw !== 0 ? `${bpsRaw > 0 ? "+" : ""}${bpsRaw} bps` : null;
                     return (
-                      <div style={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 6, padding: "4px 8px" }}>
-                        <p style={{ color: "#ffffff", fontSize: 9, margin: 0 }}>{label}</p>
-                        <p style={{ color: "#ffffff", fontSize: 9, margin: "2px 0 0" }}>
-                          Implied&nbsp;: {v > 0 ? "+" : ""}{typeof v === "number" ? v.toFixed(1) : "—"}bps
+                      <div style={{ background: "rgba(8,15,30,0.98)", border: "1px solid #1e293b", borderRadius: 8, padding: "6px 10px", minWidth: 120 }}>
+                        <p style={{ color: "#94a3b8", fontSize: 9, margin: "0 0 4px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>{label}</p>
+                        <p style={{ color: probGradColor, fontSize: 11, margin: 0, fontWeight: 700 }}>
+                          {v.toFixed(0)}%{" "}
+                          <span style={{ fontSize: 9, fontWeight: 400, opacity: 0.8 }}>{m?.isCut ? "Baisse" : "Hausse"}</span>
                         </p>
+                        <div style={{ borderTop: "1px solid #1e293b", margin: "5px 0 4px" }} />
+                        <p style={{ color: "#475569", fontSize: 8, margin: "0 0 2px" }}>Taux cible : <span style={{ color: "#64748b" }}>{m?.impliedRate.toFixed(2)}%</span></p>
+                        {deltaStr && <p style={{ color: "#475569", fontSize: 8, margin: 0 }}>Variation : <span style={{ color: "#64748b" }}>{deltaStr}</span></p>}
                       </div>
                     );
                   }}
                 />
-                <Bar dataKey="bps" radius={[2, 2, 0, 0]}>
-                  {impliedPtsData.map((entry, i) => (
-                    <Cell key={i} fill={entry.bps < 0 ? "#f472b6" : entry.bps > 0 ? "#4ade80" : "#475569"} fillOpacity={0.8} />
-                  ))}
-                </Bar>
-              </BarChart>
+              </AreaChart>
             </ResponsiveContainer>
+            {ratePath.peakMeeting && (
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-[9px] text-slate-500">Pic : <span className="text-slate-300 font-semibold">{ratePath.peakMeeting.label}</span></span>
+                <span className={`text-[9px] font-bold ${peakIsCut ? "text-sky-400" : "text-red-400"}`}>
+                  {ratePath.peakMeeting.probMovePct.toFixed(0)}% {peakIsCut ? "Baisse" : "Hausse"}
+                </span>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Chart 3 — Probabilités : AreaChart auto-scale + résumé + liste réunions */}
-        {chartTab === "scenarios" && (() => {
-          const probValues = chartMeetings.map(m => m.probMovePct);
-          const pMin = Math.max(0,   Math.min(...probValues) - 12);
-          const pMax = Math.min(100, Math.max(...probValues) + 12);
-          const maxR2 = Math.max(...scenariosData.map(d => d.rate), currentRate);
-          const minR2 = Math.min(...scenariosData.map(d => d.rate), currentRate) - 0.05;
-          const range = maxR2 - minR2 || 0.25;
-          const peakIsCut = !!ratePath.peakMeeting?.probIsCut;
-          const gradId = `probGrad_${currency}`;
-          const gradColor = peakIsCut ? "#38bdf8" : "#f59e0b";
-          return (
-            <div>
-              {/* Graphique AreaChart auto-scale */}
-              <ResponsiveContainer width="100%" height={90}>
-                <AreaChart
-                  data={chartMeetings.map(m => ({ label: m.label, prob: m.probMovePct, isCut: m.probIsCut, impliedRate: m.impliedRate }))}
-                  margin={{ top: 4, right: 4, left: -22, bottom: 0 }}
-                >
-                  <defs>
-                    <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor={gradColor} stopOpacity={0.25} />
-                      <stop offset="95%" stopColor={gradColor} stopOpacity={0}    />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="label" tick={{ fontSize: 7, fill: "#64748b" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-                  <YAxis tick={{ fontSize: 7, fill: "#64748b" }} axisLine={false} tickLine={false} width={26}
-                    domain={[pMin, pMax]} tickFormatter={(v: number) => `${v}%`} />
-                  <ReferenceLine y={50} stroke="#334155" strokeDasharray="4 3" strokeWidth={1} />
-                  <Area type="monotone" dataKey="prob" stroke={gradColor} strokeWidth={1.5}
-                    fill={`url(#${gradId})`} dot={{ r: 2.5, fill: gradColor, strokeWidth: 0 }} activeDot={{ r: 3.5, fill: gradColor }} />
-                  <Tooltip
-                    content={({ label, payload }) => {
-                      if (!payload?.length) return null;
-                      const v = payload[0]?.value as number;
-                      const m = chartMeetings.find(m => m.label === label);
-                      const bpsCum = m ? Math.round((m.impliedRate - currentRate) * 100) : 0;
-                      return (
-                        <div style={{ background: "rgba(10,18,35,0.97)", border: "1px solid #334155", borderRadius: 7, padding: "5px 9px" }}>
-                          <p style={{ color: "#94a3b8", fontSize: 9, margin: 0, fontWeight: 600 }}>{label}</p>
-                          <p style={{ color: gradColor, fontSize: 9, margin: "2px 0 0" }}>Prob : {v.toFixed(0)}% {m?.probIsCut ? "Cut" : "Hike"}</p>
-                          <p style={{ color: "#64748b", fontSize: 8, margin: "1px 0 0" }}>
-                            {m?.impliedRate.toFixed(2)}% {bpsCum !== 0 ? `(${bpsCum > 0 ? "+" : ""}${bpsCum}bps)` : ""}
-                          </p>
-                        </div>
-                      );
-                    }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-
-              {/* Résumé compact : pic · proba · bps fin an · delta IL */}
-              {ratePath.peakMeeting && (
-                <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-                  <span className="text-[9px] text-slate-500">Pic&nbsp;:&nbsp;<span className="text-slate-300 font-semibold">{ratePath.peakMeeting.label}</span></span>
-                  <span className={`text-[10px] font-bold ${peakIsCut ? "text-sky-400" : "text-red-400"}`}>
-                    {ratePath.peakMeeting.probMovePct.toFixed(0)}% {peakIsCut ? "Cut" : "Hike"}
-                  </span>
-                  {bpsYE !== null && (
-                    <span className={`text-[10px] font-bold ml-auto ${bpsCls}`} title={`→ ${yearEndImplied?.toFixed(2)}%`}>
-                      {bpsYE > 0 ? "+" : ""}{bpsYE}bps fin&nbsp;an
-                    </span>
-                  )}
-                  {ilDelta && (Math.abs(ilDelta.probDelta) >= 3 || Math.abs(ilDelta.bpsDelta) >= 5) && (
-                    <span className="text-[9px] text-slate-600 flex items-center gap-1 w-full">
-                      <span title={`vs article du ${prevCurveLabel ?? ilDelta.prevDate}`}>vs sem. préc. :</span>
-                      <RpArrow delta={ilDelta.probDelta} isBearishIfPositive={ilDelta.isCut} suffix="%" strongT={10} modT={3} />
-                      {ilDelta.bpsDelta !== 0 && (
-                        <RpArrow delta={ilDelta.bpsDelta} isBearishIfPositive={true} suffix="bps" strongT={25} modT={5} />
-                      )}
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* Liste des réunions */}
-              <div className="mt-2 pt-2 border-t border-slate-700/30 space-y-[3px]">
-                {scenariosData.map(d => {
-                  const isPeak   = ratePath.peakMeeting?.dateIso === d.dateIso;
-                  const isDown   = d.rate < currentRate - 0.001;
-                  const isUp     = d.rate > currentRate + 0.001;
-                  const barColor = isDown ? "#38bdf8" : isUp ? "#f87171" : "#f59e0b";
-                  const barW     = Math.max(4, Math.min(100, ((d.rate - minR2) / range) * 100));
-                  const cumBps   = d.cumulBps;
-                  const cumStr   = cumBps === 0 ? null : `${cumBps > 0 ? "+" : ""}${cumBps}`;
-                  return (
-                    <div key={d.label}
-                      className={`flex items-center gap-1.5 rounded-md px-1 py-[2px] ${isPeak ? "bg-amber-500/8" : ""}`}
-                    >
-                      <span className={`text-[8px] w-[34px] shrink-0 tabular-nums font-mono ${isPeak ? "text-amber-300 font-bold" : "text-slate-500"}`}>
-                        {d.label}
-                      </span>
-                      <div className="flex-1 bg-slate-700/25 rounded-full h-[5px] overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: `${barW}%`, backgroundColor: barColor, opacity: 0.7 }} />
-                      </div>
-                      <span className={`text-[8px] font-mono w-9 text-right shrink-0 ${isPeak ? "text-slate-200" : "text-slate-400"}`}>
-                        {d.rate.toFixed(2)}%
-                      </span>
-                      {cumStr && (
-                        <span className={`text-[7px] font-semibold w-9 text-right shrink-0 ${isDown ? "text-sky-500" : "text-red-400"}`}>
-                          {cumStr}bps
-                        </span>
-                      )}
+        {/* Réunions — tableau taux implicites par meeting */}
+        {chartTab === "meetings" && (
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[7px] text-slate-600 uppercase tracking-wider">Réunions</span>
+              <span className="text-[7px] text-slate-700">proba · Δbps · taux</span>
+            </div>
+            <div className="space-y-[2px]">
+              {scenariosData.map(d => {
+                const isDown  = d.rate < currentRate - 0.001;
+                const isUp    = d.rate > currentRate + 0.001;
+                const isFlat  = !isDown && !isUp;
+                const probPct = Math.round(Math.min(100, Math.abs(d.prob)));
+                const bpsRaw  = Math.round(d.cumulBps);
+                const bpsStr  = isFlat ? "Hold" : `${bpsRaw > 0 ? "+" : ""}${bpsRaw}bps`;
+                const bpsColor = isDown ? "text-sky-400" : isUp ? "text-red-400" : "text-slate-600";
+                const barColor = isDown ? "bg-sky-500/55" : isUp ? "bg-red-500/55" : "bg-slate-700/40";
+                const isPeak  = ratePath.peakMeeting?.dateIso === d.dateIso;
+                return (
+                  <div key={d.dateIso} className={`flex items-center gap-1.5 px-1 py-[2px] rounded ${isPeak ? "bg-amber-500/8" : "hover:bg-slate-700/10"}`}>
+                    <span className={`text-[8px] w-[30px] shrink-0 font-mono tabular-nums ${isPeak ? "text-amber-300 font-bold" : "text-slate-500"}`}>{d.label}</span>
+                    <div className="flex-1 bg-slate-700/20 rounded-full h-[4px] overflow-hidden">
+                      <div className={`h-full rounded-full ${barColor}`} style={{ width: `${probPct}%` }} />
                     </div>
-                  );
-                })}
-              </div>
+                    <span className="text-[8px] text-slate-400 w-[24px] text-right tabular-nums shrink-0">{probPct}%</span>
+                    <span className={`text-[8px] font-mono font-semibold w-[44px] text-right shrink-0 ${bpsColor}`}>{bpsStr}</span>
+                    <span className={`text-[8px] font-mono w-[38px] text-right shrink-0 ${isPeak ? "text-slate-200" : "text-slate-500"}`}>{d.rate.toFixed(2)}%</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      {/* ── IL footer (analyste InvestingLive) + source STIR ───────────────── */}
+      <div className="border-t border-slate-700/40 bg-slate-900/30 px-3 py-1.5 space-y-1">
+        {ilCurrent && (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[9px] text-slate-600 italic shrink-0">
+              Analyste · {ilCurrent.articleDate} ·{" "}
+              <span className={ilCurrent.bpsYearEnd < 0 ? "text-sky-400" : ilCurrent.bpsYearEnd > 0 ? "text-red-400" : "text-slate-400"}>
+                {ilCurrent.bpsYearEnd === 0
+                  ? "Hold"
+                  : `${ilCurrent.bpsYearEnd > 0 ? "+" : ""}${ilCurrent.bpsYearEnd}bps fin an`}
+              </span>
+            </span>
+            {ratePath.ilDelta && (Math.abs(ratePath.ilDelta.probDelta) >= 3 || Math.abs(ratePath.ilDelta.bpsDelta) >= 5) && (
+              <span className="text-[9px] text-slate-500 flex items-center gap-1 shrink-0">
+                Δsem:
+                <RpArrow delta={ratePath.ilDelta.probDelta} isBearishIfPositive={ratePath.ilDelta.isCut} suffix="%" strongT={10} modT={3} />
+                <RpArrow delta={ratePath.ilDelta.bpsDelta}  isBearishIfPositive={true} suffix="bps" strongT={25} modT={5} />
+              </span>
+            )}
+          </div>
+        )}
+        {(() => {
+          const stir = STIR_INSTRUMENT[ratePath.currency];
+          if (!stir) return null;
+          return (
+            <div className="text-[7px] text-slate-700">
+              {stir.instrument} · {stir.exchange} · {stir.convention}
+              {stir.note && <span className="ml-1 text-slate-800">— {stir.note}</span>}
             </div>
           );
         })()}
       </div>
-
-      {/* ── IL footer (analyste InvestingLive) ────────────────────────────── */}
-      {ilCurrent && (
-        <div className="border-t border-slate-700/40 bg-slate-900/30 px-3 py-1.5 flex items-center justify-between gap-2">
-          <span className="text-[9px] text-slate-600 italic shrink-0">
-            Analyste · {ilCurrent.articleDate} ·{" "}
-            <span className={ilCurrent.isCut ? "text-sky-400" : ilCurrent.isNoChange ? "text-slate-400" : "text-red-400"}>
-              {ilCurrent.isNoChange ? "Hold" : `${ilCurrent.isCut ? "" : "+"}${ilCurrent.bpsYearEnd}bps`}
-            </span>
-          </span>
-          {ratePath.ilDelta && (Math.abs(ratePath.ilDelta.probDelta) >= 3 || Math.abs(ratePath.ilDelta.bpsDelta) >= 5) && (
-            <span className="text-[9px] text-slate-500 flex items-center gap-1 shrink-0">
-              Δsem:
-              <RpArrow delta={ratePath.ilDelta.probDelta} isBearishIfPositive={ratePath.ilDelta.isCut} suffix="%" strongT={10} modT={3} />
-              <RpArrow delta={ratePath.ilDelta.bpsDelta}  isBearishIfPositive={true} suffix="bps" strongT={25} modT={5} />
-            </span>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -922,21 +880,34 @@ export default function CurrencyCard({
 
   // ── Data fetch ───────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
-    setLoading(true);
     const cacheKey = `macro_${currency}`;
+
+    // Affiche le cache immédiatement — pas de skeleton si données dispos
+    const cached = loadCache<MacroData>(cacheKey);
+    if (cached) {
+      setData(cached.data);
+      setFromCache(true);
+      setCacheAge(formatCacheDate(cached.savedAt));
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
+    // Refetch en arrière-plan (10s timeout)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     try {
-      const res = await fetch(`/api/macro?currency=${currency}`);
+      const res = await fetch(`/api/macro?currency=${currency}`, { signal: controller.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json: MacroData = await res.json();
       if ("error" in json) throw new Error(String((json as Record<string,unknown>).error));
 
-      const prevCache = loadCache<MacroData>(cacheKey);
       const merged: MacroData = {
         ...json,
         indicators: {
           ...json.indicators,
-          pmiMfg:      json.indicators.pmiMfg      ?? prevCache?.data.indicators.pmiMfg      ?? null,
-          pmiServices: json.indicators.pmiServices ?? prevCache?.data.indicators.pmiServices ?? null,
+          pmiMfg:      json.indicators.pmiMfg      ?? cached?.data.indicators.pmiMfg      ?? null,
+          pmiServices: json.indicators.pmiServices ?? cached?.data.indicators.pmiServices ?? null,
         },
       };
       setData(merged);
@@ -944,13 +915,9 @@ export default function CurrencyCard({
       setCacheAge(null);
       saveCache(cacheKey, merged);
     } catch {
-      const cached = loadCache<MacroData>(cacheKey);
-      if (cached) {
-        setData(cached.data);
-        setFromCache(true);
-        setCacheAge(formatCacheDate(cached.savedAt));
-      }
+      // Echec fetch : le cache déjà affiché reste visible
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   }, [currency]);
@@ -1747,7 +1714,7 @@ export default function CurrencyCard({
                 {(() => {
                   // OIS est toujours présent (même si données indisponibles)
                   const sigTabs: { id: SignauxSlide; label: string }[] = [
-                    { id: "ois", label: "OIS" },
+                    { id: "ois", label: "Taux" },
                   ];
                   if (cot)       sigTabs.push({ id: "cot",  label: "COT" });
                   if (sentiment) sigTabs.push({ id: "sent", label: "DXM" });
@@ -2043,20 +2010,6 @@ export default function CurrencyCard({
                                     <div className="text-center shrink-0">
                                       <div className="text-[9px] text-slate-400 mb-0.5">Short</div>
                                       <div className="text-[26px] font-black tabular-nums text-red-400 leading-none">{sentiment.shortPct.toFixed(0)}%</div>
-                                    </div>
-                                  </div>
-                                  <div className={`rounded-lg border px-3 py-2 ${sentBg}`}>
-                                    <div className={`text-[11px] font-bold ${sentCls}`}>
-                                      {sentDir === "bullish"
-                                        ? `Signal contrarian HAUSSIER — majorité short (${sentiment.shortPct.toFixed(0)}%)`
-                                        : sentDir === "bearish"
-                                        ? `Signal contrarian BAISSIER — majorité long (${sentiment.longPct.toFixed(0)}%)`
-                                        : "Sentiment équilibré — pas de signal contrarian"}
-                                    </div>
-                                    <div className="text-[9px] text-slate-500 mt-0.5">
-                                      {sentDir === "bullish" ? "Retail survendu → opportunité d'achat"
-                                        : sentDir === "bearish" ? "Retail suracheté → opportunité de vente"
-                                        : "Attendre un déséquilibre >70/30"}
                                     </div>
                                   </div>
                                 </div>
