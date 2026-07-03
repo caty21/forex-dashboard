@@ -7,11 +7,11 @@
           {
             "meeting": "Dec",
             "meeting_iso": "2026-12-31",
-            "implied_rate_post_meeting": 4.64,
-            "prob_move_pct": 30,
+            "implied_rate_post_meeting": 4.03,
+            "prob_move_pct": 0,
             "prob_is_cut": false,
-            "change_bps": 31,
-            "num_moves": 1.24
+            "change_bps": -30,
+            "num_moves": 1.2
           }
         ]
       }
@@ -23,11 +23,11 @@
           {
             "meeting": "Dec",
             "meeting_iso": "2026-12-31",
-            "implied_rate_post_meeting": 2.13,
+            "implied_rate_post_meeting": 2.16,
             "prob_move_pct": 0,
             "prob_is_cut": false,
-            "change_bps": -27,
-            "num_moves": 1.08
+            "change_bps": -24,
+            "num_moves": 0.96
           }
         ]
       }
@@ -39,11 +39,11 @@
           {
             "meeting": "Dec",
             "meeting_iso": "2026-12-31",
-            "implied_rate_post_meeting": 3.55,
+            "implied_rate_post_meeting": 3.57,
             "prob_move_pct": 0,
             "prob_is_cut": false,
-            "change_bps": -20,
-            "num_moves": 0.8
+            "change_bps": -18,
+            "num_moves": 0.72
           }
         ]
       }
@@ -55,11 +55,11 @@
           {
             "meeting": "Dec",
             "meeting_iso": "2026-12-31",
-            "implied_rate_post_meeting": 0.31,
+            "implied_rate_post_meeting": 0.3,
             "prob_move_pct": 0,
             "prob_is_cut": false,
-            "change_bps": -19,
-            "num_moves": 0.76
+            "change_bps": -20,
+            "num_moves": 0.8
           }
         ]
       }
@@ -71,11 +71,11 @@
           {
             "meeting": "Dec",
             "meeting_iso": "2026-12-31",
-            "implied_rate_post_meeting": 2.07,
+            "implied_rate_post_meeting": 2.17,
             "prob_move_pct": 0,
             "prob_is_cut": false,
-            "change_bps": -18,
-            "num_moves": 0.72
+            "change_bps": -8,
+            "num_moves": 0.32
           }
         ]
       }
@@ -87,11 +87,11 @@
           {
             "meeting": "Dec",
             "meeting_iso": "2026-12-31",
-            "implied_rate_post_meeting": 4.02,
+            "implied_rate_post_meeting": 3.9999999999999996,
             "prob_move_pct": 0,
             "prob_is_cut": false,
-            "change_bps": -8,
-            "num_moves": 0.32
+            "change_bps": -10,
+            "num_moves": 0.4
           }
         ]
       }
@@ -103,11 +103,11 @@
           {
             "meeting": "Dec",
             "meeting_iso": "2026-12-31",
-            "implied_rate_post_meeting": 2.8,
-            "prob_move_pct": 62,
+            "implied_rate_post_meeting": 2.87,
+            "prob_move_pct": 82,
             "prob_is_cut": false,
-            "change_bps": 55,
-            "num_moves": 2.2
+            "change_bps": 62,
+            "num_moves": 2.48
           }
         ]
       }
@@ -129,6 +129,6 @@
       }
     }
   },
-  "fetchedAt": "2026-07-03T09:50:34.333Z",
+  "fetchedAt": "2026-07-03T12:01:40.632Z",
   "snapshots": []
 }
