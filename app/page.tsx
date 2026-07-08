@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { RefreshCw, Database, Activity, Maximize2, Minimize2, X, BarChart2 } from "lucide-react";
+import { RefreshCw, Database, Maximize2, Minimize2, X, BarChart2 } from "lucide-react";
 import { CURRENCIES, CURRENCY_META } from "@/lib/constants";
 import type { Currency, DriverData, SentimentEntry, SentimentPair, CotEntry, MacroSection } from "@/lib/types";
 import type { RateProbData } from "@/lib/rateprobability";
@@ -300,10 +300,8 @@ export default function Dashboard() {
       {/* Header */}
       <header className="flex items-center justify-between mb-4 bg-slate-950/80 border border-slate-800 rounded-xl px-5 py-3">
         <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-lg bg-amber-500 flex items-center justify-center shrink-0">
-            <Activity size={15} className="text-black" />
-          </div>
-          <div>
+          <img src="/icon.png" alt="" width={40} height={40} className="w-10 h-10 rounded-xl shrink-0" />
+          <div className="flex items-center h-10">
             <span className="text-sm font-bold text-white tracking-tight" suppressHydrationWarning>
               {new Date().getHours() < 18 ? "Bonjour" : "Bonsoir"} 👋
             </span>
