@@ -9,10 +9,13 @@
 // Les autres banques (ECB, BoJ, SNB, BoC, RBA, RBNZ) exposent au minimum les
 // liens statiques (site officiel + dernier rapport connu) ; scraping vote/PDF
 // ajouté au fur et à mesure de ce qui est effectivement accessible sans
-// contournement de WAF (RBA/RBNZ bloquent tout fetch() non-navigateur).
+// contournement de WAF (RBA bloque tout fetch() non-navigateur sans header
+// custom ; RBNZ bloque ses pages génériques mais pas son sitemap.xml ni les
+// pages/PDF individuels qu'il référence — voir la section RBNZ plus bas).
 
 import type { Currency } from "./types";
 import rateDecisionsData from "@/data/rate_decisions.json";
+import rbnzMpsData from "@/data/rbnz-mps.json";
 import { fetchTECalendarForCountry } from "./tradingeconomics";
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
@@ -798,12 +801,18 @@ export async function fetchBojGovernance(): Promise<CBGovernance> {
 }
 
 // ── RBNZ (NZD) ────────────────────────────────────────────────────────────────
-// rbnz.govt.nz bloque toute requête automatisée derrière un challenge Cloudflare
-// interactif ("Verify you are human") — vérifié avec un vrai navigateur headless,
-// pas seulement fetch(). Ce n'est pas contournable proprement (et on ne cherche
-// pas à résoudre un captcha anti-bot / évader une protection délibérée).
+// rbnz.govt.nz bloque les pages génériques (index, listing) derrière un
+// challenge Cloudflare interactif ("Verify you are human") — vérifié avec un
+// vrai navigateur headless, pas seulement fetch(). On ne cherche pas à
+// résoudre un captcha anti-bot / évader cette protection délibérée.
 //
-// Repli légitime (aucune requête vers rbnz.govt.nz) :
+// MAIS : sitemap.xml, les pages de contenu individuelles qu'il référence
+// (ex. la page d'une Monetary Policy Statement précise), et les PDF sous
+// /-/media/ répondent normalement (200, pas de challenge) — voir
+// .github/scripts/fetch-rbnz-mps.mjs, qui découvre et lit le dernier MPS pour
+// en extraire les prévisions (Table 6.5), exactement comme le ferait un
+// moteur de recherche indexant le site. Repli pour le reste (aucune requête
+// vers les pages bloquées) :
 //   - Taux OCR courant : data/rate_decisions.json (auto-maintenu par
 //     update-rate-decisions.yml).
 //   - Date de la dernière réunion : calendrier économique Trading Economics
@@ -835,16 +844,35 @@ export async function fetchRbnzGovernance(): Promise<CBGovernance> {
     if (decisions[0]) meetingDate = decisions[0].date.slice(0, 10);
   } catch { /* meetingDate reste null, pas bloquant */ }
 
+  // Prévisions (Table 6.5 du Monetary Policy Statement) — maintenues par
+  // .github/workflows/fetch-rbnz-mps.yml. Découvertes via sitemap.xml + PDF
+  // public (pas la page d'index générique qui, elle, reste bloquée) : voir
+  // le script pour le détail. Premier CB de ce dashboard où l'on obtient une
+  // vraie prévision RBNZ malgré le blocage du reste du site.
+  const mps = rbnzMpsData as {
+    sourcePageUrl?: string; sourcePdfUrl?: string; mpsMonth?: number; mpsYear?: number;
+    years?: string[]; gdp?: Record<string, number>; inflation?: Record<string, number>;
+  };
+  const forecast: CBForecast | null = mps?.years?.length ? {
+    asOf: `${mps.mpsYear}-${String(mps.mpsMonth).padStart(2, "0")}`,
+    years: mps.years,
+    gdp: mps.gdp ?? {},
+    inflation: mps.inflation ?? {},
+    label: "RBNZ — Monetary Policy Statement (Table 6.5, année se terminant en mars)",
+    sourceUrl: mps.sourcePdfUrl ?? null,
+  } : null;
+
   return {
     currency: "NZD", ...info,
     meetingDate,
     rateLevel: `${nzdRate}%`,
     voteSummary: "Non publié",
     voteDetail: "La RBNZ ne publie pas de décompte de vote (décision par consensus du comité) ; communiqué détaillé indisponible — rbnz.govt.nz bloque le scraping automatisé (challenge Cloudflare).",
-    statementUrl: null,
-    reportPdfUrl: null,
-    reportLabel: null,
-    fetchError: "rbnz.govt.nz bloque les requêtes non-navigateur (Cloudflare) — taux (rate_decisions.json) et date de réunion (Trading Economics) affichés en repli.",
+    statementUrl: mps?.sourcePageUrl ?? null,
+    reportPdfUrl: mps?.sourcePdfUrl ?? null,
+    reportLabel: mps?.sourcePdfUrl ? "Monetary Policy Statement" : null,
+    forecast,
+    fetchError: "rbnz.govt.nz bloque les requêtes non-navigateur (Cloudflare) sur ses pages génériques — taux (rate_decisions.json), date de réunion (Trading Economics) et prévisions (PDF public du MPS, non bloqué) affichés en repli.",
   };
 }
 

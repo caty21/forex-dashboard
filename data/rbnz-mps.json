@@ -1,0 +1,32 @@
+{
+  "updated_at": "2026-07-08",
+  "sourcePageUrl": "https://www.rbnz.govt.nz/monetary-policy/monetary-policy-statement/monetary-policy-statement-filtered-listing-page/2026/may-270/monetary-policy-statement-may-2026",
+  "sourcePdfUrl": "https://www.rbnz.govt.nz/-/media/project/sites/rbnz/files/publications/monetary-policy-statements/2026/may-272605/monetary-policy-statement-may-2026.pdf",
+  "mpsYear": 2026,
+  "mpsMonth": 5,
+  "note": "Table 6.5 'Summary of economic projections' — RBNZ Monetary Policy Statement. Années 'March year' (année se terminant en mars, convention budgétaire NZ) ; OCR en moyenne annuelle (pas un point de fin d'année comme les autres banques centrales de ce dashboard). Découvert et extrait via sitemap.xml + PDF public (pas de contournement du challenge Cloudflare qui protège les pages d'index génériques du site).",
+  "years": [
+    "2026",
+    "2027",
+    "2028",
+    "2029"
+  ],
+  "gdp": {
+    "2026": 0.7,
+    "2027": 1.7,
+    "2028": 3.1,
+    "2029": 3.4
+  },
+  "inflation": {
+    "2026": 3.1,
+    "2027": 3.7,
+    "2028": 2,
+    "2029": 2
+  },
+  "ocrYearAvg": {
+    "2026": 2.8,
+    "2027": 2.7,
+    "2028": 3.1,
+    "2029": 3.2
+  }
+}
