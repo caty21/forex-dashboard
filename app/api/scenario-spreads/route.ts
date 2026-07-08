@@ -1,15 +1,18 @@
 // app/api/scenario-spreads/route.ts
-// Spreads EFFR/SOFR utilisés par l'onglet Scénario (simulateur type CME
-// SOFRWatch) pour traduire une fourchette cible Fed hypothétique en niveau de
-// SOFR implicite : SOFR ≈ lowerBound + (EFFR − lowerBound) + (SOFR − EFFR).
+// Spreads utilisés par l'onglet Scénario (simulateur type CME SOFRWatch /
+// €STRWatch) pour traduire un taux directeur hypothétique en taux de
+// référence overnight implicite :
+//   USD : SOFR ≈ borne basse Fed + (EFFR − borne basse) + (SOFR − EFFR)
+//   EUR : €STR ≈ DFR + (€STR − DFR)
+//   GBP : SONIA ≈ Bank Rate + (SONIA − Bank Rate)
 //
-// CME SOFRWatch calcule ces deux spreads à partir des prix des futures SOFR
-// 1 mois vs Fed Funds (SR1−ZQ), des données de marché propriétaires. On les
-// approxime ici avec la moyenne réalisée historique EFFR/SOFR (FRED, gratuit),
-// ce qui est un proxy raisonnable tant que la Fed n'a pas bougé récemment
-// (spread stable), mais reste un proxy — pas un prix forward-looking.
+// CME calcule ces spreads à partir de prix de futures/options (SR1−ZQ pour
+// SOFR ; pas d'équivalent public pour €STR/SONIA). On les approxime tous avec
+// la moyenne réalisée historique (FRED, gratuit) — un proxy raisonnable tant
+// que le taux directeur n'a pas bougé récemment, mais pas un prix
+// forward-looking.
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import rateDecisionsData from "@/data/rate_decisions.json";
 
 export const dynamic = "force-dynamic";
@@ -31,52 +34,128 @@ async function fredObs(seriesId: string, apiKey: string, limit = 60): Promise<Fr
   } catch { return []; }
 }
 
-export interface ScenarioSpreads {
-  asOf:              string;
-  lowerBound:         number | null;
-  upperBound:         number | null;
-  effrSpreadBps:      number | null;  // EFFR − lowerBound, moyenne réalisée
-  sofrEffrSpreadBps:  number | null;  // SOFR − EFFR, moyenne réalisée (apparié par date)
-  windowDays:         number;
-  note:               string;
+function avgSpread(ref: FredObs[], target: number | null): number | null {
+  if (target === null || !ref.length) return null;
+  return ref.reduce((s, o) => s + (o.value - target), 0) / ref.length;
 }
 
-export async function GET() {
-  const key = process.env.FRED_API_KEY;
-  if (!key) return NextResponse.json({ error: "FRED_API_KEY missing" }, { status: 500 });
+export interface ScenarioSpread {
+  label: string;       // "EFFR − borne basse", "€STR − DFR", "SONIA − Bank Rate"…
+  bps:   number | null;
+}
 
-  const [effr, sofr] = await Promise.all([
-    fredObs("EFFR", key, 60),
-    fredObs("SOFR", key, 60),
-  ]);
-  if (!effr.length || !sofr.length) {
-    return NextResponse.json({ error: "Données FRED EFFR/SOFR indisponibles" }, { status: 502 });
-  }
+export interface ScenarioSpreads {
+  currency:        "USD" | "EUR" | "GBP";
+  asOf:            string;
+  targetRate:      number | null;  // borne basse (USD), DFR (EUR), Bank Rate (GBP)
+  targetLabel:     string;
+  refRateLabel:    string;         // "SOFR" | "€STR" | "SONIA"
+  // Offset fixe pour convertir l'impliedRate déjà exposé par /api/rate-probabilities
+  // (convention borne haute pour USD, MRO pour EUR, Bank Rate direct pour GBP)
+  // vers la même échelle que targetRate — permet au front de comparer le
+  // scénario utilisateur au marché sans dupliquer les conventions par devise.
+  marketConversionOffset: number;
+  spreads:         ScenarioSpread[];
+  windowDays:      number;
+  note:            string;
+}
 
-  const rateDec = (rateDecisionsData as Array<{ decisions: Record<string, { current: number }> }>)[0];
+type RateDecisions = Array<{ decisions: Record<string, { current: number }> }>;
+
+// Fenêtre courte (≈2 semaines ouvrées) plutôt que longue : une fenêtre large
+// (60j) peut chevaucher un changement de taux directeur récent et fausser la
+// moyenne en mélangeant l'ancien et le nouveau régime (constaté sur l'EUR :
+// la BCE a bougé le 17 juin 2026, une fenêtre 60j donnait un spread €STR-DFR
+// de -26bps au lieu des ~-7bps réels une fois restreint à l'après-hausse).
+const SPREAD_WINDOW = 10;
+
+async function buildUsd(key: string): Promise<ScenarioSpreads | { error: string }> {
+  const [effr, sofr] = await Promise.all([fredObs("EFFR", key, SPREAD_WINDOW), fredObs("SOFR", key, SPREAD_WINDOW)]);
+  if (!effr.length || !sofr.length) return { error: "Données FRED EFFR/SOFR indisponibles" };
+
+  const rateDec = (rateDecisionsData as RateDecisions)[0];
   const upperBound = rateDec?.decisions?.USD?.current ?? null;
   const lowerBound = upperBound !== null ? parseFloat((upperBound - 0.25).toFixed(2)) : null;
 
-  const effrSpread = lowerBound !== null
-    ? effr.reduce((s, o) => s + (o.value - lowerBound), 0) / effr.length
-    : null;
-
+  const effrSpread = avgSpread(effr, lowerBound);
   const effrByDate = new Map(effr.map(o => [o.date, o.value]));
-  const pairedDiffs = sofr
-    .filter(o => effrByDate.has(o.date))
-    .map(o => o.value - effrByDate.get(o.date)!);
-  const sofrEffrSpread = pairedDiffs.length
-    ? pairedDiffs.reduce((s, d) => s + d, 0) / pairedDiffs.length
-    : null;
+  const pairedDiffs = sofr.filter(o => effrByDate.has(o.date)).map(o => o.value - effrByDate.get(o.date)!);
+  const sofrEffrSpread = pairedDiffs.length ? pairedDiffs.reduce((s, d) => s + d, 0) / pairedDiffs.length : null;
 
-  const data: ScenarioSpreads = {
+  return {
+    currency: "USD",
     asOf: new Date().toISOString().slice(0, 10),
-    lowerBound,
-    upperBound,
-    effrSpreadBps:     effrSpread !== null ? Math.round(effrSpread * 100) : null,
-    sofrEffrSpreadBps: sofrEffrSpread !== null ? Math.round(sofrEffrSpread * 100) : null,
+    targetRate: lowerBound,
+    targetLabel: "Fourchette Fed (borne basse)",
+    refRateLabel: "SOFR",
+    marketConversionOffset: -0.25, // impliedRate (borne haute) -> borne basse
+    spreads: [
+      { label: "EFFR − borne basse", bps: effrSpread !== null ? Math.round(effrSpread * 100) : null },
+      { label: "SOFR − EFFR",        bps: sofrEffrSpread !== null ? Math.round(sofrEffrSpread * 100) : null },
+    ],
     windowDays: effr.length,
-    note: "Spreads = moyennes réalisées historiques EFFR/SOFR (FRED, fenêtre glissante ~60j) — approximation du spread forward-looking SR1−ZQ utilisé par CME SOFRWatch (données de marché propriétaires non accessibles gratuitement).",
+    note: "Spreads = moyennes réalisées historiques EFFR/SOFR (FRED, fenêtre glissante ~2 semaines) — approximation du spread forward-looking SR1−ZQ utilisé par CME SOFRWatch (données de marché propriétaires non accessibles gratuitement).",
   };
-  return NextResponse.json(data, { headers: { "Cache-Control": "s-maxage=21600, stale-while-revalidate=43200" } });
+}
+
+async function buildEur(key: string): Promise<ScenarioSpreads | { error: string }> {
+  const estr = await fredObs("ECBESTRVOLWGTTRMDMNRT", key, SPREAD_WINDOW);
+  if (!estr.length) return { error: "Données FRED €STR indisponibles" };
+
+  const rateDec = (rateDecisionsData as RateDecisions)[0];
+  const mro = rateDec?.decisions?.EUR?.current ?? null; // rate_decisions.json stocke le MRO
+  const dfr = mro !== null ? parseFloat((mro - 0.15).toFixed(2)) : null; // corridor ECB: MRO = DFR+15bps
+
+  const estrSpread = avgSpread(estr, dfr);
+
+  return {
+    currency: "EUR",
+    asOf: new Date().toISOString().slice(0, 10),
+    targetRate: dfr,
+    targetLabel: "DFR (taux de dépôt BCE)",
+    refRateLabel: "€STR",
+    marketConversionOffset: -0.15, // impliedRate (MRO) -> DFR
+    spreads: [
+      { label: "€STR − DFR", bps: estrSpread !== null ? Math.round(estrSpread * 100) : null },
+    ],
+    windowDays: estr.length,
+    note: "Spread = moyenne réalisée historique €STR/DFR (FRED, fenêtre glissante ~2 semaines) — approximation ; pas d'équivalent public d'un spread forward-looking type SR1−ZQ pour l'EUR.",
+  };
+}
+
+async function buildGbp(key: string): Promise<ScenarioSpreads | { error: string }> {
+  const sonia = await fredObs("IUDSOIA", key, SPREAD_WINDOW);
+  if (!sonia.length) return { error: "Données FRED SONIA indisponibles" };
+
+  const rateDec = (rateDecisionsData as RateDecisions)[0];
+  const bankRate = rateDec?.decisions?.GBP?.current ?? null;
+
+  const soniaSpread = avgSpread(sonia, bankRate);
+
+  return {
+    currency: "GBP",
+    asOf: new Date().toISOString().slice(0, 10),
+    targetRate: bankRate,
+    targetLabel: "Bank Rate (BoE)",
+    refRateLabel: "SONIA",
+    marketConversionOffset: 0, // impliedRate déjà en convention Bank Rate directe
+    spreads: [
+      { label: "SONIA − Bank Rate", bps: soniaSpread !== null ? Math.round(soniaSpread * 100) : null },
+    ],
+    windowDays: sonia.length,
+    note: "Spread = moyenne réalisée historique SONIA/Bank Rate (FRED, fenêtre glissante ~2 semaines) — approximation ; la BoE a arrêté de publier ses propres fonctions de densité de probabilité implicites par options (short sterling), donc pas de spread forward-looking public disponible.",
+  };
+}
+
+export async function GET(req: NextRequest) {
+  const key = process.env.FRED_API_KEY;
+  if (!key) return NextResponse.json({ error: "FRED_API_KEY missing" }, { status: 500 });
+
+  const currency = (req.nextUrl.searchParams.get("currency") ?? "USD").toUpperCase();
+  const builder = currency === "EUR" ? buildEur : currency === "GBP" ? buildGbp : buildUsd;
+
+  const result = await builder(key);
+  if ("error" in result) return NextResponse.json(result, { status: 502 });
+
+  return NextResponse.json(result, { headers: { "Cache-Control": "s-maxage=21600, stale-while-revalidate=43200" } });
 }

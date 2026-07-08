@@ -1,19 +1,21 @@
 "use client";
 
 // components/ScenarioTab.tsx
-// Simulateur "scénario → prix implicite", façon CME SOFRWatch — logique
-// INVERSÉE par rapport aux autres onglets Taux (qui déduisent une probabilité
-// depuis les prix de marché) : ici, l'utilisateur choisit lui-même un scénario
-// de hikes/cuts à chaque réunion FOMC, et l'outil en déduit où devrait se
-// situer le SOFR implicite si ce scénario se réalisait.
+// Simulateur "scénario → prix implicite", façon CME SOFRWatch / €STRWatch —
+// logique INVERSÉE par rapport aux autres onglets Taux (qui déduisent une
+// probabilité depuis les prix de marché) : ici, l'utilisateur choisit
+// lui-même un scénario de hikes/cuts à chaque réunion de banque centrale, et
+// l'outil en déduit où devrait se situer le taux de référence overnight
+// implicite si ce scénario se réalisait.
 //
-// Lien taux cible Fed → SOFR (méthodologie CME SOFRWatch, en 2 spreads) :
-//   1. EFFR − borne basse de la fourchette cible (observé)
-//   2. SOFR − EFFR (observé)
-//   SOFR implicite ≈ borne basse + spread 1 + spread 2
-// CME calcule ces spreads à partir des prix forward des futures SOFR 1 mois
-// vs Fed Funds (SR1−ZQ) — données de marché propriétaires. On les approxime
-// ici avec la moyenne réalisée historique (FRED, gratuit) : voir /api/scenario-spreads.
+// Lien taux directeur → taux de référence overnight (voir /api/scenario-spreads) :
+//   USD : SOFR  ≈ borne basse Fed + (EFFR − borne basse) + (SOFR − EFFR)
+//   EUR : €STR  ≈ DFR + (€STR − DFR)
+//   GBP : SONIA ≈ Bank Rate + (SONIA − Bank Rate)
+// CME calcule ces spreads (USD) à partir des prix forward des futures SOFR
+// 1 mois vs Fed Funds (SR1−ZQ) — données de marché propriétaires, pas
+// d'équivalent public pour €STR/SONIA. On les approxime partout avec la
+// moyenne réalisée historique (FRED, gratuit, fenêtre ~2 semaines).
 
 import { useEffect, useState, useMemo } from "react";
 import { RefreshCw, RotateCcw, Info } from "lucide-react";
@@ -21,23 +23,38 @@ import {
   LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend,
 } from "recharts";
 
-interface ScenarioSpreads {
-  asOf: string;
-  lowerBound: number | null;
-  upperBound: number | null;
-  effrSpreadBps: number | null;
-  sofrEffrSpreadBps: number | null;
-  windowDays: number;
-  note: string;
+type ScenarioCcy = "USD" | "EUR" | "GBP";
+
+interface ScenarioSpread {
+  label: string;
+  bps:   number | null;
 }
 
-interface UsdMeeting {
-  dateIso: string;
-  label: string;
-  impliedRate: number; // convention upper bound, cf. rate_decisions.json
+interface ScenarioSpreads {
+  currency:     ScenarioCcy;
+  asOf:         string;
+  targetRate:   number | null;
+  targetLabel:  string;
+  refRateLabel: string;
+  marketConversionOffset: number;
+  spreads:      ScenarioSpread[];
+  windowDays:   number;
+  note:         string;
+}
+
+interface Meeting {
+  dateIso:     string;
+  label:       string;
+  impliedRate: number;
 }
 
 const STEPS = [-50, -25, 0, 25, 50] as const;
+
+const CCY_META: Record<ScenarioCcy, { flag: string; bank: string; meetingLabel: string }> = {
+  USD: { flag: "🇺🇸", bank: "Fed (FOMC)", meetingLabel: "réunion FOMC" },
+  EUR: { flag: "🇪🇺", bank: "BCE",        meetingLabel: "Conseil des gouverneurs" },
+  GBP: { flag: "🇬🇧", bank: "BoE (MPC)",  meetingLabel: "réunion MPC" },
+};
 
 function fmtDate(iso: string): string {
   const d = new Date(iso + "T12:00:00Z");
@@ -45,25 +62,26 @@ function fmtDate(iso: string): string {
 }
 
 export default function ScenarioTab() {
+  const [currency, setCurrency] = useState<ScenarioCcy>("USD");
   const [spreads, setSpreads]   = useState<ScenarioSpreads | null>(null);
-  const [meetings, setMeetings] = useState<UsdMeeting[]>([]);
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [deltas, setDeltas]     = useState<Record<string, number>>({});
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
 
-  const load = async () => {
+  const load = async (ccy: ScenarioCcy) => {
     setLoading(true);
     setError(null);
     try {
       const [spreadsRes, rpRes] = await Promise.all([
-        fetch("/api/scenario-spreads", { cache: "no-store" }).then(r => r.json()),
+        fetch(`/api/scenario-spreads?currency=${ccy}`, { cache: "no-store" }).then(r => r.json()),
         fetch("/api/rate-probabilities", { cache: "no-store" }).then(r => r.json()),
       ]);
       if (spreadsRes?.error) throw new Error(spreadsRes.error);
       setSpreads(spreadsRes as ScenarioSpreads);
 
-      const usd = rpRes?.data?.USD;
-      const ms: UsdMeeting[] = (usd?.meetings ?? []).map((m: { dateIso: string; label: string; impliedRate: number }) => ({
+      const entry = rpRes?.data?.[ccy];
+      const ms: Meeting[] = (entry?.meetings ?? []).map((m: { dateIso: string; label: string; impliedRate: number }) => ({
         dateIso: m.dateIso, label: m.label, impliedRate: m.impliedRate,
       }));
       setMeetings(ms);
@@ -74,59 +92,84 @@ export default function ScenarioTab() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { setDeltas({}); load(currency); }, [currency]);
 
   const setDelta = (dateIso: string, bps: number) => setDeltas(prev => ({ ...prev, [dateIso]: bps }));
   const resetAll = () => setDeltas({});
 
-  const chartData = useMemo(() => {
-    if (!spreads || spreads.lowerBound === null || !meetings.length) return [];
-    const spreadTotal = (spreads.effrSpreadBps ?? 0) / 100 + (spreads.sofrEffrSpreadBps ?? 0) / 100;
+  const totalSpreadBps = useMemo(
+    () => spreads ? spreads.spreads.reduce((s, x) => s + (x.bps ?? 0), 0) : null,
+    [spreads]
+  );
 
-    let cumulLower = spreads.lowerBound;
+  const chartData = useMemo(() => {
+    if (!spreads || spreads.targetRate === null || totalSpreadBps === null || !meetings.length) return [];
+    const spreadTotal = totalSpreadBps / 100;
+
+    let cumulTarget = spreads.targetRate;
     return meetings.map(m => {
       const delta = deltas[m.dateIso] ?? 0;
-      cumulLower = parseFloat((cumulLower + delta / 100).toFixed(4));
-      const scenarioSofr = parseFloat((cumulLower + spreadTotal).toFixed(4));
+      cumulTarget = parseFloat((cumulTarget + delta / 100).toFixed(4));
+      const scenarioRef = parseFloat((cumulTarget + spreadTotal).toFixed(4));
 
-      // Marché (OIS) : impliedRate suit la convention upper bound → on
-      // convertit en borne basse pour rester sur la même échelle SOFR.
-      const marketLower = parseFloat((m.impliedRate - 0.25).toFixed(4));
-      const marketSofr  = parseFloat((marketLower + spreadTotal).toFixed(4));
+      // Marché (OIS) : impliedRate suit la convention propre à /api/rate-probabilities
+      // (borne haute pour USD, MRO pour EUR, Bank Rate direct pour GBP) → on la
+      // convertit vers la même échelle que targetRate avant d'ajouter le spread.
+      const marketTarget = parseFloat((m.impliedRate + spreads.marketConversionOffset).toFixed(4));
+      const marketRef     = parseFloat((marketTarget + spreadTotal).toFixed(4));
 
       return {
         label: m.label,
         dateIso: m.dateIso,
-        scenario: scenarioSofr,
-        marche: marketSofr,
-        cumulBps: Math.round((cumulLower - spreads.lowerBound!) * 100),
+        scenario: scenarioRef,
+        marche: marketRef,
+        cumulBps: Math.round((cumulTarget - spreads.targetRate!) * 100),
       };
     });
-  }, [spreads, meetings, deltas]);
+  }, [spreads, meetings, deltas, totalSpreadBps]);
 
-  const spreadTotalBps = spreads ? (spreads.effrSpreadBps ?? 0) + (spreads.sofrEffrSpreadBps ?? 0) : null;
-  const currentImpliedSofr = spreads?.lowerBound !== null && spreadTotalBps !== null && spreads
-    ? parseFloat((spreads.lowerBound + spreadTotalBps / 100).toFixed(2))
+  const currentImpliedRef = spreads?.targetRate !== null && totalSpreadBps !== null && spreads
+    ? parseFloat((spreads.targetRate + totalSpreadBps / 100).toFixed(2))
     : null;
+
+  const meta = CCY_META[currency];
 
   return (
     <div className="space-y-3">
       <div className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3">
-        <div className="flex items-center justify-between mb-1">
-          <h2 className="text-sm font-semibold text-slate-200">Scénario — simulateur taux → SOFR implicite</h2>
+        <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+          <h2 className="text-sm font-semibold text-slate-200">Scénario — simulateur taux → {spreads?.refRateLabel ?? "taux"} implicite</h2>
           <div className="flex items-center gap-2">
             <button onClick={resetAll} className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-200 border border-slate-800 hover:border-slate-600 rounded-md px-2 py-1 transition-colors">
               <RotateCcw size={11} /> Réinitialiser
             </button>
-            <button onClick={load} disabled={loading} className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-200 border border-slate-800 hover:border-slate-600 rounded-md px-2 py-1 transition-colors disabled:opacity-50">
+            <button onClick={() => load(currency)} disabled={loading} className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-200 border border-slate-800 hover:border-slate-600 rounded-md px-2 py-1 transition-colors disabled:opacity-50">
               <RefreshCw size={11} className={loading ? "animate-spin" : ""} /> Rafraîchir
             </button>
           </div>
         </div>
+
+        {/* Sélecteur de devise */}
+        <div className="flex gap-1.5 mb-2">
+          {(Object.keys(CCY_META) as ScenarioCcy[]).map(ccy => (
+            <button
+              key={ccy}
+              onClick={() => setCurrency(ccy)}
+              className={`flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1 rounded-full border transition-colors ${
+                currency === ccy
+                  ? "bg-slate-700 border-slate-500 text-white"
+                  : "border-slate-700/60 text-slate-400 hover:text-white"
+              }`}
+            >
+              <span>{CCY_META[ccy].flag}</span> {ccy} <span className="text-slate-500 font-normal">· {CCY_META[ccy].bank}</span>
+            </button>
+          ))}
+        </div>
+
         <p className="text-[10px] text-slate-600 leading-relaxed">
           Logique inversée par rapport aux autres onglets Taux (qui déduisent une probabilité depuis les prix de marché) :
-          choisissez vous-même un scénario de hikes/cuts à chaque réunion FOMC, l&apos;outil déduit où devrait se situer le SOFR
-          implicite si ce scénario se réalisait — façon CME SOFRWatch.
+          choisissez vous-même un scénario de hikes/cuts à chaque {meta.meetingLabel}, l&apos;outil déduit où devrait se situer
+          le {spreads?.refRateLabel ?? "taux de référence"} implicite si ce scénario se réalisait — façon CME SOFRWatch / €STRWatch.
         </p>
       </div>
 
@@ -144,20 +187,23 @@ export default function ScenarioTab() {
           <div className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3">
             <div className="flex items-center gap-1.5 mb-2">
               <Info size={11} className="text-slate-600" />
-              <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Fourchette Fed actuelle → SOFR</span>
+              <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">{spreads.targetLabel} → {spreads.refRateLabel}</span>
             </div>
             <div className="flex items-center gap-4 flex-wrap text-[11px]">
-              <span className="text-slate-400">Fourchette : <span className="text-slate-200 font-semibold font-mono">{spreads.lowerBound?.toFixed(2)}–{spreads.upperBound?.toFixed(2)}%</span></span>
-              <span className="text-slate-400">Spread EFFR−borne basse : <span className="text-amber-400 font-semibold font-mono">{spreads.effrSpreadBps! >= 0 ? "+" : ""}{spreads.effrSpreadBps}bps</span></span>
-              <span className="text-slate-400">Spread SOFR−EFFR : <span className="text-sky-400 font-semibold font-mono">{spreads.sofrEffrSpreadBps! >= 0 ? "+" : ""}{spreads.sofrEffrSpreadBps}bps</span></span>
-              <span className="text-slate-400">SOFR implicite actuel : <span className="text-slate-100 font-bold font-mono">{currentImpliedSofr?.toFixed(2)}%</span></span>
+              <span className="text-slate-400">{spreads.targetLabel} : <span className="text-slate-200 font-semibold font-mono">{spreads.targetRate?.toFixed(2)}%</span></span>
+              {spreads.spreads.map(s => (
+                <span key={s.label} className="text-slate-400">
+                  Spread {s.label} : <span className="text-amber-400 font-semibold font-mono">{s.bps !== null ? `${s.bps >= 0 ? "+" : ""}${s.bps}bps` : "—"}</span>
+                </span>
+              ))}
+              <span className="text-slate-400">{spreads.refRateLabel} implicite actuel : <span className="text-slate-100 font-bold font-mono">{currentImpliedRef?.toFixed(2)}%</span></span>
             </div>
             <p className="text-[9px] text-slate-700 mt-2 leading-snug">{spreads.note}</p>
           </div>
 
           {/* Constructeur de scénario */}
           <div className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3">
-            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Votre scénario — par réunion FOMC</span>
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Votre scénario — par {meta.meetingLabel}</span>
             <div className="mt-2 space-y-1.5">
               {meetings.map(m => {
                 const delta = deltas[m.dateIso] ?? 0;
@@ -189,7 +235,7 @@ export default function ScenarioTab() {
 
           {/* Chart comparatif */}
           <div className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3">
-            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">SOFR implicite — votre scénario vs marché (OIS)</span>
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">{spreads.refRateLabel} implicite — votre scénario vs marché (OIS)</span>
             <ResponsiveContainer width="100%" height={260}>
               <LineChart data={chartData} margin={{ top: 12, right: 16, left: 0, bottom: 0 }}>
                 <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
