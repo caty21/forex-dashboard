@@ -5,13 +5,112 @@
         "midpoint": 3.75,
         "rows": [
           {
-            "meeting": "Dec",
-            "meeting_iso": "2026-12-31",
-            "implied_rate_post_meeting": 4.05,
-            "prob_move_pct": 17,
+            "meeting": "Jul 29",
+            "meeting_iso": "2026-07-29",
+            "implied_rate_post_meeting": 3.833,
+            "prob_move_pct": 33,
             "prob_is_cut": false,
-            "change_bps": 30,
-            "num_moves": 1.2
+            "change_bps": 8.300000000000018,
+            "num_moves": 0.33200000000000074
+          },
+          {
+            "meeting": "Sep 16",
+            "meeting_iso": "2026-09-16",
+            "implied_rate_post_meeting": 3.9648,
+            "prob_move_pct": 68,
+            "prob_is_cut": false,
+            "change_bps": 21.47999999999999,
+            "num_moves": 0.8591999999999996
+          },
+          {
+            "meeting": "Oct 28",
+            "meeting_iso": "2026-10-28",
+            "implied_rate_post_meeting": 4.028,
+            "prob_move_pct": 76,
+            "prob_is_cut": false,
+            "change_bps": 27.799999999999958,
+            "num_moves": 1.1119999999999983
+          },
+          {
+            "meeting": "Dec 9",
+            "meeting_iso": "2026-12-09",
+            "implied_rate_post_meeting": 4.1216,
+            "prob_move_pct": 85,
+            "prob_is_cut": false,
+            "change_bps": 37.16,
+            "num_moves": 1.4864
+          },
+          {
+            "meeting": "Jan 27",
+            "meeting_iso": "2027-01-27",
+            "implied_rate_post_meeting": 4.1638,
+            "prob_move_pct": 88,
+            "prob_is_cut": false,
+            "change_bps": 41.38000000000002,
+            "num_moves": 1.6552000000000007
+          },
+          {
+            "meeting": "Mar 17",
+            "meeting_iso": "2027-03-17",
+            "implied_rate_post_meeting": 4.2123,
+            "prob_move_pct": 90,
+            "prob_is_cut": false,
+            "change_bps": 46.22999999999999,
+            "num_moves": 1.8491999999999995
+          },
+          {
+            "meeting": "Apr 28",
+            "meeting_iso": "2027-04-28",
+            "implied_rate_post_meeting": 4.2278,
+            "prob_move_pct": 91,
+            "prob_is_cut": false,
+            "change_bps": 47.78000000000002,
+            "num_moves": 1.911200000000001
+          },
+          {
+            "meeting": "Jun 9",
+            "meeting_iso": "2027-06-09",
+            "implied_rate_post_meeting": 4.2172,
+            "prob_move_pct": 90,
+            "prob_is_cut": false,
+            "change_bps": 46.720000000000006,
+            "num_moves": 1.8688000000000002
+          },
+          {
+            "meeting": "Jul 28",
+            "meeting_iso": "2027-07-28",
+            "implied_rate_post_meeting": 4.1827,
+            "prob_move_pct": 85,
+            "prob_is_cut": false,
+            "change_bps": 43.26999999999997,
+            "num_moves": 1.7307999999999988
+          },
+          {
+            "meeting": "Sep 15",
+            "meeting_iso": "2027-09-15",
+            "implied_rate_post_meeting": 4.128,
+            "prob_move_pct": 79,
+            "prob_is_cut": false,
+            "change_bps": 37.80000000000001,
+            "num_moves": 1.5120000000000005
+          },
+          {
+            "meeting": "Oct 27",
+            "meeting_iso": "2027-10-27",
+            "implied_rate_post_meeting": 4.0686,
+            "prob_move_pct": 72,
+            "prob_is_cut": false,
+            "change_bps": 31.86,
+            "num_moves": 1.2744
+          },
+          {
+            "meeting": "Dec 8",
+            "meeting_iso": "2027-12-08",
+            "implied_rate_post_meeting": 4.0492,
+            "prob_move_pct": 70,
+            "prob_is_cut": false,
+            "change_bps": 29.91999999999999,
+            "num_moves": 1.1967999999999996
           }
         ]
       }
@@ -129,7 +228,7 @@
       }
     }
   },
-  "fetchedAt": "2026-07-08T19:10:13.771Z",
+  "fetchedAt": "2026-07-08T19:09:37.374Z",
   "snapshots": [
     {
       "data": {
