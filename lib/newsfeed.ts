@@ -675,13 +675,20 @@ async function fetchInvestingLiveNews(): Promise<NewsItem[]> {
 // ForexLive : commentaires macro en temps réel
 // MarketWatch : marchés généraux
 
+// Vérifié en direct (2026-07-08) :
+//   - ForexLive retiré : /feed/news est une coquille vide (0 <item>) depuis leur
+//     migration Nuxt.js vers investinglive.com — déjà couvert par le scraper
+//     dédié fetchInvestingLiveNews() (API réelle), donc pas de perte réelle.
+//   - MarketWatch : l'ancien miroir dowjones.io sert des articles vieux de 1+ an
+//     (tous filtrés par le cutoff 8 jours) → remplacé par l'URL RSS actuelle.
+//   - Reuters : feeds.reuters.com n'existe plus (échec DNS, fermé côté Reuters
+//     il y a plusieurs années) → remplacé par CNBC Markets (flux frais, testé).
 const RSS_FEEDS: { url: string; source: string }[] = [
-  { url: "https://www.fxstreet.com/rss/news",                                    source: "FXStreet" },
-  { url: "https://www.forexlive.com/feed/news",                                   source: "ForexLive" },
-  { url: "https://feeds.content.dowjones.io/public/rss/mw_realtimeheadlines",    source: "MarketWatch" },
-  { url: "https://finance.yahoo.com/rss/topfinstories",                           source: "Yahoo Finance" },
-  { url: "https://feeds.reuters.com/reuters/businessNews",                        source: "Reuters" },
-  { url: "https://www.investing.com/rss/news.rss",                                source: "Investing.com" },
+  { url: "https://www.fxstreet.com/rss/news",                     source: "FXStreet" },
+  { url: "https://www.marketwatch.com/rss/topstories",            source: "MarketWatch" },
+  { url: "https://finance.yahoo.com/rss/topfinstories",           source: "Yahoo Finance" },
+  { url: "https://www.cnbc.com/id/100003114/device/rss/rss.html", source: "CNBC" },
+  { url: "https://www.investing.com/rss/news.rss",                source: "Investing.com" },
 ];
 
 async function fetchRssFeeds(): Promise<NewsItem[]> {
@@ -895,15 +902,16 @@ export async function fetchAllNews(): Promise<NewsItem[]> {
     return true;
   });
 
-  const PRIORITY_SET = new Set(["Discours BC", "Décision Taux", "Crise", "Guerre", "Chef d'État", "Probabilités Taux"]);
-  const isPrio = (item: NewsItem) => item.categories.some(c => PRIORITY_SET.has(c));
-  const PRIO_BONUS_MS = 3 * 60 * 60 * 1000; // +3h boost pour les prioritaires
-
-  deduped.sort((a, b) => {
-    const ta = new Date(a.publishedAt).getTime() + (isPrio(a) ? PRIO_BONUS_MS : 0);
-    const tb = new Date(b.publishedAt).getTime() + (isPrio(b) ? PRIO_BONUS_MS : 0);
-    return tb - ta;
-  });
+  // Tri strictement chronologique (décroissant). Un bonus "+3h pour les
+  // catégories prioritaires" existait ici auparavant, mais en période de
+  // crise soutenue (ex. conflit Moyen-Orient) la quasi-totalité des articles
+  // matche "Guerre"/"Géopolitique"/"Chef d'État" — le bonus s'appliquait donc
+  // presque partout et cassait l'ordre chronologique au lieu de l'affiner
+  // (des articles plus anciens mais "prioritaires" passaient devant des
+  // articles réellement plus récents). Le badge visuel "⚡ Prioritaire"
+  // (NewsTab.tsx) reste le bon endroit pour signaler l'importance sans
+  // trahir la fraîcheur réelle du flux.
+  deduped.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
 
   return deduped;
 }

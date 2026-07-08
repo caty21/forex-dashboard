@@ -55,7 +55,7 @@ const HIGH_PRIO = new Set([
 
 const SOURCE_COLORS: Record<string, string> = {
   "InvestingLive":       "bg-amber-500/20 text-amber-400",
-  "Reuters":             "bg-orange-500/20 text-orange-400",
+  "CNBC":                "bg-orange-500/20 text-orange-400",
   "Bloomberg Economics": "bg-sky-500/20 text-sky-400",
   "Bloomberg CB":        "bg-sky-500/20 text-sky-400",
   "Bloomberg FX":        "bg-sky-500/20 text-sky-400",
@@ -72,14 +72,16 @@ function formatRelativeTime(isoDate: string): string {
 }
 
 // ── Tri ───────────────────────────────────────────────────────────────────────
-// Score plus élevé = apparaît en premier.
-// Récence primaire → haute priorité (+3h) → catégorisé (+1h) → bruit sans catégorie (0)
-
+// Strictement chronologique (score = timestamp). Un bonus "+3h prioritaire /
+// +1h catégorisé" existait ici, mais en période de crise soutenue la quasi-
+// totalité des articles matche une catégorie prioritaire (Guerre/Géopolitique/
+// Chef d'État) : le bonus s'applique alors presque partout et casse l'ordre
+// chronologique au lieu de l'affiner (des articles plus vieux mais
+// "prioritaires" passent devant des articles réellement plus récents). Le
+// badge visuel "⚡ Prioritaire" (NewsCard) signale déjà l'importance sans
+// trahir la fraîcheur réelle du flux.
 function scoreItem(item: NewsItem): number {
-  const t      = new Date(item.publishedAt).getTime();
-  const isPrio = item.categories.some(c => HIGH_PRIO.has(c));
-  const hasCat = item.categories.length > 0 || item.impacts.length > 0;
-  return t + (isPrio ? 3 * 3_600_000 : hasCat ? 1 * 3_600_000 : 0);
+  return new Date(item.publishedAt).getTime();
 }
 
 // ── Composant principal ───────────────────────────────────────────────────────
