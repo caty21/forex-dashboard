@@ -8,7 +8,7 @@ import {
   ChevronRight, ArrowUpRight, ArrowDownRight, AlertTriangle, Info, Settings, X, ExternalLink,
 } from "lucide-react";
 import {
-  AreaChart, Area, LineChart, Line, BarChart, Bar, Cell,
+  AreaChart, Area, LineChart, Line, ComposedChart, BarChart, Bar, Cell,
   ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceLine,
 } from "recharts";
 import { CURRENCY_META, COUNTRY_PROFILES } from "@/lib/constants";
@@ -642,36 +642,39 @@ function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange, atlantaMpt
           ))}
         </div>
 
-        {/* Chart 1 — Implied Rate Path (step line) */}
+        {/* Chart 1 — Implied Rate Path (courbe lissée + aire) */}
         {chartTab === "curve" && (
           <div>
             {/* Légende */}
-            <div className="flex items-center gap-3 mb-1.5 flex-wrap">
-              <span className="flex items-center gap-1 text-[8px] text-slate-300">
-                <span className="inline-block w-5 h-0.5 bg-slate-300 rounded" />
+            <div className="flex items-center gap-3 mb-2 flex-wrap">
+              <span className="flex items-center gap-1.5 text-[8px] font-medium text-slate-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-400 shrink-0" />
                 Actuel
               </span>
               {hasPrevCurve && (
-                <span className="flex items-center gap-1 text-[8px] text-amber-400">
-                  <span className="inline-block w-5 border-t-2 border-dashed border-amber-400" />
+                <span className="flex items-center gap-1.5 text-[8px] font-medium text-amber-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
                   {prevCurveLabel ? `Sem. préc. (${prevCurveLabel})` : "Sem. préc."}
                 </span>
               )}
               {!hasPrevCurve && (
                 <span className="text-[8px] text-slate-600 ml-auto">Sem. préc. indispo</span>
               )}
-              {/* dashed reference = current rate floor */}
-              <span className="flex items-center gap-1 text-[8px] text-slate-600 ml-auto">
-                <span className="inline-block w-5 border-t border-dashed border-slate-600" />
+              <span className="flex items-center gap-1.5 text-[8px] ml-auto shrink-0">
+                <span className="inline-block w-4 border-t border-dashed border-slate-600" />
+                <span className="text-slate-600">Actuel</span>
                 <span className="font-mono font-semibold text-slate-400">{currentRate.toFixed(2)}%</span>
-                <span className="text-slate-600">Taux actuel</span>
               </span>
             </div>
-            <ResponsiveContainer width="100%" height={135}>
-              <LineChart data={rateCurveData} margin={{ top: 6, right: 6, left: 2, bottom: 0 }}>
+            <ResponsiveContainer width="100%" height={148}>
+              <ComposedChart data={rateCurveData} margin={{ top: 8, right: 8, left: 2, bottom: 0 }}>
                 <defs>
-                  <filter id={`glow_${ratePath.currency}`} x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="2" result="blur" />
+                  <linearGradient id={`curveGrad_${ratePath.currency}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%"  stopColor="#38bdf8" stopOpacity={0.32} />
+                    <stop offset="100%" stopColor="#38bdf8" stopOpacity={0} />
+                  </linearGradient>
+                  <filter id={`glow_${ratePath.currency}`} x="-40%" y="-40%" width="180%" height="180%">
+                    <feGaussianBlur stdDeviation="2.5" result="blur" />
                     <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
                   </filter>
                 </defs>
@@ -719,16 +722,17 @@ function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange, atlantaMpt
                     );
                   }}
                 />
-                <Line type="stepAfter" dataKey="current" stroke="#cbd5e1" strokeWidth={2}
-                  dot={{ r: 3, fill: "#1e293b", stroke: "#cbd5e1", strokeWidth: 1.5 }}
-                  activeDot={{ r: 4, fill: "#cbd5e1", strokeWidth: 0 }} />
+                <Area type="monotone" dataKey="current" stroke="none" fill={`url(#curveGrad_${ratePath.currency})`} isAnimationActive={false} />
                 {hasPrevCurve && (
-                  <Line type="stepAfter" dataKey="weekAgo" stroke="#f59e0b" strokeWidth={1.5}
-                    strokeDasharray="5 3"
-                    dot={{ r: 2.5, fill: "#1e293b", stroke: "#f59e0b", strokeWidth: 1.5 }}
+                  <Line type="monotone" dataKey="weekAgo" stroke="#f59e0b" strokeWidth={1.5}
+                    strokeDasharray="5 3" dot={{ r: 2.5, fill: "#1e293b", stroke: "#f59e0b", strokeWidth: 1.5 }}
                     activeDot={{ r: 3.5, fill: "#f59e0b", strokeWidth: 0 }} />
                 )}
-              </LineChart>
+                <Line type="monotone" dataKey="current" stroke="#38bdf8" strokeWidth={2.25}
+                  filter={`url(#glow_${ratePath.currency})`}
+                  dot={{ r: 3, fill: "#0b1220", stroke: "#38bdf8", strokeWidth: 2 }}
+                  activeDot={{ r: 4.5, fill: "#38bdf8", strokeWidth: 0 }} />
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         )}
