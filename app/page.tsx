@@ -13,6 +13,7 @@ import NewsTab from "@/components/NewsTab";
 import CotTab from "@/components/CotTab";
 import IdeesTab  from "@/components/IdeesTab";
 import CentralBankSourcesTab from "@/components/CentralBankSourcesTab";
+import ScenarioTab from "@/components/ScenarioTab";
 import { TvAdvancedChart } from "@/components/TvChart";
 import type { CalendarEvent } from "@/app/api/calendar/route";
 import type { NewsItem } from "@/app/api/news/route";
@@ -28,7 +29,7 @@ export default function Dashboard() {
   const [cot,          setCot]          = useState<Record<string, CotEntry> | null>(null);
   const [calEvents,    setCalEvents]    = useState<CalendarEvent[]>([]);
   const [nextWeekAvail, setNextWeekAvail] = useState(false);
-  const [activeTab,    setActiveTab]    = useState<"dashboard" | "calendar" | "news" | "cot" | "markets" | "idees" | "cbsources">("dashboard");
+  const [activeTab,    setActiveTab]    = useState<"dashboard" | "calendar" | "news" | "cot" | "markets" | "idees" | "cbsources" | "scenario">("dashboard");
   const [newsItems,    setNewsItems]    = useState<NewsItem[]>([]);
   const [newsLoading,  setNewsLoading]  = useState(false);
   const [cotHistory,   setCotHistory]   = useState<CotHistory | null>(null);
@@ -341,7 +342,7 @@ export default function Dashboard() {
 
       {/* Tab navigation */}
       <div className="flex gap-0 border-b border-slate-800 mb-4">
-        {(["dashboard", "markets", "idees", "calendar", "cbsources", "news", "cot"] as const).map((tab) => (
+        {(["dashboard", "markets", "idees", "calendar", "cbsources", "scenario", "news", "cot"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -356,6 +357,7 @@ export default function Dashboard() {
               : tab === "idees"    ? "💡 Idées"
               : tab === "calendar" ? "📅 Calendrier"
               : tab === "cbsources" ? "🏛️ Banques centrales"
+              : tab === "scenario" ? "🎛️ Scénario"
               : tab === "news"    ? "📰 Actualités"
               : "📊 COT"}
           </button>
@@ -612,6 +614,8 @@ export default function Dashboard() {
       )}
 
       {activeTab === "cbsources" && <CentralBankSourcesTab />}
+
+      {activeTab === "scenario" && <ScenarioTab />}
 
       {activeTab === "news" && (
         <NewsTab items={newsItems} loading={newsLoading} onRefresh={refreshNews} />
