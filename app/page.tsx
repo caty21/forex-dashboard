@@ -9,12 +9,10 @@ import { saveCache, loadCache, formatCacheDate } from "@/lib/localCache";
 import CurrencyCard from "@/components/CurrencyCard";
 import DriversBar from "@/components/DriversBar";
 import CalendarTab from "@/components/CalendarTab";
-import SentimentPairsTab from "@/components/SentimentPairsTab";
-import YieldsTab from "@/components/YieldsTab";
 import NewsTab from "@/components/NewsTab";
 import CotTab from "@/components/CotTab";
-import ReportTab from "@/components/ReportTab";
 import IdeesTab  from "@/components/IdeesTab";
+import CentralBankSourcesTab from "@/components/CentralBankSourcesTab";
 import { TvAdvancedChart } from "@/components/TvChart";
 import type { CalendarEvent } from "@/app/api/calendar/route";
 import type { NewsItem } from "@/app/api/news/route";
@@ -30,12 +28,11 @@ export default function Dashboard() {
   const [cot,          setCot]          = useState<Record<string, CotEntry> | null>(null);
   const [calEvents,    setCalEvents]    = useState<CalendarEvent[]>([]);
   const [nextWeekAvail, setNextWeekAvail] = useState(false);
-  const [activeTab,    setActiveTab]    = useState<"dashboard" | "calendar" | "pairs" | "yields" | "news" | "cot" | "report" | "markets" | "idees">("dashboard");
+  const [activeTab,    setActiveTab]    = useState<"dashboard" | "calendar" | "news" | "cot" | "markets" | "idees" | "cbsources">("dashboard");
   const [newsItems,    setNewsItems]    = useState<NewsItem[]>([]);
   const [newsLoading,  setNewsLoading]  = useState(false);
   const [cotHistory,   setCotHistory]   = useState<CotHistory | null>(null);
   const [cotLoading,   setCotLoading]   = useState(false);
-  const [rawSymbols,   setRawSymbols]   = useState<Array<{ name: string; longPercentage: number; shortPercentage: number; longVolume: number; shortVolume: number; longPositions: number; shortPositions: number; totalPositions: number; avgLongPrice?: number; avgShortPrice?: number }> | null>(null);
   const [rateProbabilities, setRateProbabilities] = useState<RateProbData | null>(null);
   const [lastRefresh,  setLastRefresh]  = useState<Date>(new Date());
   const [loading,      setLoading]      = useState(true);
@@ -200,7 +197,6 @@ export default function Dashboard() {
       // ── Sentiment Myfxbook ────────────────────────────────────────────────
       if (sentimentRes.status === "fulfilled" && !sentimentRes.value?.error && sentimentRes.value?.symbols) {
         const syms = sentimentRes.value.symbols as Array<{ name: string; longPercentage: number; shortPercentage: number; longVolume: number; shortVolume: number; longPositions: number; shortPositions: number; totalPositions: number; avgLongPrice?: number; avgShortPrice?: number }>;
-        setRawSymbols(syms);
         const mapped = parseSentimentSymbols(syms);
         setSentiment(mapped);
         saveCache("sentiment", mapped);
@@ -347,7 +343,7 @@ export default function Dashboard() {
 
       {/* Tab navigation */}
       <div className="flex gap-0 border-b border-slate-800 mb-4">
-        {(["dashboard", "markets", "idees", "calendar", "pairs", "yields", "news", "cot", "report"] as const).map((tab) => (
+        {(["dashboard", "markets", "idees", "calendar", "cbsources", "news", "cot"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -361,11 +357,9 @@ export default function Dashboard() {
               : tab === "markets"  ? "🌍 Marchés"
               : tab === "idees"    ? "💡 Idées"
               : tab === "calendar" ? "📅 Calendrier"
-              : tab === "pairs"   ? "↕ Paires"
-              : tab === "yields"  ? "📈 Yields 10Y"
+              : tab === "cbsources" ? "🏛️ Banques centrales"
               : tab === "news"    ? "📰 Actualités"
-              : tab === "cot"    ? "📊 COT"
-              : "📋 Rapport"}
+              : "📊 COT"}
           </button>
         ))}
       </div>
@@ -619,13 +613,7 @@ export default function Dashboard() {
         <CalendarTab events={calEvents} loading={loading} nextWeekAvail={nextWeekAvail} />
       )}
 
-      {activeTab === "pairs" && (
-        <SentimentPairsTab symbols={rawSymbols} />
-      )}
-
-      {activeTab === "yields" && (
-        <YieldsTab yieldsData={yields} fxDayPct={yields?.fxDayPct ?? null} />
-      )}
+      {activeTab === "cbsources" && <CentralBankSourcesTab />}
 
       {activeTab === "news" && (
         <NewsTab items={newsItems} loading={newsLoading} onRefresh={refreshNews} />
@@ -636,10 +624,6 @@ export default function Dashboard() {
       )}
 
       {activeTab === "idees" && <IdeesTab />}
-
-      {activeTab === "report" && (
-        <ReportTab calEvents={calEvents} drivers={drivers} cotHistory={cotHistory} />
-      )}
 
       {/* Legend */}
       <div className="mt-4 pt-3 border-t border-slate-800 flex items-center gap-5 flex-wrap text-[10px] text-slate-600">

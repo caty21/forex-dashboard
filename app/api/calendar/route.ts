@@ -6,8 +6,9 @@ export const dynamic = "force-dynamic";
 import type { FFEvent } from "@/lib/forexfactory";
 import type { Currency } from "@/lib/types";
 import { fetchAllCBPaths, extractMeetingEvents } from "@/lib/rateprobability";
-import { fetchTECalendarHTML } from "@/lib/tradingeconomics";
-import { fetchInvestingCalendar } from "@/lib/investing";
+import { fetchTECalendarWide } from "@/lib/tradingeconomics";
+import { fetchFXStreetCalendar } from "@/lib/fxstreetCalendar";
+import { isExcludedEventTitle, applyImpactFloor } from "@/lib/calendar-taxonomy";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -20,12 +21,21 @@ export type EventCategory =
   | "gdp"
   | "retail_sales"
   | "trade_balance"
+  | "sentiment"
+  | "housing"
+  | "money_supply"
+  | "trade_detail"
+  | "regional_fed"
+  | "portfolio_flows"
+  | "public_finance"
+  | "holiday"
   | "other";
 
 export interface CalendarEvent {
   id:            string;
   date:          string;          // ISO string from FF
-  currency:      Currency;
+  currency:      string;          // ISO 4217 — univers élargi (45 pays), pas seulement les 8 majeures
+  countryCode:   string;          // code pays (plusieurs pays peuvent partager une devise, ex. EUR)
   category:      EventCategory;
   title:         string;          // display-friendly
   rawTitle:      string;          // original FF title
@@ -51,6 +61,12 @@ export interface CalendarResponse {
 // ── Currencies supported ───────────────────────────────────────────────────────
 
 const CURRENCIES = new Set<string>(["USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "NZD"]);
+
+// Devise majeure → code pays CALENDAR_COUNTRIES (pour aligner les réunions BC,
+// qui sont par nature au niveau devise, avec le dédupe par pays de TE/investingLive).
+const MAJOR_CCY_TO_COUNTRY: Record<string, string> = {
+  USD: "US", EUR: "EMU", GBP: "UK", JPY: "JP", CHF: "CH", CAD: "CA", AUD: "AU", NZD: "NZ",
+};
 
 // ── Category detection ─────────────────────────────────────────────────────────
 
@@ -199,6 +215,7 @@ function mapEvent(ff: FFEvent): CalendarEvent | null {
     id:            `${ff.country}_${ff.title}_${ff.date}`.replace(/\s+/g, "_"),
     date:          ff.date,
     currency:      ff.country as Currency,
+    countryCode:   ff.country,
     category,
     title:         displayTitle(ff.title, ff.country),
     rawTitle:      ff.title,
@@ -285,6 +302,7 @@ async function fetchFREDCalendar(
         id:           `fred_${rd.release_id}_${rd.date}`,
         date:         isoDate,
         currency:     def.currency,
+        countryCode:  def.currency,
         category:     def.category,
         title:        def.title,
         rawTitle:     def.title,
@@ -305,16 +323,18 @@ async function fetchFREDCalendar(
 }
 
 // ── Dedup key ─────────────────────────────────────────────────────────────────
-// Clé déterministe pour identifier un doublon entre TE et Investing.
+// Clé déterministe pour identifier un doublon entre TE et investingLive.
+// Clé par PAYS (pas devise) : plusieurs pays partagent l'EUR (France, Allemagne,
+// Italie...) et publient chacun leurs propres indicateurs le même jour — dédupliquer
+// par devise fusionnerait à tort des events distincts (ex. CPI FR ≠ CPI DE).
 // PMI et discours BC peuvent avoir plusieurs events dans la même journée →
 // on affine à l'heure UTC pour les distinguer.
-// Toutes les autres catégories sont uniques par (devise, catégorie, jour).
 
-function dedupeKey(currency: string, category: EventCategory, isoDate: string): string {
+function dedupeKey(countryCode: string, category: EventCategory, isoDate: string): string {
   if (category === "pmi" || category === "cb_speech") {
-    return `${currency}_${category}_${isoDate.slice(0, 13)}`; // YYYY-MM-DDTHH
+    return `${countryCode}_${category}_${isoDate.slice(0, 13)}`; // YYYY-MM-DDTHH
   }
-  return `${currency}_${category}_${isoDate.slice(0, 10)}`; // YYYY-MM-DD
+  return `${countryCode}_${category}_${isoDate.slice(0, 10)}`; // YYYY-MM-DD
 }
 
 // ── GET ────────────────────────────────────────────────────────────────────────
@@ -351,15 +371,15 @@ export async function GET() {
   toDateObj.setDate(toDateObj.getDate() + 14);
   const toDate = toDateObj.toISOString().slice(0, 10);
 
-  // Fetch TE HTML + Investing + CB paths toujours en parallèle
+  // Fetch TE (45 pays) + investingLive (widget FXStreet, 45 pays) + CB paths en parallèle
   // FF+FRED uniquement si les deux scraping tombent à vide
-  const [teEvents, invEvents, cbPaths] = await Promise.all([
-    fetchTECalendarHTML(fromDate, toDate),
-    fetchInvestingCalendar(fromDate, toDate),
+  const [teEvents, ilEvents, cbPaths] = await Promise.all([
+    fetchTECalendarWide(fromDate, toDate),
+    fetchFXStreetCalendar(fromDate, toDate),
     fetchAllCBPaths(),
   ]);
 
-  const useScraping = teEvents.length > 0 || invEvents.length > 0;
+  const useScraping = teEvents.length > 0 || ilEvents.length > 0;
 
   // Fetch FF+FRED en secours seulement si les deux scrapers ont échoué
   const [ffEvents, fredEvents] = useScraping
@@ -377,23 +397,24 @@ export async function GET() {
     date >= thisMonday  ? "current" : "prev";
 
   if (useScraping) {
-    // ── BASE : TE HTML ────────────────────────────────────────────────────────
+    // ── BASE : Trading Economics (45 pays) ─────────────────────────────────────
     // Index de dédupe : clé → index dans events[]
     const dedupeIndex = new Map<string, number>();
 
     for (const te of teEvents) {
-      if (te.category === "other") continue; // filtre les events sans catégorie pertinente
+      if (isExcludedEventTitle(te.title)) continue; // adjudications, prod. industrielle, énergie/hypothécaire hebdo US, CPI infranational, réunions institutionnelles
       const evDate = new Date(te.date);
-      const key = dedupeKey(te.currency, te.category, te.date);
+      const key = dedupeKey(te.countryCode, te.category, te.date);
       dedupeIndex.set(key, events.length);
       events.push({
         id:            te.id,
         date:          te.date,
         currency:      te.currency,
+        countryCode:   te.countryCode,
         category:      te.category,
         title:         te.title,
         rawTitle:      te.title,
-        impact:        te.impact,
+        impact:        applyImpactFloor(te.title, te.impact),
         actual:        te.actual,
         forecast:      te.forecast,
         previous:      te.previous,
@@ -406,35 +427,37 @@ export async function GET() {
       });
     }
 
-    // ── COMPLÉMENT : Investing.com ────────────────────────────────────────────
+    // ── COMPLÉMENT : investingLive (widget FXStreet) ───────────────────────────
     // Dédupe immédiat via dedupeIndex : même clé = doublon, on enrichit seulement.
-    // Absent de TE = on ajoute l'event Investing directement.
-    for (const inv of invEvents) {
-      if (inv.category === "other") continue;
-      const key = dedupeKey(inv.currency, inv.category, inv.date);
+    // Absent de TE = on ajoute l'event investingLive directement — c'est ce qui
+    // permet aux deux sources de se compléter l'une l'autre.
+    for (const il of ilEvents) {
+      if (isExcludedEventTitle(il.title)) continue;
+      const key = dedupeKey(il.countryCode, il.category, il.date);
       const existingIdx = dedupeIndex.get(key);
       if (existingIdx !== undefined) {
-        // Doublon — enrichir avec les valeurs manquantes d'Investing
+        // Doublon — enrichir avec les valeurs manquantes d'investingLive
         const ev = events[existingIdx];
-        if (!ev.actual   && inv.actual)   ev.actual   = inv.actual;
-        if (!ev.forecast && inv.forecast) ev.forecast = inv.forecast;
-        if (!ev.previous && inv.previous) ev.previous = inv.previous;
+        if (!ev.actual   && il.actual)   ev.actual   = il.actual;
+        if (!ev.forecast && il.forecast) ev.forecast = il.forecast;
+        if (!ev.previous && il.previous) ev.previous = il.previous;
       } else {
-        // Présent sur Investing mais absent de TE — on l'ajoute
-        const evDate = new Date(inv.date);
+        // Présent sur investingLive mais absent de TE — on l'ajoute
+        const evDate = new Date(il.date);
         dedupeIndex.set(key, events.length);
         events.push({
-          id:            inv.id,
-          date:          inv.date,
-          currency:      inv.currency,
-          category:      inv.category,
-          title:         inv.title,
-          rawTitle:      inv.title,
-          impact:        inv.impact,
-          actual:        inv.actual,
-          forecast:      inv.forecast,
-          previous:      inv.previous,
-          isPublished:   inv.isPublished,
+          id:            il.id,
+          date:          il.date,
+          currency:      il.currency,
+          countryCode:   il.countryCode,
+          category:      il.category,
+          title:         il.title,
+          rawTitle:      il.title,
+          impact:        applyImpactFloor(il.title, il.impact),
+          actual:        il.actual,
+          forecast:      il.forecast,
+          previous:      il.previous,
+          isPublished:   il.isPublished,
           week:          weekOf(evDate),
           source:        "fred",
           groupKey:      null,
@@ -508,6 +531,7 @@ export async function GET() {
       id:            `cb_${meeting.currency}_${meeting.dateIso}`,
       date:          isoDate,
       currency:      meeting.currency,
+      countryCode:   MAJOR_CCY_TO_COUNTRY[meeting.currency] ?? meeting.currency,
       category:      "policy_rate",
       title:         meeting.title + probLabel,
       rawTitle:      meeting.title,
@@ -545,7 +569,7 @@ export async function GET() {
   events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   const sourceLabel = useScraping
-    ? `tradingeconomics-html(${teEvents.length})+investing(${invEvents.length})+rateprobability`
+    ? `tradingeconomics-html(${teEvents.length})+investinglive(${ilEvents.length})+rateprobability`
     : (fredKey ? "forexfactory+fred+rateprobability" : "forexfactory+rateprobability");
 
   const result: CalendarResponse = {

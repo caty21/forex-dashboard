@@ -99,15 +99,21 @@ const MEETING_TITLES: Partial<Record<Currency, string>> = {
 
 // ── Extraction des champs (nommage hétérogène selon les CB) ───────────────────
 
+// .github/scripts/fetch-rate-data.mjs écrit toujours "midpoint", quelle que soit
+// la devise (CME/Investing.com/InvestingLive écrivent tous le même schéma). Les
+// noms par devise ci-dessous ("current_target", "cash_rate_target"…) datent de
+// l'ancienne source rateprobability.com (remplacée par le commit 2673686) et ne
+// sont plus jamais écrits par le pipeline actuel — d'où le "0.00%" affiché pour
+// toute devise autre que USD/NZD (les deux seules à retomber sur "midpoint").
 function getCurrentRate(ccy: Currency, today: Record<string, unknown>): number {
+  if (typeof today["midpoint"] === "number") return today["midpoint"] as number;
   switch (ccy) {
-    case "USD": return (today["midpoint"]              as number) ?? 0;
     case "EUR": return (today["ecb_main_refinancing"]  as number) ?? (today["ecb_deposit_facility"] as number) ?? 0;
     case "GBP": return (today["current_target"]        as number) ?? 0;
     case "JPY": return (today["current_target"]        as number) ?? 0;
     case "CAD": return (today["Overnight Rate Target"] as number) ?? 0;
     case "AUD": return (today["cash_rate_target"]      as number) ?? 0;
-    case "NZD": return (today["Official Cash Rate (OCR)"] as number) ?? (today["current_target"] as number) ?? (today["midpoint"] as number) ?? 0;
+    case "NZD": return (today["Official Cash Rate (OCR)"] as number) ?? (today["current_target"] as number) ?? 0;
     default:    return 0;
   }
 }
@@ -118,56 +124,79 @@ function getAsOf(today: Record<string, unknown>): string {
 }
 
 
-// ── SNB meeting dates (published par la SNB, trimestrielles) ─────────────────
-// Mise à jour annuelle : mars, juin, septembre, décembre
+// ── Calendriers officiels par banque centrale ─────────────────────────────────
+// Utilisés pour les CB sans page Investing.com dédiée (ou dont le fallback IL
+// n'a qu'un seul point "year-end") : on construit une vraie courbe multi-réunions
+// à partir des dates réelles + de l'estimation InvestingLive (proba/direction).
+// Sources officielles, à mettre à jour quand chaque banque publie son calendrier
+// suivant (généralement 1x/an) :
+//   SNB  : snb.ch/en/the-snb/mandates-goals/monetary-policy/decisions
+//   RBNZ : rbnz.govt.nz
+//   ECB  : ecb.europa.eu/press/calendars/mgcgc (jour 2 = décision + conf. presse)
+//   BoE  : bankofengland.co.uk/monetary-policy/upcoming-mpc-dates
+//   BoJ  : boj.or.jp/en/mopo/mpmsche_minu (2027 pas encore publié à l'écriture de ceci)
+//   BoC  : bankofcanada.ca (annonce annuelle du calendrier, pas encore publié pour 2027)
+//   RBA  : rba.gov.au/schedules-events/board-meeting-schedules.html (jour 2 = décision)
 
 const SNB_MEETINGS: string[] = [
-  // 2026
-  "2026-06-19",
-  "2026-09-25",
-  "2026-12-11",
-  // 2027
-  "2027-03-18",
-  "2027-06-17",
-  "2027-09-23",
-  "2027-12-09",
+  "2026-06-19", "2026-09-25", "2026-12-11",
+  "2027-03-18", "2027-06-17", "2027-09-23", "2027-12-09",
 ];
-
-// ── RBNZ meeting dates (7 par an) ─────────────────────────────────────────────
-// Source officielle : rbnz.govt.nz — mise à jour annuelle
 
 const RBNZ_MEETINGS: string[] = [
-  // 2026
-  "2026-07-09",
-  "2026-08-19",
-  "2026-10-14",
-  "2026-11-25",
-  // 2027
-  "2027-02-24",
-  "2027-04-09",
-  "2027-05-26",
-  "2027-07-14",
-  "2027-08-18",
-  "2027-10-13",
-  "2027-11-24",
+  "2026-07-09", "2026-08-19", "2026-10-14", "2026-11-25",
+  "2027-02-24", "2027-04-09", "2027-05-26", "2027-07-14",
+  "2027-08-18", "2027-10-13", "2027-11-24",
 ];
 
-// Construit un CBRatePath NZD depuis InvestingLive + calendrier RBNZ officiel
-function buildRBNZPath(il: ILExpectationsMap, currentRate: number): CBRatePath | null {
-  const nzdData = il["NZD"];
-  if (!nzdData) return null;
+const ECB_MEETINGS: string[] = [
+  "2026-07-23", "2026-09-10", "2026-10-29", "2026-12-17",
+  "2027-02-04", "2027-03-18", "2027-04-29", "2027-06-10",
+  "2027-07-22", "2027-09-09", "2027-10-28", "2027-12-16",
+];
+
+const BOE_MEETINGS: string[] = [
+  "2026-07-30", "2026-09-17", "2026-11-05", "2026-12-17",
+  "2027-02-04", "2027-03-18", "2027-04-29", "2027-06-17",
+  "2027-07-29", "2027-09-16", "2027-11-04", "2027-12-16",
+];
+
+const BOJ_MEETINGS: string[] = [
+  "2026-07-31", "2026-09-18", "2026-10-30", "2026-12-18",
+];
+
+const BOC_MEETINGS: string[] = [
+  "2026-07-15", "2026-09-02", "2026-10-28", "2026-12-09",
+];
+
+const RBA_MEETINGS: string[] = [
+  "2026-08-11", "2026-09-29", "2026-11-03", "2026-12-08",
+  "2027-02-09", "2027-03-23", "2027-05-04", "2027-06-22",
+  "2027-08-10", "2027-09-28", "2027-11-02", "2027-12-14",
+];
+
+// Construit un CBRatePath depuis un calendrier officiel + l'estimation InvestingLive
+// (proba/direction de la prochaine réunion, biais year-end pour les suivantes).
+function buildOfficialCalendarPath(
+  currency: Currency,
+  officialMeetings: string[],
+  il: ILExpectationsMap,
+  currentRate: number,
+): CBRatePath | null {
+  const ilData = il[currency];
+  if (!ilData) return null;
 
   const nowIso = new Date().toISOString().slice(0, 10);
-  const upcomingMeetings = RBNZ_MEETINGS.filter(d => d >= nowIso);
+  const upcomingMeetings = officialMeetings.filter(d => d >= nowIso);
   if (upcomingMeetings.length === 0) return null;
 
-  const yearEndIsCut = nzdData.bpsYearEnd < 0;
+  const yearEndIsCut = ilData.bpsYearEnd < 0;
 
   const meetings: RateProbMeeting[] = upcomingMeetings.map((dateIso, i) => {
     const isNext      = i === 0;
-    const probMovePct = isNext ? nzdData.nextMeetingProbPct : 0;
+    const probMovePct = isNext ? ilData.nextMeetingProbPct : 0;
     const probIsCut   = isNext
-      ? (nzdData.nextMeetingIsNoChange ? yearEndIsCut : !nzdData.nextMeetingIsHike)
+      ? (ilData.nextMeetingIsNoChange ? yearEndIsCut : !ilData.nextMeetingIsHike)
       : yearEndIsCut;
     const changeBps   = isNext ? (probMovePct > 50 ? (probIsCut ? -25 : 25) : 0) : 0;
     const impliedRate = isNext && probMovePct > 50
@@ -182,56 +211,8 @@ function buildRBNZPath(il: ILExpectationsMap, currentRate: number): CBRatePath |
   );
 
   return {
-    currency:       "NZD",
-    asOf:           nzdData.publishedDate,
-    currentRate,
-    meetings,
-    peakMeeting:    peakMeeting.probMovePct > 0 ? peakMeeting : null,
-    yearEndImplied: meetings.at(-1)?.impliedRate ?? null,
-  };
-}
-
-// Construit un CBRatePath CHF depuis les données InvestingLive (probabilités OIS-équivalent)
-function buildSNBPath(il: ILExpectationsMap, currentRate: number): CBRatePath | null {
-  const chfData = il["CHF"];
-  if (!chfData) return null;
-
-  const nowIso = new Date().toISOString().slice(0, 10);
-  const upcomingMeetings = SNB_MEETINGS.filter(d => d >= nowIso);
-  if (upcomingMeetings.length === 0) return null;
-
-  // Direction par défaut : bpsYearEnd > 0 = hausse, < 0 = baisse
-  const yearEndIsHike = chfData.bpsYearEnd >= 0;
-
-  const meetings: RateProbMeeting[] = upcomingMeetings.map((dateIso, i) => {
-    const isNext = i === 0;
-    const probMovePct = isNext ? chfData.nextMeetingProbPct : 0;
-    // Si "no change" à la prochaine réunion, la direction vient du biais year-end
-    const probIsCut = isNext
-      ? (chfData.nextMeetingIsNoChange ? !yearEndIsHike : !chfData.nextMeetingIsHike)
-      : !yearEndIsHike;
-    const changeBps = isNext ? (probIsCut ? -chfData.bpsYearEnd : chfData.bpsYearEnd) : 0;
-    const impliedRate  = isNext && probMovePct > 50
-      ? currentRate + (probIsCut ? -0.25 : 0.25)
-      : currentRate;
-
-    return {
-      label:       dateIso.slice(0, 7), // "2026-06"
-      dateIso,
-      impliedRate,
-      probMovePct,
-      probIsCut,
-      changeBps,
-    };
-  });
-
-  const peakMeeting = meetings.reduce((best, m) =>
-    m.probMovePct > best.probMovePct ? m : best, meetings[0]
-  );
-
-  return {
-    currency:       "CHF",
-    asOf:           chfData.publishedDate,
+    currency,
+    asOf:           ilData.publishedDate,
     currentRate,
     meetings,
     peakMeeting:    peakMeeting.probMovePct > 0 ? peakMeeting : null,
@@ -362,18 +343,28 @@ export async function fetchAllCBPaths(): Promise<RateProbData> {
     }
   }
 
-  // CHF/SNB : Investing.com n'a pas de page SNB → InvestingLive seule source.
-  if (!data["CHF"] && ilData["CHF"]) {
-    const snbPath = buildSNBPath(ilData, 0.00);
-    if (snbPath) data["CHF"] = snbPath;
-  }
-
-  // NZD/RBNZ : Investing.com n'a pas de page RBNZ → InvestingLive + calendrier RBNZ.
-  // Si les données JSON ont ≤ 1 réunion (buildILFallback n'en met qu'une) → reconstruire.
-  if ((!data["NZD"] || data["NZD"].meetings.length <= 1) && ilData["NZD"]) {
-    const rate = data["NZD"]?.currentRate || 2.25; // RBNZ OCR juin 2026
-    const rbnzPath = buildRBNZPath(ilData, rate);
-    if (rbnzPath) data["NZD"] = rbnzPath;
+  // Investing.com n'a de Rate Monitor que pour la Fed (USD) — toutes les autres
+  // devises retombent sur le fallback InvestingLive, qui n'a qu'un seul point
+  // "year-end" (buildILFallback dans fetch-rate-data.mjs). On reconstruit ici une
+  // vraie courbe multi-réunions à partir du calendrier officiel de chaque CB +
+  // de l'estimation InvestingLive (proba/direction), comme déjà fait pour NZD/CHF.
+  const OFFICIAL_CALENDARS: Partial<Record<Currency, { meetings: string[]; fallbackRate: number }>> = {
+    CHF: { meetings: SNB_MEETINGS,  fallbackRate: 0.00 },
+    NZD: { meetings: RBNZ_MEETINGS, fallbackRate: 2.25 },
+    EUR: { meetings: ECB_MEETINGS,  fallbackRate: 2.15 },
+    GBP: { meetings: BOE_MEETINGS,  fallbackRate: 3.75 },
+    JPY: { meetings: BOJ_MEETINGS,  fallbackRate: 0.75 },
+    CAD: { meetings: BOC_MEETINGS,  fallbackRate: 2.25 },
+    AUD: { meetings: RBA_MEETINGS,  fallbackRate: 4.35 },
+  };
+  for (const [ccyStr, cal] of Object.entries(OFFICIAL_CALENDARS)) {
+    const ccy = ccyStr as Currency;
+    if (!cal) continue;
+    // Reconstruit si aucune donnée, ou si le fallback IL n'a mis qu'un seul point.
+    if ((data[ccy] && data[ccy]!.meetings.length > 1) || !ilData[ccy]) continue;
+    const rate = data[ccy]?.currentRate || cal.fallbackRate;
+    const path = buildOfficialCalendarPath(ccy, cal.meetings, ilData, rate);
+    if (path) data[ccy] = path;
   }
 
   // Enrichissement IL : fusion proba première réunion + deltas hebdo

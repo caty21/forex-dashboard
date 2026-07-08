@@ -1,0 +1,33 @@
+name: Update Rate Decisions (CB current/prev)
+
+on:
+  schedule:
+    - cron: '20 * * * *'   # toutes les heures (décalé de 20min vs fetch-rate-data.yml)
+  workflow_dispatch:        # déclenchement manuel
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Detect CB rate changes (Trading Economics) — shift current → prev
+        run: node .github/scripts/update-rate-decisions.mjs
+
+      - name: Commit updated data (if changed)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/rate_decisions.json
+          git diff --staged --quiet || git commit -m "chore: update CB rate decision (current/prev) [skip ci]"
+          git push

@@ -46,50 +46,58 @@ export interface ILExpectationsWithHistory {
 
 interface ArticleRef { url: string; dateStr: string; daysAgo: number; }
 
+// Teste les 4 variantes d'URL (/centralbank/ ou /news/, events pluriel ou singulier)
+// en parallèle pour un jour donné — un seul aller-retour réseau au lieu de 4 séquentiels.
 async function tryUrl(daysAgo: number): Promise<ArticleRef | null> {
   const d = new Date(Date.now() - daysAgo * 86_400_000);
   const yyyymmdd = d.toISOString().slice(0, 10).replace(/-/g, "");
   const dateStr  = `${yyyymmdd.slice(0,4)}-${yyyymmdd.slice(4,6)}-${yyyymmdd.slice(6,8)}`;
-  // Tester les 4 variantes : /centralbank/ ou /news/, events (pluriel) ou event (singulier)
   const candidates = [
     `https://investinglive.com/centralbank/how-have-interest-rate-expectations-changed-after-this-weeks-events-${yyyymmdd}/`,
     `https://investinglive.com/centralbank/how-have-interest-rate-expectations-changed-after-this-weeks-event-${yyyymmdd}/`,
     `https://investinglive.com/news/how-have-interest-rate-expectations-changed-after-this-weeks-events-${yyyymmdd}/`,
     `https://investinglive.com/news/how-have-interest-rate-expectations-changed-after-this-weeks-event-${yyyymmdd}/`,
   ];
-  for (const url of candidates) {
+  const hits = await Promise.all(candidates.map(async (url) => {
     try {
       const res = await fetch(url, {
         method:  "GET",
         headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36" },
         cache:   "no-store",
       });
-      if (!res.ok) { res.body?.cancel().catch(() => {}); continue; }
       res.body?.cancel().catch(() => {});
-      return { url, dateStr, daysAgo };
-    } catch { continue; }
+      return res.ok ? url : null;
+    } catch { return null; }
+  }));
+  const found = hits.find((u): u is string => u !== null);
+  return found ? { url: found, dateStr, daysAgo } : null;
+}
+
+// Cherche le jour le plus récent (daysAgo le plus petit) avec un article dans [start, end],
+// par lots concurrents plutôt que séquentiellement — évite jusqu'à ~150 aller-retours
+// réseau en série (risque de timeout sur les fonctions serverless Vercel).
+async function findDayInRange(start: number, end: number, batchSize = 6): Promise<ArticleRef | null> {
+  for (let batchStart = start; batchStart <= end; batchStart += batchSize) {
+    const batchEnd = Math.min(batchStart + batchSize - 1, end);
+    const days = Array.from({ length: batchEnd - batchStart + 1 }, (_, i) => batchStart + i);
+    const results = await Promise.all(days.map(tryUrl));
+    const found = results
+      .filter((r): r is ArticleRef => r !== null)
+      .sort((a, b) => a.daysAgo - b.daysAgo)[0];
+    if (found) return found;
   }
   return null;
 }
 
 async function findArticleRefs(): Promise<{ current: ArticleRef | null; previous: ArticleRef | null }> {
-  let current: ArticleRef | null = null;
-
-  for (let d = 0; d <= 14; d++) {
-    const found = await tryUrl(d);
-    if (found) { current = found; break; }
-  }
+  const current = await findDayInRange(0, 14);
 
   console.log(`[IL] article courant : ${current ? `day=${current.daysAgo} url=${current.url}` : "introuvable (0–14 jours)"}`);
   if (!current) return { current: null, previous: null };
 
-  let previous: ArticleRef | null = null;
   const searchFrom = current.daysAgo + 1;
   const searchTo   = current.daysAgo + 28;
-  for (let d = searchFrom; d <= searchTo; d++) {
-    const found = await tryUrl(d);
-    if (found) { previous = found; break; }
-  }
+  const previous = await findDayInRange(searchFrom, searchTo);
 
   console.log(`[IL] article précédent : ${previous ? `day=${previous.daysAgo} url=${previous.url}` : `introuvable (day ${searchFrom}–${searchTo})`}`);
   return { current, previous };

@@ -1,7 +1,10 @@
 // Sources (in priority order):
-//   1. CME FedWatch API       — USD seul, JSON officieux, fiable
-//   2. Investing.com monitors — toutes CBs, HTML scraped (Cloudflare possible)
-//   3. InvestingLive fallback — articles Giuseppe Dellamotta, hebdo, toutes CBs
+//   1. Investing.com Fed Rate Monitor — USD seul (seule CB pour laquelle Investing.com
+//      publie cet outil ; les autres slugs *-rate-monitor n'existent pas → 404 attendus)
+//   2. InvestingLive fallback         — articles Giuseppe Dellamotta, hebdo, toutes CBs
+//
+// (CME FedWatch retiré : endpoint derrière le WAF Akamai de cmegroup.com, 403/404
+//  systématique, et de toute façon redondant avec la source 1 pour l'USD.)
 
 import { writeFileSync, mkdirSync, readFileSync } from "fs";
 
@@ -33,97 +36,7 @@ const CHROME_HEADERS = {
   "Upgrade-Insecure-Requests": "1",
 };
 
-// ── 1. CME FedWatch (USD) ─────────────────────────────────────────────────────
-
-async function fetchCMEFedWatch() {
-  const year = new Date().getFullYear();
-  const candidates = [
-    // API officieuse FedWatch — essai sur SR3 (SOFR) et ZQ (30-day FF)
-    `https://www.cmegroup.com/CmeWS/mvc/MeetingCalendar/V1/getMeetingCalendarByYear.json?marketCode=SR3&year=${year}`,
-    `https://www.cmegroup.com/CmeWS/mvc/MeetingCalendar/V1/getMeetingCalendarByYear.json?marketCode=FF&year=${year}`,
-    `https://www.cmegroup.com/CmeWS/mvc/MeetingCalendar/V1/getMeetingCalendarByYear.json?marketCode=ZQ&year=${year}`,
-  ];
-
-  for (const url of candidates) {
-    try {
-      const res = await fetch(url, {
-        headers: {
-          ...CHROME_HEADERS,
-          "Accept":       "application/json, text/plain, */*",
-          "Referer":      "https://www.cmegroup.com/markets/interest-rates/cme-fedwatch-tool.html",
-          "Origin":       "https://www.cmegroup.com",
-          "Sec-Fetch-Dest": "empty",
-          "Sec-Fetch-Mode": "cors",
-          "Sec-Fetch-Site": "same-origin",
-        }
-      });
-      console.log(`[CME] ${url.split('?')[1]} → ${res.status}`);
-      if (!res.ok) continue;
-
-      const body = await res.json();
-      console.log(`[CME] keys: ${Object.keys(body).join(", ")}`);
-      console.log(`[CME] preview: ${JSON.stringify(body).slice(0, 600)}`);
-
-      const parsed = parseCMEBody(body);
-      if (parsed) { console.log(`[CME] ✓ ${parsed.today.rows.length} meetings`); return parsed; }
-    } catch (e) {
-      console.error(`[CME] error: ${e.message}`);
-    }
-  }
-  return null;
-}
-
-function parseCMEBody(body) {
-  // Format A : { meetings: [{ date|meetingDate, currentProbs:{minus25,unch,plus25,...}, impliedRate }] }
-  const arr = body.meetings ?? body.data ?? (Array.isArray(body) ? body : null);
-  if (!arr?.length) return null;
-
-  const nowIso = new Date().toISOString().slice(0,10);
-  let currentRate = null;
-  const rows = [];
-
-  for (const m of arr) {
-    const dateIso = normalizeDate(
-      m.date ?? m.meetingDate ?? m.meetDate ?? m.meeting_date ?? ""
-    );
-    if (!dateIso || dateIso < nowIso) continue;
-
-    const probs = m.currentProbs ?? m.probs ?? m.probabilities ?? m.probability ?? {};
-    const probCut  = parseFloat(probs.minus25 ?? probs.cut25  ?? probs["-25"] ?? probs.minus50 ?? 0)
-                   + parseFloat(probs.minus50 ?? probs.cut50  ?? probs["-50"] ?? 0);
-    const probHike = parseFloat(probs.plus25  ?? probs.hike25 ?? probs["+25"] ?? probs.plus50  ?? 0)
-                   + parseFloat(probs.plus50  ?? probs.hike50 ?? probs["+50"] ?? 0);
-    const probHold = parseFloat(probs.unch    ?? probs.hold   ?? probs.unchanged ?? 0);
-
-    const probIsCut   = probCut >= probHike;
-    const probMovePct = probIsCut ? probCut : probHike;
-
-    const impliedRate = parseFloat(
-      m.impliedRate ?? m.implied_rate ?? m.rate ?? m.impliedFedFunds ?? 0
-    );
-    if (currentRate === null)
-      currentRate = parseFloat(m.priorRate ?? m.currentRate ?? m.prior_rate ?? impliedRate ?? 0);
-
-    const changeBps = (impliedRate - (currentRate ?? 0)) * 100;
-    const dateLabel = new Date(dateIso + "T12:00:00Z")
-      .toLocaleDateString("en-US", { month:"short", day:"numeric" });
-
-    rows.push({
-      meeting:                  dateLabel,
-      meeting_iso:              dateIso,
-      implied_rate_post_meeting: impliedRate,
-      prob_move_pct:            probMovePct,
-      prob_is_cut:              probIsCut,
-      change_bps:               changeBps,
-      num_moves:                changeBps / 25,
-    });
-  }
-
-  if (!rows.length) return null;
-  return { today: { midpoint: currentRate ?? 0, rows } };
-}
-
-// ── 2. Investing.com Rate Monitors (all CBs) ──────────────────────────────────
+// ── 1. Investing.com Rate Monitors (Fed only — voir note en tête de fichier) ──
 
 const IC_SLUGS = {
   USD: "fed-rate-monitor",
@@ -136,12 +49,83 @@ const IC_SLUGS = {
   CHF: "snb-rate-monitor",
 };
 
-// Taux directeurs actuels — fallback si non trouvés dans le HTML
-// NZD : RBNZ a coupé à 2.25% (juin 2026) ; CHF : SNB à 0.00%
-const FALLBACK_RATES = {
-  USD: 4.33, EUR: 2.40, GBP: 3.75, JPY: 0.50,
-  CAD: 2.25, AUD: 4.10, NZD: 2.25, CHF: 0.00,
-};
+// Taux directeurs actuels — lus depuis data/rate_decisions.json (source unique,
+// maintenue manuellement "après chaque décision") pour éviter qu'une copie
+// codée en dur ici ne dérive silencieusement de la réalité au fil des mois.
+const rateDecisions = JSON.parse(readFileSync("data/rate_decisions.json", "utf8"))[0]?.decisions ?? {};
+const FALLBACK_RATES = Object.fromEntries(
+  Object.entries(rateDecisions).map(([ccy, d]) => [ccy, d.current])
+);
+
+// ── SNB officiel (CHF) ─────────────────────────────────────────────────────────
+// snb.ch publie ses décisions sous /press-releases-restricted/pre_YYYYMMDD.
+// On découvre la plus récente depuis la page listing (1er lien du pattern),
+// puis on lit le taux dans le titre : "leaves ... unchanged at X%" / "lowers/raises ... to X%".
+async function fetchSnbRate() {
+  try {
+    const listRes = await fetch("https://www.snb.ch/en/the-snb/mandates-goals/monetary-policy/decisions", { headers: CHROME_HEADERS });
+    if (!listRes.ok) return null;
+    const listHtml = await listRes.text();
+    const linkMatch = listHtml.match(/href="(\/en\/publications\/communication\/press-releases-restricted\/pre_(\d{8})[^"]*)"/);
+    if (!linkMatch) return null;
+    const dateIso = `${linkMatch[2].slice(0,4)}-${linkMatch[2].slice(4,6)}-${linkMatch[2].slice(6,8)}`;
+
+    const prRes = await fetch(`https://www.snb.ch${linkMatch[1]}`, { headers: CHROME_HEADERS });
+    if (!prRes.ok) return null;
+    const prHtml = await prRes.text();
+    const rateMatch = prHtml.match(/SNB policy rate\s+(?:unchanged at|to)\s+(-?[\d.]+)%/i);
+    if (!rateMatch) return null;
+
+    console.log(`[SNB] official: ${rateMatch[1]}% (decision ${dateIso})`);
+    return parseFloat(rateMatch[1]);
+  } catch (e) {
+    console.error(`[SNB] error: ${e.message}`);
+    return null;
+  }
+}
+
+// ── Fed officiel (USD) ──────────────────────────────────────────────────────────
+// federalreserve.gov/monetarypolicy/fomccalendars.htm liste, pour chaque réunion,
+// un lien de statement /newsevents/pressreleases/monetary(YYYYMMDD)a.htm. On prend
+// la réunion passée la plus récente, puis on lit la fourchette officielle dans le
+// texte : "target range for the federal funds rate at/to X to Y percent" (X/Y en
+// fractions type "3-1/2"). On retourne le haut de fourchette (convention "upper
+// bound" déjà utilisée ailleurs dans ce repo pour l'USD).
+function parseFedFraction(s) {
+  const m = s.match(/^(\d+)(?:-(\d+)\/(\d+))?$/);
+  if (!m) return NaN;
+  const whole = parseFloat(m[1]);
+  return m[2] ? whole + parseFloat(m[2]) / parseFloat(m[3]) : whole;
+}
+
+async function fetchFedRate() {
+  try {
+    const calRes = await fetch("https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm", { headers: CHROME_HEADERS });
+    if (!calRes.ok) return null;
+    const calHtml = await calRes.text();
+
+    const todayCompact = new Date().toISOString().slice(0,10).replace(/-/g,"");
+    const dates = new Set();
+    for (const m of calHtml.matchAll(/\/newsevents\/pressreleases\/monetary(\d{8})a\.htm/g)) dates.add(m[1]);
+    const latestPast = [...dates].filter(d => d <= todayCompact).sort().reverse()[0];
+    if (!latestPast) return null;
+    const dateIso = `${latestPast.slice(0,4)}-${latestPast.slice(4,6)}-${latestPast.slice(6,8)}`;
+
+    const stRes = await fetch(`https://www.federalreserve.gov/newsevents/pressreleases/monetary${latestPast}a.htm`, { headers: CHROME_HEADERS });
+    if (!stRes.ok) return null;
+    const stHtml = await stRes.text();
+    const rateMatch = stHtml.match(/target range for the federal funds rate[\s\S]{0,60}?(\d+(?:-\d\/\d)?)\s*to\s*(\d+(?:-\d\/\d)?)\s*percent/i);
+    if (!rateMatch) return null;
+
+    const upper = parseFedFraction(rateMatch[2]);
+    if (isNaN(upper)) return null;
+    console.log(`[FED] official: ${rateMatch[1]}-${rateMatch[2]}% → upper=${upper}% (decision ${dateIso})`);
+    return upper;
+  } catch (e) {
+    console.error(`[FED] error: ${e.message}`);
+    return null;
+  }
+}
 
 async function fetchInvestingCom(ccy) {
   const slug = IC_SLUGS[ccy];
@@ -261,69 +245,65 @@ function parseJsonData(ccy, json) {
   return { today: { midpoint: currentRate, rows } };
 }
 
+// Structure réelle de la page (vérifiée juillet 2026) : chaque réunion FOMC est un
+// bloc "Meeting Time: <i>Jul 29, 2026 02:00PM ET</i>" suivi d'un <table class="fedRateTbl">
+// dont les lignes sont des fourchettes de taux ("3.50 - 3.75") + probabilité courante.
+// Il n'y a AUCUNE colonne date dans la table elle-même (elle vit dans le bloc parent) —
+// c'est pourquoi l'ancienne heuristique par en-têtes de colonnes ne trouvait jamais rien.
 function parseRateMonitorTable(ccy, html) {
-  // Find all <table> blocks
-  const tables = [...html.matchAll(/<table[\s\S]*?<\/table>/gi)];
-  console.log(`[IC/${ccy}] ${tables.length} tables found`);
+  const currentRate = FALLBACK_RATES[ccy] ?? 0;
+  const nowIso  = new Date().toISOString().slice(0,10);
+  const blockRe = /Meeting Time:<\/span>\s*<i>([^<]+)<\/i>[\s\S]*?<table class="genTbl openTbl fedRateTbl">([\s\S]*?)<\/table>/g;
+  const rowRe   = /<td class="left">\s*([\d.]+\s*-\s*[\d.]+)[\s\S]*?<\/td>\s*<td>\s*([\d.]+)%<\/td>/g;
 
-  for (const [table] of tables) {
-    // Extract header row to detect probability columns
-    const headers = [...table.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/gi)]
-      .map(m => m[1].replace(/<[^>]+>/g,"").trim().toLowerCase());
+  const rows = [];
+  let bm;
+  while ((bm = blockRe.exec(html)) !== null) {
+    const dateIso = normalizeDate(bm[1].trim());
+    if (!dateIso || dateIso < nowIso) continue;
 
-    const hasProbCols = headers.some(h => /cut|hike|unch|hold|basis|bps|prob|\-\d|\+\d/.test(h));
-    const hasDate     = headers.some(h => /meeting|date|month/.test(h));
-    if (!hasProbCols || !hasDate) continue;
-
-    console.log(`[IC/${ccy}] table headers: ${headers.join(" | ")}`);
-
-    const dateIdx   = headers.findIndex(h => /meeting|date|month/.test(h));
-    const cutCols   = headers.reduce((acc,h,i) => /cut|\-25|\-50|decr/.test(h) ? [...acc,i] : acc, []);
-    const hikeCols  = headers.reduce((acc,h,i) => /hike|\+25|\+50|incr/.test(h) ? [...acc,i] : acc, []);
-    const holdCols  = headers.reduce((acc,h,i) => /unch|hold|no.?change/.test(h) ? [...acc,i] : acc, []);
-    const rateIdx   = headers.findIndex(h => /implied|rate/.test(h));
-
-    const rows2 = [];
-    const nowIso  = new Date().toISOString().slice(0,10);
-    const trs = [...table.matchAll(/<tr[\s\S]*?<\/tr>/gi)].slice(1); // skip header
-
-    for (const [tr] of trs) {
-      const cells = [...tr.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)]
-        .map(m => m[1].replace(/<[^>]+>/g,"").trim());
-      if (cells.length < 2) continue;
-
-      const dateIso = normalizeDate(cells[dateIdx] ?? "");
-      if (!dateIso || dateIso < nowIso) continue;
-
-      const pct = s => parseFloat((s ?? "0").replace(/[^0-9.]/g,"")) || 0;
-      const probCut  = cutCols.reduce((s,i)  => s + pct(cells[i]),  0);
-      const probHike = hikeCols.reduce((s,i) => s + pct(cells[i]),  0);
-      const probIsCut   = probCut >= probHike;
-      const probMovePct = Math.max(probCut, probHike);
-      const impliedRate = rateIdx >= 0 ? pct(cells[rateIdx]) : FALLBACK_RATES[ccy] ?? 0;
-      const changeBps   = (impliedRate - (FALLBACK_RATES[ccy] ?? 0)) * 100;
-      const dateLabel   = new Date(dateIso + "T12:00:00Z")
-        .toLocaleDateString("en-US", { month:"short", day:"numeric" });
-
-      rows2.push({
-        meeting: dateLabel, meeting_iso: dateIso,
-        implied_rate_post_meeting: impliedRate,
-        prob_move_pct: probMovePct, prob_is_cut: probIsCut,
-        change_bps: changeBps, num_moves: changeBps / 25,
-      });
+    let rm, totalProb = 0, weightedRate = 0, probBelow = 0, probAbove = 0;
+    rowRe.lastIndex = 0;
+    while ((rm = rowRe.exec(bm[2])) !== null) {
+      const parts = rm[1].match(/([\d.]+)\s*-\s*([\d.]+)/);
+      if (!parts) continue;
+      const hi   = parseFloat(parts[2]);
+      const prob = parseFloat(rm[2]);
+      totalProb    += prob;
+      // currentRate suit la convention "upper bound" (ex: 3.75 pour la fourchette
+      // 3.50-3.75, cf. data/rate_decisions.json / app/api/macro) : chaque fourchette
+      // doit donc être représentée par SON haut (hi), pas son milieu — sinon la
+      // fourchette actuelle (mid=3.625) ne matche jamais currentRate (3.75), ce qui
+      // introduit un biais fantôme de ~-12.5bps même à 100% de probabilité de statu quo.
+      weightedRate += hi * prob;
+      // La fourchette dont le haut == currentRate EST la fourchette actuelle → ni cut ni hike.
+      if (Math.abs(hi - currentRate) < 0.01) continue;
+      if (hi < currentRate) probBelow += prob;
+      else probAbove += prob;
     }
+    if (!totalProb) continue;
 
-    if (rows2.length) {
-      console.log(`[IC/${ccy}] ✓ table parsed: ${rows2.length} rows`);
-      return { today: { midpoint: FALLBACK_RATES[ccy] ?? 0, rows: rows2 } };
-    }
+    const impliedRate = parseFloat((weightedRate / totalProb).toFixed(4));
+    const probIsCut   = probBelow > probAbove; // strict : à 0/0 (aucun biais), ne pas défaulter sur "cut"
+    const probMovePct = Math.round(Math.max(probBelow, probAbove));
+    const changeBps   = (impliedRate - currentRate) * 100;
+    const dateLabel   = new Date(dateIso + "T12:00:00Z")
+      .toLocaleDateString("en-US", { month:"short", day:"numeric" });
+
+    rows.push({
+      meeting: dateLabel, meeting_iso: dateIso,
+      implied_rate_post_meeting: impliedRate,
+      prob_move_pct: probMovePct, prob_is_cut: probIsCut,
+      change_bps: changeBps, num_moves: changeBps / 25,
+    });
   }
 
-  console.warn(`[IC/${ccy}] no parseable table found`);
-  return null;
+  if (!rows.length) { console.warn(`[IC/${ccy}] no parseable meeting block found`); return null; }
+  console.log(`[IC/${ccy}] ✓ table parsed: ${rows.length} meetings`);
+  return { today: { midpoint: currentRate, rows } };
 }
 
-// ── 3. InvestingLive fallback (Giuseppe Dellamotta, hebdomadaire) ─────────────
+// ── 2. InvestingLive fallback (Giuseppe Dellamotta, hebdomadaire) ─────────────
 
 const IL_CB_MAP = {
   fed:  "USD", fomc: "USD",
@@ -373,11 +353,22 @@ function parseILArticle(html) {
   for (const m of text.matchAll(re)) {
     const ccy = IL_CB_MAP[m[1].toLowerCase()];
     if (!ccy || results[ccy]) continue;
-    const bps      = parseInt(m[2]);
-    const probPct  = parseInt(m[3]);
-    const isHike   = /hike/i.test(m[5]);
-    const isNoChg  = /no.?change/i.test(m[5]);
-    results[ccy] = { bpsYearEnd: isHike ? bps : -bps, probMovePct: isNoChg ? 0 : probPct, isCut: !isHike && !isNoChg };
+    const bps           = parseInt(m[2]);
+    const probPct       = parseInt(m[3]);
+    const isNoChg       = /no.?change/i.test(m[5]);
+    const isCutDirection = !isNoChg && /cut/i.test(m[5]);
+
+    // "XX bps" est une magnitude signée du biais year-end : on ne la force négative
+    // que si la direction annoncée est explicitement "cut". Pour "no change", le bps
+    // reste positif par défaut (biais hausse), comme pour "hike" — le bug précédent
+    // négativait TOUT ce qui n'était pas explicitement "hike", cassant EUR/GBP/JPY/
+    // CAD/AUD/CHF (tous en "no change" la plupart des semaines).
+    const bpsYearEnd = isCutDirection && bps > 0 ? -bps : bps;
+    // "no change" à la prochaine réunion : la probabilité de mouvement est le complément
+    // de la probabilité de statu quo (ex: "72% no change" → 28% de mouvement), pas 0.
+    const probMovePct = isNoChg ? 100 - probPct : probPct;
+
+    results[ccy] = { bpsYearEnd, probMovePct, isCut: bpsYearEnd < 0 };
   }
 
   console.log(`[IL] parsed: ${Object.keys(results).join(", ")}`);
@@ -409,23 +400,26 @@ function buildILFallback(ccy, il) {
 const CCYS = ["USD","EUR","GBP","JPY","CAD","AUD","NZD","CHF"];
 const results = {};
 
-// 1 — CME FedWatch → USD
-console.log("\n=== CME FedWatch ===");
-const cmeData = await fetchCMEFedWatch();
-if (cmeData) { results["USD"] = cmeData; console.log("[CME] USD ✓"); }
+// 0 — Sources officielles → écrasent les ancres si data/rate_decisions.json a dérivé
+console.log("\n=== Fed (official) ===");
+const fedRate = await fetchFedRate();
+if (fedRate !== null) FALLBACK_RATES.USD = fedRate;
 
-// 2 — Investing.com → CBs qui ont une page rate-monitor (pas CHF ni NZD → 404)
-// CHF (snb-rate-monitor) et NZD (rbnz-rate-monitor) n'existent pas sur Investing.com
-const IC_SUPPORTED = CCYS.filter(c => c !== "CHF" && c !== "NZD");
+console.log("\n=== SNB (official) ===");
+const snbRate = await fetchSnbRate();
+if (snbRate !== null) FALLBACK_RATES.CHF = snbRate;
+
+// 1 — Investing.com Fed Rate Monitor → USD uniquement (seule CB avec cet outil ;
+// les autres slugs *-rate-monitor n'existent pas sur investing.com → 404 attendus)
+const IC_SUPPORTED = ["USD"];
 console.log("\n=== Investing.com Rate Monitors ===");
 for (const ccy of IC_SUPPORTED) {
-  if (results[ccy]) { console.log(`[IC/${ccy}] skipped (CME)`); continue; }
   const data = await fetchInvestingCom(ccy);
   if (data) results[ccy] = data;
   await new Promise(r => setTimeout(r, 600));
 }
 
-// 3 — InvestingLive → fallback for any missing CB
+// 2 — InvestingLive → fallback for any missing CB
 const missing = CCYS.filter(c => !results[c]);
 if (missing.length) {
   console.log(`\n=== InvestingLive fallback (missing: ${missing.join(", ")}) ===`);

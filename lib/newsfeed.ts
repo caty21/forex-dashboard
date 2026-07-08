@@ -620,42 +620,48 @@ async function fetchRssFeed(url: string, source: string): Promise<NewsItem[]> {
   } catch { return []; }
 }
 
-// ── Source 1 : InvestingLive via WordPress REST API ───────────────────────────
-// Beaucoup plus fiable que le scraping HTML — retourne du JSON structuré
+// ── Source 1 : InvestingLive via leur API interne (Nuxt/api.investinglive.com) ─
+// L'ancien endpoint WordPress (wp-json) renvoie 404 depuis la migration du site
+// vers Nuxt.js (rebrand ForexLive → investingLive) — remplacé par l'API JSON
+// qui alimente leur propre page d'accueil (aucune clé requise, publique).
 
 async function fetchInvestingLiveNews(): Promise<NewsItem[]> {
   try {
-    // WordPress REST API : liste des posts récents, filtrée sur catégorie forex si dispo
     const res = await fetch(
-      "https://investinglive.com/wp-json/wp/v2/posts?per_page=20&orderby=date&order=desc&_fields=id,title,link,date,excerpt,categories",
+      "https://api.investinglive.com/api/homepage/articles",
       {
-        next:    { revalidate: 1800 },
+        next:    { revalidate: 900 },
         headers: { ...TE_HEADERS, "Accept": "application/json" },
       }
     );
     if (!res.ok) return [];
 
-    const posts = await res.json() as Array<{
-      id: number;
-      title:   { rendered: string };
-      link:    string;
-      date:    string;
-      excerpt: { rendered: string };
-    }>;
-
+    const data = await res.json() as {
+      LatestArticles?: Array<{
+        Id: string;
+        Title: string;
+        Slug: string;
+        Tldr?: string[] | string | null; // schéma incohérent selon le type d'article
+        PublishedOn: string;
+        Category?: { Name: string; Slug: string };
+      }>;
+    };
+    const posts = data.LatestArticles;
     if (!Array.isArray(posts)) return [];
 
     return posts.slice(0, 20).map(post => {
-      const title   = post.title?.rendered?.replace(/<[^>]+>/g, "").replace(/&#8217;/g, "'").replace(/&#8220;/g, '"').replace(/&#8221;/g, '"').trim() ?? "";
-      const summary = post.excerpt?.rendered?.replace(/<[^>]+>/g, "").trim().slice(0, 250);
+      const title    = post.Title?.trim() ?? "";
+      const summary  = (Array.isArray(post.Tldr) ? post.Tldr.join(" ") : post.Tldr ?? "").slice(0, 250);
+      const catSlug  = post.Category?.Slug ?? "news";
+      const url      = `https://investinglive.com/${catSlug}/${post.Slug}/`;
       const combined = `${title} ${summary ?? ""}`;
       const { impacts, categories } = applyRules(combined);
       return {
-        id:          `il-${post.id}`,
+        id:          `il-${post.Id}`,
         title,
-        url:         post.link,
+        url,
         source:      "InvestingLive",
-        publishedAt: parseDate(post.date),
+        publishedAt: parseDate(post.PublishedOn),
         summary,
         impacts,
         categories,

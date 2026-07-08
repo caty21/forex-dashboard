@@ -5,6 +5,7 @@ import type { Currency } from "@/lib/types";
 export const dynamic = "force-dynamic";
 import cpiOverridesRaw   from "@/data/cpi_overrides.json";
 import rateDecisionsRaw  from "@/data/rate_decisions.json";
+import moneySupplyM3Raw  from "@/data/money-supply-m3.json";
 import { fetchFFThisWeek, fetchFFEvents } from "@/lib/forexfactory";
 import type { FFEvent } from "@/lib/forexfactory";
 import { fetchTECoreInflation, fetchTEMoMInflation, fetchTEInflationYoY, fetchTECoreCPIMoM, fetchTECoreConsumerPricesIndex, fetchTEPPIMoM, fetchTECoreInflationPages, fetchTEInflationYoYPages, fetchTEAUDCommodityYoY, fetchTEGDPGrowthRate, fetchTEUnemploymentRate, fetchTESTIRRate, fetchTEEmploymentChange } from "@/lib/tecpi";
@@ -127,6 +128,78 @@ async function boeRate(): Promise<Obs[]> {
       })
       .filter((o) => o.date && !isNaN(o.value));
   } catch { return []; }
+}
+
+// ── SNB officiel (CHF policy rate) ─────────────────────────────────────────────
+// snb.ch publie ses décisions sous /press-releases-restricted/pre_YYYYMMDD.
+// On découvre la plus récente depuis la page listing (1er lien du pattern),
+// puis on lit le taux dans le titre : "leaves ... unchanged at X%" / "lowers/raises ... to X%".
+async function scrapeSnbRate(): Promise<number | null> {
+  const headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept":     "text/html,application/xhtml+xml,*/*;q=0.8",
+  };
+  try {
+    const listRes = await fetch("https://www.snb.ch/en/the-snb/mandates-goals/monetary-policy/decisions", {
+      next: { revalidate: REVALIDATE }, headers,
+    });
+    if (!listRes.ok) return null;
+    const listHtml = await listRes.text();
+    const linkMatch = listHtml.match(/href="(\/en\/publications\/communication\/press-releases-restricted\/pre_\d{8}[^"]*)"/);
+    if (!linkMatch) return null;
+
+    const prRes = await fetch(`https://www.snb.ch${linkMatch[1]}`, {
+      next: { revalidate: REVALIDATE }, headers,
+    });
+    if (!prRes.ok) return null;
+    const prHtml = await prRes.text();
+    const rateMatch = prHtml.match(/SNB policy rate\s+(?:unchanged at|to)\s+(-?[\d.]+)%/i);
+    return rateMatch ? parseFloat(rateMatch[1]) : null;
+  } catch { return null; }
+}
+
+// ── Fed officiel (USD policy rate) ──────────────────────────────────────────────
+// fomccalendars.htm liste, pour chaque réunion, un lien de statement
+// /newsevents/pressreleases/monetary(YYYYMMDD)a.htm. On prend la réunion passée
+// la plus récente puis on lit la fourchette officielle : "target range for the
+// federal funds rate at/to X to Y percent" (X/Y en fractions type "3-1/2").
+// On retourne le haut de fourchette (convention "upper bound" déjà utilisée ici).
+function parseFedFraction(s: string): number {
+  const m = s.match(/^(\d+)(?:-(\d+)\/(\d+))?$/);
+  if (!m) return NaN;
+  const whole = parseFloat(m[1]);
+  return m[2] ? whole + parseFloat(m[2]) / parseFloat(m[3]) : whole;
+}
+
+async function scrapeFedRate(): Promise<number | null> {
+  const headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept":     "text/html,application/xhtml+xml,*/*;q=0.8",
+  };
+  try {
+    const calRes = await fetch("https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm", {
+      next: { revalidate: REVALIDATE }, headers,
+    });
+    if (!calRes.ok) return null;
+    const calHtml = await calRes.text();
+
+    const todayCompact = new Date().toISOString().slice(0,10).replace(/-/g,"");
+    const dates = new Set<string>();
+    for (const m of Array.from(calHtml.matchAll(/\/newsevents\/pressreleases\/monetary(\d{8})a\.htm/g))) dates.add(m[1]);
+    const latestPast = Array.from(dates).filter(d => d <= todayCompact).sort().reverse()[0];
+    if (!latestPast) return null;
+
+    const stRes = await fetch(`https://www.federalreserve.gov/newsevents/pressreleases/monetary${latestPast}a.htm`, {
+      next: { revalidate: REVALIDATE }, headers,
+    });
+    if (!stRes.ok) return null;
+    const stHtml = await stRes.text();
+    const rateMatch = stHtml.match(/target range for the federal funds rate[\s\S]{0,60}?\d+(?:-\d\/\d)?\s*to\s*(\d+(?:-\d\/\d)?)\s*percent/i);
+    if (!rateMatch) return null;
+
+    const upper = parseFedFraction(rateMatch[1]);
+    return isNaN(upper) ? null : upper;
+  } catch { return null; }
 }
 
 // ── DBnomics API (agrégateur IMF/IFS, BIS, OECD…) ────────────────────────────
@@ -530,6 +603,19 @@ function getRateDecision(ccy: string): RateDecision | null {
   return entry?.decisions?.[ccy] ?? null;
 }
 
+// ── money-supply-m3.json — masse monétaire M3 (niveau, statique) ─────────────
+
+type MoneySupplyM3 = {
+  value: number; unit: string; period: string; isProxy: boolean;
+  proxyLabel?: string; source: string;
+};
+
+function getMoneySupplyM3(ccy: string): MoneySupplyM3 | null {
+  type MsRaw = [{ series: Record<string, MoneySupplyM3> }];
+  const entry = (moneySupplyM3Raw as unknown as MsRaw)[0];
+  return entry?.series?.[ccy] ?? null;
+}
+
 /** Construit un IndicatorResult à partir de la valeur TE + prev de l'override */
 function buildRateIndicator(current: number, prev: number, today: string): IndicatorResult {
   const surprise = parseFloat((current - prev).toFixed(4));
@@ -846,11 +932,13 @@ export async function GET(req: NextRequest) {
 
   // USD — midpoint de la fourchette cible (DFEDTARU + DFEDTARL) / 2
   // Rateprobability.com / marchés quotent le midpoint (3.625%) pas l'upper bound (3.75%)
-  // USD — TE scraping (taux Fed upper bound officiel = 3.75%)
+  // USD — Fed officiel en primaire (source directe federalreserve.gov, cf. scrapeFedRate)
+  //       Repli TE scraping puis FRED upper bound si federalreserve.gov indisponible.
   //       Ancien calcul midpoint FRED (DFEDTARU+DFEDTARL)/2 = 3.625% → pas le taux annoncé
   if (currency === "USD") {
-    const te  = await scrapeTeRate(TE_COUNTRY.USD);
+    const fed = await scrapeFedRate();
     const ovr = getRateDecision("USD");
+    const te  = fed ?? await scrapeTeRate(TE_COUNTRY.USD);
     if (te !== null && ovr) {
       indicators.policyRate = buildRateIndicator(te, ovr.prev, today);
     } else if (te !== null) {
@@ -930,15 +1018,17 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // CHF — TE scraping (taux SNB officiel exact = 0.00%)
+  // CHF — SNB officiel en primaire (source directe snb.ch, cf. scrapeSnbRate)
+  //       Repli TE scraping si snb.ch indisponible.
   //       IR3TIB01CHM156N = SARON 3M (~-0.04%) ≠ taux SNB officiel
   if (currency === "CHF") {
-    const te  = await scrapeTeRate(TE_COUNTRY.CHF);
+    const snb = await scrapeSnbRate();
     const ovr = getRateDecision("CHF");
-    if (te !== null && ovr) {
-      indicators.policyRate = buildRateIndicator(te, ovr.prev, today);
-    } else if (te !== null) {
-      indicators.policyRate = { value: te, prev: null, surprise: null, trend: null, lastUpdated: today };
+    const rate = snb ?? await scrapeTeRate(TE_COUNTRY.CHF);
+    if (rate !== null && ovr) {
+      indicators.policyRate = buildRateIndicator(rate, ovr.prev, today);
+    } else if (rate !== null) {
+      indicators.policyRate = { value: rate, prev: null, surprise: null, trend: null, lastUpdated: today };
     }
   }
 
@@ -1047,18 +1137,16 @@ export async function GET(req: NextRequest) {
   toDateObj.setDate(toDateObj.getDate() + 21);
   const toDate = toDateObj.toISOString().slice(0, 10);
 
-  const [ffPMI, pmiMfgRaw, pmiSvcRaw, pmiCompositeRaw, ffForecasts, teForecastMap, invForecastMap] = await Promise.all([
+  const [ffPMI, pmiMfgRaw, pmiSvcRaw, pmiCompositeRaw, ffForecasts, teForecastMap] = await Promise.all([
     fetchFFPMI(currency),
     scrapePMI(currency, "manufacturing-pmi"),
     scrapePMI(currency, "services-pmi"),
     scrapePMI(currency, "composite-pmi"),
     fetchFFForecasts(currency),
     fetchTEInflationForecasts(today, toDate),
-    (await import("@/lib/investing")).fetchInvestingInflationForecasts(today, toDate),
   ]);
 
   const teCpiForecast = teForecastMap[currency];
-  const invForecast   = invForecastMap[currency];
   // FF en priorité (forecast + actual) ; TE en fallback
   indicators.pmiMfg       = ffPMI.mfg       ? toPmiIndicator(ffPMI.mfg)       : toPmiIndicator(pmiMfgRaw);
   indicators.pmiServices  = ffPMI.svc       ? toPmiIndicator(ffPMI.svc)       : toPmiIndicator(pmiSvcRaw);
@@ -1337,14 +1425,14 @@ export async function GET(req: NextRequest) {
 
   const data = {
     currency, indicators,
+    moneySupplyM3: getMoneySupplyM3(currency),
     forecasts: {
       // CPI — TE calendar forecast (priorité) puis ForexFactory
-      // Les forecasts TE sont des strings "2.8%" → parseFloat les convertit en number
-      cpi:                    parseTeF(teCpiForecast?.cpiYoY)     ?? parseTeF(invForecast?.cpiYoY)     ?? ffForecasts.cpi ?? null,
-      cpiCore:                parseTeF(teCpiForecast?.cpiCore)    ?? parseTeF(invForecast?.cpiCore)    ?? null,
-      cpiMoM:                 parseTeF(teCpiForecast?.cpiMoM)     ?? parseTeF(invForecast?.cpiMoM)     ?? null,
-      cpiCoreMoM:             parseTeF(teCpiForecast?.cpiCoreMoM) ?? parseTeF(invForecast?.cpiCoreMoM) ?? null,
-      ppiMoM:                 parseTeF(teCpiForecast?.ppiMoM)     ?? parseTeF(invForecast?.ppiMoM)     ?? null,
+      cpi:                    parseTeF(teCpiForecast?.cpiYoY)     ?? ffForecasts.cpi ?? null,
+      cpiCore:                parseTeF(teCpiForecast?.cpiCore)    ?? null,
+      cpiMoM:                 parseTeF(teCpiForecast?.cpiMoM)     ?? null,
+      cpiCoreMoM:             parseTeF(teCpiForecast?.cpiCoreMoM) ?? null,
+      ppiMoM:                 parseTeF(teCpiForecast?.ppiMoM)     ?? null,
       cpiSurprise:            ffForecasts.cpiSurprise,
       unemployment:           ffForecasts.unemployment,
       unemploymentSurprise:   ffForecasts.unemploymentSurprise,

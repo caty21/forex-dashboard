@@ -1,5 +1,233 @@
 {
-  "data": {},
-  "fetchedAt": "2026-07-08T12:14:53.611Z",
+  "data": {
+    "USD": {
+      "today": {
+        "midpoint": 3.75,
+        "rows": [
+          {
+            "meeting": "Jul 29",
+            "meeting_iso": "2026-07-29",
+            "implied_rate_post_meeting": 3.7998,
+            "prob_move_pct": 20,
+            "prob_is_cut": false,
+            "change_bps": 4.979999999999984,
+            "num_moves": 0.19919999999999938
+          },
+          {
+            "meeting": "Sep 16",
+            "meeting_iso": "2026-09-16",
+            "implied_rate_post_meeting": 3.908,
+            "prob_move_pct": 55,
+            "prob_is_cut": false,
+            "change_bps": 15.799999999999992,
+            "num_moves": 0.6319999999999997
+          },
+          {
+            "meeting": "Oct 28",
+            "meeting_iso": "2026-10-28",
+            "implied_rate_post_meeting": 3.96,
+            "prob_move_pct": 64,
+            "prob_is_cut": false,
+            "change_bps": 20.999999999999996,
+            "num_moves": 0.8399999999999999
+          },
+          {
+            "meeting": "Dec 9",
+            "meeting_iso": "2026-12-09",
+            "implied_rate_post_meeting": 4.055,
+            "prob_move_pct": 78,
+            "prob_is_cut": false,
+            "change_bps": 30.49999999999997,
+            "num_moves": 1.2199999999999989
+          },
+          {
+            "meeting": "Jan 27",
+            "meeting_iso": "2027-01-27",
+            "implied_rate_post_meeting": 4.0851,
+            "prob_move_pct": 80,
+            "prob_is_cut": false,
+            "change_bps": 33.50999999999998,
+            "num_moves": 1.3403999999999991
+          },
+          {
+            "meeting": "Mar 17",
+            "meeting_iso": "2027-03-17",
+            "implied_rate_post_meeting": 4.1286,
+            "prob_move_pct": 84,
+            "prob_is_cut": false,
+            "change_bps": 37.85999999999996,
+            "num_moves": 1.5143999999999982
+          },
+          {
+            "meeting": "Apr 28",
+            "meeting_iso": "2027-04-28",
+            "implied_rate_post_meeting": 4.1322,
+            "prob_move_pct": 84,
+            "prob_is_cut": false,
+            "change_bps": 38.22000000000001,
+            "num_moves": 1.5288000000000006
+          },
+          {
+            "meeting": "Jun 9",
+            "meeting_iso": "2027-06-09",
+            "implied_rate_post_meeting": 4.1065,
+            "prob_move_pct": 80,
+            "prob_is_cut": false,
+            "change_bps": 35.64999999999996,
+            "num_moves": 1.4259999999999986
+          },
+          {
+            "meeting": "Jul 28",
+            "meeting_iso": "2027-07-28",
+            "implied_rate_post_meeting": 4.0895,
+            "prob_move_pct": 78,
+            "prob_is_cut": false,
+            "change_bps": 33.95000000000002,
+            "num_moves": 1.3580000000000008
+          },
+          {
+            "meeting": "Sep 15",
+            "meeting_iso": "2027-09-15",
+            "implied_rate_post_meeting": 4.0654,
+            "prob_move_pct": 75,
+            "prob_is_cut": false,
+            "change_bps": 31.540000000000035,
+            "num_moves": 1.2616000000000014
+          },
+          {
+            "meeting": "Oct 27",
+            "meeting_iso": "2027-10-27",
+            "implied_rate_post_meeting": 4.0297,
+            "prob_move_pct": 70,
+            "prob_is_cut": false,
+            "change_bps": 27.970000000000006,
+            "num_moves": 1.1188000000000002
+          },
+          {
+            "meeting": "Dec 8",
+            "meeting_iso": "2027-12-08",
+            "implied_rate_post_meeting": 4.0103,
+            "prob_move_pct": 67,
+            "prob_is_cut": false,
+            "change_bps": 26.029999999999998,
+            "num_moves": 1.0412
+          }
+        ]
+      }
+    },
+    "EUR": {
+      "today": {
+        "midpoint": 2.15,
+        "rows": [
+          {
+            "meeting": "Dec",
+            "meeting_iso": "2026-12-31",
+            "implied_rate_post_meeting": 2.3899999999999997,
+            "prob_move_pct": 28,
+            "prob_is_cut": false,
+            "change_bps": 24,
+            "num_moves": 0.96
+          }
+        ]
+      }
+    },
+    "GBP": {
+      "today": {
+        "midpoint": 3.75,
+        "rows": [
+          {
+            "meeting": "Dec",
+            "meeting_iso": "2026-12-31",
+            "implied_rate_post_meeting": 3.93,
+            "prob_move_pct": 7,
+            "prob_is_cut": false,
+            "change_bps": 18,
+            "num_moves": 0.72
+          }
+        ]
+      }
+    },
+    "JPY": {
+      "today": {
+        "midpoint": 0.75,
+        "rows": [
+          {
+            "meeting": "Dec",
+            "meeting_iso": "2026-12-31",
+            "implied_rate_post_meeting": 0.95,
+            "prob_move_pct": 1,
+            "prob_is_cut": false,
+            "change_bps": 20,
+            "num_moves": 0.8
+          }
+        ]
+      }
+    },
+    "CAD": {
+      "today": {
+        "midpoint": 2.25,
+        "rows": [
+          {
+            "meeting": "Dec",
+            "meeting_iso": "2026-12-31",
+            "implied_rate_post_meeting": 2.33,
+            "prob_move_pct": 9,
+            "prob_is_cut": false,
+            "change_bps": 8,
+            "num_moves": 0.32
+          }
+        ]
+      }
+    },
+    "AUD": {
+      "today": {
+        "midpoint": 4.35,
+        "rows": [
+          {
+            "meeting": "Dec",
+            "meeting_iso": "2026-12-31",
+            "implied_rate_post_meeting": 4.449999999999999,
+            "prob_move_pct": 15,
+            "prob_is_cut": false,
+            "change_bps": 10,
+            "num_moves": 0.4
+          }
+        ]
+      }
+    },
+    "NZD": {
+      "today": {
+        "midpoint": 2.25,
+        "rows": [
+          {
+            "meeting": "Dec",
+            "meeting_iso": "2026-12-31",
+            "implied_rate_post_meeting": 2.87,
+            "prob_move_pct": 82,
+            "prob_is_cut": false,
+            "change_bps": 62,
+            "num_moves": 2.48
+          }
+        ]
+      }
+    },
+    "CHF": {
+      "today": {
+        "midpoint": 0,
+        "rows": [
+          {
+            "meeting": "Dec",
+            "meeting_iso": "2026-12-31",
+            "implied_rate_post_meeting": 0.05,
+            "prob_move_pct": 4,
+            "prob_is_cut": false,
+            "change_bps": 5,
+            "num_moves": 0.2
+          }
+        ]
+      }
+    }
+  },
+  "fetchedAt": "2026-07-03T12:51:24.776Z",
   "snapshots": []
 }

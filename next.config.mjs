@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    serverComponentsExternalPackages: ["papaparse"],
+    serverComponentsExternalPackages: ["papaparse", "pdf-parse", "pdfjs-dist"],
   },
 };
 

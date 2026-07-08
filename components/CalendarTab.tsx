@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { ChevronDown, ChevronRight, Loader2, Calendar } from "lucide-react";
-import { CURRENCIES, CURRENCY_META } from "@/lib/constants";
-import type { Currency } from "@/lib/types";
+import { CURRENCY_META } from "@/lib/constants";
 import type { CalendarEvent } from "@/app/api/calendar/route";
 
 interface Props {
@@ -21,9 +20,19 @@ const CATEGORY_LABELS: Record<string, string> = {
   gdp:           "PIB",
   retail_sales:  "Ventes détail",
   trade_balance: "Balance comm.",
+  sentiment:      "Confiance",
+  housing:        "Immobilier",
+  money_supply:   "Masse monétaire",
+  trade_detail:   "Commerce (détail)",
+  regional_fed:   "Fed régionale",
+  portfolio_flows:"Flux portefeuille",
+  public_finance: "Finances publiques",
+  holiday:        "Jour férié",
+  other:         "Autre",
 };
 
 // ── Currency → ISO alpha-2 (pour flagcdn.com) ─────────────────────────────────
+// Univers élargi (45 pays côté calendrier, au-delà des 8 devises majeures tradées).
 
 const CCY_ISO: Record<string, string> = {
   USD: "us", EUR: "eu", GBP: "gb", JPY: "jp",
@@ -31,7 +40,14 @@ const CCY_ISO: Record<string, string> = {
   CNY: "cn", SEK: "se", NOK: "no", DKK: "dk",
   SGD: "sg", HKD: "hk", MXN: "mx", BRL: "br",
   ZAR: "za", INR: "in", KRW: "kr", TRY: "tr",
+  ARS: "ar", CLP: "cl", COP: "co", CZK: "cz",
+  HUF: "hu", ISK: "is", IDR: "id", ILS: "il",
+  KWD: "kw", PLN: "pl", RON: "ro", RUB: "ru", VND: "vn",
 };
+
+// Ordre d'affichage préféré des chips devise : majeures d'abord, puis le reste
+// trié alphabétiquement (calculé dynamiquement depuis les events reçus).
+const MAJOR_ORDER = ["USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "NZD"];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -100,7 +116,6 @@ function EventRow({ ev, isChild, expanded, onToggle }: {
   ev: CalendarEvent; isChild: boolean; expanded: boolean; onToggle: () => void;
 }) {
   const { day, time } = fmtDate(ev.date);
-  const meta = CURRENCY_META[ev.currency];
 
   const borderCls = !ev.isPublished && ev.impact === "high"   ? "border-l-2 border-l-red-500"
                   : !ev.isPublished && ev.impact === "medium" ? "border-l-2 border-l-amber-400"
@@ -177,11 +192,12 @@ function EventRow({ ev, isChild, expanded, onToggle }: {
 type WeekTab = "prev" | "current" | "next" | "next2" | "all";
 
 export default function CalendarTab({ events, loading, nextWeekAvail }: Props) {
-  const [filterCcy, setFilterCcy] = useState<Currency | "ALL">("ALL");
+  const [filterCcy, setFilterCcy] = useState<string>("ALL");
   const [expanded,  setExpanded]  = useState<Set<string>>(new Set());
   const [showLow,   setShowLow]   = useState(false);
   const [weekTab,   setWeekTab]   = useState<WeekTab>("all");
   const [fromDate,  setFromDate]  = useState<string>(todayIso());
+  const fromDateRef = useRef<HTMLInputElement>(null);
 
   const { prevWeekLabel, currentWeekLabel, nextWeekLabel, next2StartLabel, nextMondayIso } = useMemo(getWeekBounds, []);
   void nextMondayIso;
@@ -206,6 +222,19 @@ export default function CalendarTab({ events, loading, nextWeekAvail }: Props) {
     return true;
   }), [events, filterCcy, showLow, expanded, weekTab, fromDate]);
 
+  // Chips devise : toutes les devises présentes dans les events reçus,
+  // majeures d'abord (ordre trading), puis le reste par ordre alphabétique.
+  const availableCurrencies = useMemo(() => {
+    const set = new Set(events.map(ev => ev.currency));
+    return Array.from(set).sort((a, b) => {
+      const ia = MAJOR_ORDER.indexOf(a), ib = MAJOR_ORDER.indexOf(b);
+      if (ia !== -1 && ib !== -1) return ia - ib;
+      if (ia !== -1) return -1;
+      if (ib !== -1) return 1;
+      return a.localeCompare(b);
+    });
+  }, [events]);
+
   const days: string[] = [];
   const dayMap: Record<string, CalendarEvent[]> = {};
   for (const ev of filtered) {
@@ -228,7 +257,7 @@ export default function CalendarTab({ events, loading, nextWeekAvail }: Props) {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-sm font-semibold text-slate-200">Calendrier économique</h2>
-            <p className="text-[10px] text-slate-600 mt-0.5">Sources : ForexFactory · FRED · Banques centrales</p>
+            <p className="text-[10px] text-slate-600 mt-0.5">Sources : Trading Economics · investingLive · Banques centrales</p>
           </div>
           <label className="flex items-center gap-1.5 text-[10px] text-slate-500 cursor-pointer">
             <input
@@ -290,14 +319,27 @@ export default function CalendarTab({ events, loading, nextWeekAvail }: Props) {
         <div className="flex items-center gap-1.5 shrink-0">
           <Calendar size={11} className="text-slate-600" />
           <span className="text-[10px] text-slate-500">Depuis</span>
+          {/* defaultValue (pas value) : un input date="" contrôlé re-render à chaque
+              frappe et casse la saisie clavier native (les segments jour/mois/année
+              se mélangent, y compris si le re-render est déclenché indirectement via
+              une key). Non-contrôlé après le mount ; le bouton "Aujourd'hui" resynchronise
+              l'affichage à la main via la ref, sans jamais re-render l'input lui-même. */}
           <input
+            ref={fromDateRef}
             type="date"
-            value={fromDate}
-            onChange={e => setFromDate(e.target.value)}
+            defaultValue={fromDate}
+            onChange={e => {
+              const v = e.target.value;
+              if (/^\d{4}-\d{2}-\d{2}$/.test(v)) setFromDate(v);
+            }}
             className="text-[10px] bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-slate-300 focus:outline-none focus:border-amber-500/50"
           />
           <button
-            onClick={() => setFromDate(todayIso())}
+            onClick={() => {
+              const today = todayIso();
+              setFromDate(today);
+              if (fromDateRef.current) fromDateRef.current.value = today;
+            }}
             className="text-[9px] text-amber-500 hover:text-amber-400 underline"
           >
             Aujourd&apos;hui
@@ -317,7 +359,7 @@ export default function CalendarTab({ events, loading, nextWeekAvail }: Props) {
           >
             Tout
           </button>
-          {CURRENCIES.map(ccy => (
+          {availableCurrencies.map(ccy => (
             <button
               key={ccy}
               onClick={() => setFilterCcy(ccy === filterCcy ? "ALL" : ccy)}
@@ -327,7 +369,7 @@ export default function CalendarTab({ events, loading, nextWeekAvail }: Props) {
                   : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200"
               }`}
             >
-              {CURRENCY_META[ccy].flag} {ccy}
+              {CURRENCY_META[ccy as keyof typeof CURRENCY_META]?.flag ?? ""} {ccy}
             </button>
           ))}
         </div>
@@ -348,7 +390,14 @@ export default function CalendarTab({ events, loading, nextWeekAvail }: Props) {
             </p>
           )}
           {fromDate > todayIso() && (
-            <button onClick={() => setFromDate(todayIso())} className="mt-2 text-[10px] text-amber-500 underline">
+            <button
+              onClick={() => {
+                const today = todayIso();
+                setFromDate(today);
+                if (fromDateRef.current) fromDateRef.current.value = today;
+              }}
+              className="mt-2 text-[10px] text-amber-500 underline"
+            >
               Revenir à aujourd&apos;hui
             </button>
           )}

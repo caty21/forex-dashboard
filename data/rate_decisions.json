@@ -1,47 +1,47 @@
 [
   {
-    "updated_at": "2026-05-30",
-    "note": "Taux directeurs officiels CB. current/prev = taux annoncés (pas interbancaires). EUR = MRO (DFR+15bps) pour cohérence avec investing.com/TE. Mettre à jour après chaque décision.",
+    "updated_at": "2026-07-08",
+    "note": "Taux directeurs officiels CB. current/prev = taux annoncés (pas interbancaires). EUR = MRO (DFR+15bps) pour cohérence avec investing.com/TE. prev = taux avant la DERNIÈRE décision (= current si dernière réunion = statu quo). Fichier maintenu automatiquement par .github/workflows/update-rate-decisions.yml (hourly) : quand le taux scrapé sur Trading Economics diffère de 'current', l'ancien 'current' glisse vers 'prev' sans perte de donnée, et 'source' est réécrit pour tracer le changement. Ne plus éditer 'current'/'prev' à la main sauf correction ponctuelle.",
     "decisions": {
       "USD": {
         "current": 3.75,
-        "prev":    3.75,
-        "source":  "Fed funds target upper bound — Trading Economics / TE mai 2026 (fourchette 3.50-3.75%, upper=3.75%)"
+        "prev": 3.75,
+        "source": "Fed funds target upper bound — inchangé 3.50-3.75% (upper=3.75%), 4e réunion consécutive de statu quo, dernière décision 17 juin 2026 (Trading Economics)"
       },
       "EUR": {
-        "current": 2.15,
-        "prev":    2.40,
-        "source":  "ECBDFR (FRED) + 0.15bps → MRO. DFR=2.00, MRO=DFR+15bps (corridor sep 2024)"
+        "current": 2.4,
+        "prev": 2.15,
+        "source": "ECB — hausse de 25bps de tous les taux directeurs (DFR 2.00%→2.25%, MRO 2.15%→2.40%, MLF 2.40%→2.65%) effective 17 juin 2026, en réponse au choc d'inflation lié au conflit Moyen-Orient (communiqué officiel : https://www.ecb.europa.eu/press/pr/date/2026/html/ecb.mp260611~4d41bd5e83.en.html, publié 11 juin 2026). MRO retenu ici pour cohérence avec investing.com/TE."
       },
       "GBP": {
         "current": 3.75,
-        "prev":    4.00,
-        "source":  "BoE Official Bank Rate — Trading Economics mai 2026"
+        "prev": 3.75,
+        "source": "BoE Official Bank Rate — statu quo confirmé 18 juin 2026 (vote MPC 7-2, 2 membres pour +25bps à 4.00%). Trading Economics"
       },
       "JPY": {
-        "current": 0.75,
-        "prev":    0.50,
-        "source":  "BoJ — annonce jan 2026 (hausse 0.50% → 0.75%)"
+        "current": 1,
+        "prev": 0.75,
+        "source": "BoJ — changement détecté automatiquement le 2026-07-08 via Trading Economics (japan/interest-rate) : 0.75% → 1%."
       },
       "CHF": {
-        "current": 0.00,
-        "prev":    0.25,
-        "source":  "SNB — annonce déc 2025 (baisse 0.25% → 0.00%)"
+        "current": 0,
+        "prev": 0,
+        "source": "SNB officiel — inchangé à 0% ; confirmé statu quo le 18 juin 2026. Trading Economics"
       },
       "CAD": {
         "current": 2.25,
-        "prev":    2.50,
-        "source":  "BoC — annonce avr 2026 (baisse 2.50% → 2.25%)"
+        "prev": 2.25,
+        "source": "BoC — statu quo confirmé 10 juin 2026, 5e réunion consécutive à 2.25%. Trading Economics"
       },
       "AUD": {
         "current": 4.35,
-        "prev":    4.10,
-        "source":  "RBA — Trading Economics mai 2026 (Last=4.35, Previous=4.10)"
+        "prev": 4.35,
+        "source": "RBA — statu quo confirmé 16 juin 2026, décision unanime à 4.35%. Trading Economics"
       },
       "NZD": {
-        "current": 2.25,
-        "prev":    2.50,
-        "source":  "RBNZ — annonce avr 2026 (baisse 2.50% → 2.25%)"
+        "current": 2.5,
+        "prev": 2.25,
+        "source": "RBNZ — hausse de 25bps (2.25%→2.50%) le 8 juillet 2026, première hausse en 3 ans après 3 statu quo consécutifs à 2.25%. Trading Economics"
       }
     }
   }

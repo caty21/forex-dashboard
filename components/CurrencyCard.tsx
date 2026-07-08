@@ -39,10 +39,15 @@ interface MacroForecasts {
   gdp: number | null; gdpSurprise: number | null;
   employment: number | null; employmentSurprise: number | null;
 }
+interface MoneySupplyM3 {
+  value: number; unit: string; period: string; isProxy: boolean;
+  proxyLabel?: string; source: string;
+}
 interface MacroData {
   currency: string;
   indicators: Record<string, Ind | null>;
   forecasts?: MacroForecasts | null;
+  moneySupplyM3?: MoneySupplyM3 | null;
   fetchedAt: string;
 }
 
@@ -216,6 +221,16 @@ const ENERGY_PROFILE: Record<string, {
   NZD: { type: "import",  desc: "Import pétrole. Renouvelables ~85% élec (hydro). Indépendant localement.",            products: ["Lait / Produits laitiers", "Viande bovine", "Bois", "Laine"] },
 };
 
+// ─── Money Supply M3 — formatage compact (niveau, devise locale) ─────────────
+
+function formatM3(m3: MoneySupplyM3): string {
+  const mult = m3.unit.includes("Bn") ? 1e9 : m3.unit.includes("Mn") ? 1e6 : 1;
+  const raw  = m3.value * mult;
+  const ccy  = m3.unit.split(" ")[0];
+  const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 2 }).format(raw);
+  return `${compact} ${ccy}`;
+}
+
 function trendDir(t: "up"|"down"|"flat"|null): SignalDir {
   if (t === "up")   return "bullish";
   if (t === "down") return "bearish";
@@ -387,6 +402,7 @@ function SourcesPopup({ currency, onClose }: { currency: string; onClose: () => 
       icon: "🏦",
       sources: [
         { label: `Trading Economics — ${country} interest rate`, url: `https://tradingeconomics.com/${country}/interest-rate`, note: `Taux directeur ${cbName} actuel` },
+        { label: `Trading Economics — ${country} money supply M3`, url: `https://tradingeconomics.com/${country}/money-supply-m3`, note: currency === "USD" ? "M2 utilisé en proxy (M3 non publié par la Fed depuis 2006)" : "Masse monétaire M3" },
         { label: "FRED — Federal Reserve Economic Data", url: "https://fred.stlouisfed.org", note: "Spreads crédit HY/IG (BAMLH0A0HYM2, BAMLC0A0CM)" },
       ],
     },
@@ -523,6 +539,11 @@ function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange }: {
   const altRate  = mlIsMove ? currentRate : m0.impliedRate;
   const altProb  = mlIsMove ? 100 - m0.probMovePct : m0.probMovePct;
   const altIsMove = !mlIsMove;
+  // moveLabel vaut toujours "Hold" quand le scénario principal est un statu quo (isMoveExpected
+  // false) — le réutiliser pour l'alternative affichait donc "X% Hold" au lieu de "X% Hike/Cut"
+  // quand l'alternative EST le mouvement. La direction de l'alternative-mouvement est toujours
+  // celle de m0.probIsCut, indépendamment du scénario principal.
+  const altLabel = altIsMove ? (m0.probIsCut ? "Cut" : "Hike") : "Hold";
 
   // Chart data (limit to 10 meetings)
   const chartMeetings = meetings.slice(0, 10);
@@ -588,7 +609,7 @@ function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange }: {
         {altProb >= 15 && altIsMove !== mlIsMove && (
           <>
             <span className="text-[8px] text-slate-700 shrink-0">·</span>
-            <span className="text-[9px] text-slate-500 shrink-0">{Math.round(altProb)}% {altIsMove ? moveLabel : "Hold"}</span>
+            <span className="text-[9px] text-slate-500 shrink-0">{Math.round(altProb)}% {altLabel}</span>
           </>
         )}
         <span className="ml-auto text-[7px] text-slate-700 shrink-0">au {ratePath.asOf}</span>
@@ -939,6 +960,7 @@ export default function CurrencyCard({
   // ── Computed values ──────────────────────────────────────────────────────────
   const inds = data?.indicators;
   const fc   = data?.forecasts ?? null;
+  const m3   = data?.moneySupplyM3 ?? null;
 
   const forScoring = {
     policyRate:   { value: inds?.policyRate?.value   ?? null, prev: inds?.policyRate?.prev   ?? null, consensus: null, surprise: inds?.policyRate?.surprise   ?? null, trend: inds?.policyRate?.trend   ?? null, lastUpdated: "" },
@@ -1638,8 +1660,24 @@ export default function CurrencyCard({
                             className="absolute inset-0 overflow-hidden"
                           >
 
+                            {/* Skeleton chargement — affiché quand pas encore de données */}
+                            {loading && !data && (
+                              <div className="bg-slate-800/40 rounded-xl border border-slate-700/30 p-3 space-y-2.5 animate-pulse h-full">
+                                <div className="h-2 bg-slate-700/60 rounded w-28 mb-3" />
+                                {[68, 82, 55, 76, 60].map((w, i) => (
+                                  <div key={i} className="space-y-1">
+                                    <div className="flex justify-between items-center">
+                                      <div className="h-2.5 bg-slate-700/50 rounded" style={{ width: `${w}%` }} />
+                                      <div className="h-2.5 bg-slate-700/40 rounded w-10" />
+                                    </div>
+                                    <div className="h-1.5 bg-slate-700/25 rounded w-1/3 ml-4" />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
                             {/* MON. — Politique Monétaire */}
-                            {macroSlide === "mon" && (
+                            {!loading && macroSlide === "mon" && (
                               <MacroBlock title="Politique Monétaire">
                                 <IRow label="Taux directeur" ind={inds?.policyRate ?? null} unit="%" consensus={rateConsensus} isNew={indIsNew("policyRate")} />
                                 {(() => {
@@ -1666,11 +1704,28 @@ export default function CurrencyCard({
                                     <span className="font-semibold text-slate-200 tabular-nums">{yield10Y.toFixed(2)}%</span>
                                   </div>
                                 )}
+                                {m3 && (
+                                  <div className="flex items-center justify-between text-[12px]">
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <span className="text-slate-600 shrink-0">→</span>
+                                      <span className="text-slate-400 truncate">Money Supply M3{m3.isProxy ? " (M2)" : ""}</span>
+                                      {m3.isProxy && (
+                                        <span className="relative group/info inline-flex shrink-0 cursor-help">
+                                          <span className="inline-flex items-center justify-center w-3 h-3 rounded-full border border-slate-700 text-slate-500 text-[7px] font-bold leading-none">i</span>
+                                          <span className="pointer-events-none absolute bottom-full left-0 mb-1.5 w-52 px-2 py-1.5 rounded-md bg-slate-950 text-slate-300 text-[10px] leading-snug opacity-0 group-hover/info:opacity-100 transition-opacity duration-150 z-50 shadow-lg whitespace-normal border border-slate-700">
+                                            {m3.proxyLabel}
+                                          </span>
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="font-semibold text-slate-200 tabular-nums shrink-0" title={`${m3.period} · ${m3.source}`}>{formatM3(m3)}</span>
+                                  </div>
+                                )}
                               </MacroBlock>
                             )}
 
                             {/* INFL. — Inflation */}
-                            {macroSlide === "infl" && (
+                            {!loading && macroSlide === "infl" && (
                               <MacroBlock title="Inflation">
                                 <IRow label="CPI MoM"  ind={inds?.cpiMoM  ?? null} unit="%" consensus={fc?.cpiMoM ?? null} isNew={indIsNew("cpiMoM")} />
                                 <IRow label="PPI MoM"  ind={inds?.ppiMoM  ?? null} unit="%" consensus={fc?.ppiMoM ?? null} isNew={indIsNew("ppiMoM")} />
@@ -1680,7 +1735,7 @@ export default function CurrencyCard({
                             )}
 
                             {/* CRO. — Croissance */}
-                            {macroSlide === "cro" && (
+                            {!loading && macroSlide === "cro" && (
                               <MacroBlock title="Croissance">
                                 <IRow label="PIB (QoQ%)"       ind={inds?.gdp          ?? null} unit="%" consensus={fc?.gdp ?? null} surpriseVsCons={fc?.gdpSurprise ?? null} isNew={indIsNew("gdp")} />
                                 <IRow label="PMI Composite"    ind={inds?.pmiComposite ?? null} consensus={fc?.pmiComposite ?? null} surpriseVsCons={fc?.pmiCompositeSurprise ?? null} isNew={indIsNew("pmiComposite")} />
@@ -1691,7 +1746,7 @@ export default function CurrencyCard({
                             )}
 
                             {/* EMPL. — Emploi */}
-                            {macroSlide === "empl" && (
+                            {!loading && macroSlide === "empl" && (
                               <MacroBlock title="Emploi">
                                 <IRow label="Variation emploi" ind={inds?.employment  ?? null} unit="k" consensus={fc?.employment ?? null} surpriseVsCons={fc?.employmentSurprise ?? null} isNew={indIsNew("employment")} />
                                 <IRow label="Taux de chômage"  ind={inds?.unemployment ?? null} unit="%" invertSurprise consensus={fc?.unemployment ?? null} surpriseVsCons={fc?.unemploymentSurprise ?? null} isNew={indIsNew("unemployment")} />

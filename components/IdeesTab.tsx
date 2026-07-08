@@ -52,8 +52,8 @@ function loadLS<T>(key: string, fb: T): T {
   if (typeof window === "undefined") return fb;
   try { const r = localStorage.getItem(key); return r ? JSON.parse(r) as T : fb; } catch { return fb; }
 }
-function saveLS(key: string, val: unknown) {
-  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+function saveLS(key: string, val: unknown): boolean {
+  try { localStorage.setItem(key, JSON.stringify(val)); return true; } catch { return false; }
 }
 
 const DEFAULT_SLOT = (symbol = "FX:EURUSD"): SlotState => ({
@@ -444,7 +444,9 @@ function ArchiveCard({ a, onDelete, onRestore }: {
       )}
 
       {/* Carte compacte */}
-      <div className="border border-slate-700/30 rounded-xl overflow-hidden bg-slate-900/30 hover:bg-slate-800/30 transition-colors">
+      {/* Pas de overflow-hidden ici : le menu déroulant "Restaurer" est en position
+          absolute et serait rogné par un ancêtre overflow-hidden (cf. bug signalé). */}
+      <div className="border border-slate-700/30 rounded-xl bg-slate-900/30 hover:bg-slate-800/30 transition-colors">
         {/* Header */}
         <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-700/20">
           <span className="text-[10px] font-bold text-sky-400/80 font-mono">{a.slot.symbol}</span>
@@ -483,18 +485,24 @@ function ArchiveCard({ a, onDelete, onRestore }: {
             className="text-[8px] text-slate-600 hover:text-sky-400 transition-colors ml-1 shrink-0"
           >↗ Voir</button>
           <button
-            onClick={onDelete}
-            className="text-[8px] text-red-500/30 hover:text-red-400 transition-colors ml-1 shrink-0"
-          >✕</button>
+            onClick={() => { if (window.confirm("Supprimer définitivement cette archive ?")) onDelete(); }}
+            title="Supprimer définitivement"
+            className="text-[8px] text-red-400/80 hover:text-red-400 transition-colors ml-1 shrink-0"
+          >✕ Supprimer</button>
         </div>
 
         {/* Corps : texte + images */}
         {a.slot.notes && (
           <div className="px-4 py-3">
-            {/* Texte brut (sans tags HTML) */}
+            {/* Texte brut (sans tags HTML) — les tags de bloc sont convertis en
+                retours à la ligne avant extraction, sinon .textContent colle tous
+                les paragraphes/lignes de liste bout à bout sans séparation. */}
             {(() => {
-              const doc = new DOMParser().parseFromString(a.slot.notes, "text/html");
-              const text = doc.body.textContent?.trim() ?? "";
+              const withBreaks = a.slot.notes
+                .replace(/<\/(p|div|li|h[1-6])>/gi, "\n")
+                .replace(/<br\s*\/?>/gi, "\n");
+              const doc = new DOMParser().parseFromString(withBreaks, "text/html");
+              const text = (doc.body.textContent ?? "").replace(/\n{3,}/g, "\n\n").trim();
               const imgs = Array.from(doc.images);
               return (
                 <>
@@ -564,6 +572,14 @@ export default function IdeesTab() {
     DEFAULT_SLOT("FX:GBPUSD"),
   ]);
   const [archives, setArchives] = useState<Archive[]>([]);
+  // Passe à true si une écriture localStorage échoue (ex: quota dépassé à cause
+  // des images en base64 dans les notes archivées) — sans ça l'échec est silencieux
+  // et une suppression/modification peut sembler ne "pas marcher" après rechargement.
+  const [saveError, setSaveError] = useState(false);
+
+  const persist = useCallback((key: string, val: unknown) => {
+    setSaveError(!saveLS(key, val));
+  }, []);
 
   useEffect(() => {
     setSlots(loadLS<[SlotState, SlotState]>(LS_SLOTS, [DEFAULT_SLOT("FX:EURUSD"), DEFAULT_SLOT("FX:GBPUSD")]));
@@ -574,30 +590,30 @@ export default function IdeesTab() {
     setSlots(prev => {
       const next: [SlotState, SlotState] = [prev[0], prev[1]];
       next[idx] = s;
-      saveLS(LS_SLOTS, next);
+      persist(LS_SLOTS, next);
       return next;
     });
-  }, []);
+  }, [persist]);
 
   const archiveSlot = useCallback((idx: 0 | 1) => {
     const entry: Archive = { id: Date.now().toString(), savedAt: new Date().toISOString(), slot: slots[idx] };
     const next = [entry, ...archives];
     setArchives(next);
-    saveLS(LS_ARCHIVES, next);
+    persist(LS_ARCHIVES, next);
     const reset = DEFAULT_SLOT(idx === 0 ? "FX:EURUSD" : "FX:GBPUSD");
     setSlots(prev => {
       const n: [SlotState, SlotState] = [prev[0], prev[1]];
       n[idx] = reset;
-      saveLS(LS_SLOTS, n);
+      persist(LS_SLOTS, n);
       return n;
     });
-  }, [slots, archives]);
+  }, [slots, archives, persist]);
 
   const deleteArchive = useCallback((id: string) => {
     const next = archives.filter(a => a.id !== id);
     setArchives(next);
-    saveLS(LS_ARCHIVES, next);
-  }, [archives]);
+    persist(LS_ARCHIVES, next);
+  }, [archives, persist]);
 
   const restoreArchive = useCallback((id: string, slotIdx: 0 | 1) => {
     const entry = archives.find(a => a.id === id);
@@ -605,10 +621,10 @@ export default function IdeesTab() {
     setSlots(prev => {
       const next = [...prev] as [SlotState, SlotState];
       next[slotIdx] = { ...entry.slot };
-      saveLS(LS_SLOTS, next);
+      persist(LS_SLOTS, next);
       return next;
     });
-  }, [archives]);
+  }, [archives, persist]);
 
   return (
     <div className="space-y-4">
@@ -618,6 +634,14 @@ export default function IdeesTab() {
         <span className="text-purple-400 text-xs font-bold uppercase tracking-[0.3em]">Espace Idées · 2 recherches</span>
         <div className="h-px flex-1 bg-purple-500/20" />
       </div>
+
+      {saveError && (
+        <div className="text-[10px] text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+          ⚠ Échec de sauvegarde locale — le quota de stockage du navigateur est probablement dépassé
+          (les archives avec images occupent beaucoup de place). Supprime quelques archives pour libérer
+          de la place, sinon tes changements ne seront pas conservés au rechargement.
+        </div>
+      )}
 
       <ResearchSlot slot={slots[0]} label="Recherche A" onChange={s => updateSlot(0, s)} onArchive={() => archiveSlot(0)} />
       <ResearchSlot slot={slots[1]} label="Recherche B" onChange={s => updateSlot(1, s)} onArchive={() => archiveSlot(1)} />

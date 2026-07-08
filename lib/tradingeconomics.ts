@@ -17,6 +17,9 @@
 
 import type { Currency } from "./types";
 import type { EventCategory } from "@/app/api/calendar/route";
+import { CALENDAR_COUNTRIES, TE_NAME_TO_CURRENCY, TE_NAME_TO_CODE } from "./calendar-countries";
+import type { WideCalendarEvent } from "./fxstreetCalendar";
+import { classifyOtherTitle } from "./calendar-taxonomy";
 
 // ── Country → Currency ────────────────────────────────────────────────────────
 
@@ -47,7 +50,7 @@ function teCategory(cat: string, eventName?: string): EventCategory {
   if (/retail\s+sales|core\s+retail|household\s+spending/.test(c))             return "retail_sales";
   if (/trade\s+balance|current\s+account|balance\s+of\s+trade/.test(c))       return "trade_balance";
   if (/employment|payrolls|nonfarm|jobless|unemployment|job\s+creation|\badp\b|jolts|job\s+openings|job\s+quits|ism\s+\w+\s+employ/.test(c)) return "employment";
-  return "other";
+  return classifyOtherTitle(eventName ?? "");
 }
 
 // ── Importance (1/2/3) → impact ───────────────────────────────────────────────
@@ -265,6 +268,98 @@ export async function fetchTEInflationForecasts(
     }
   }
   return result;
+}
+
+// ── Fetch élargi (45 pays) ─────────────────────────────────────────────────
+// Contrairement à fetchTECalendarHTML (limité aux 8 devises majeures pour
+// les besoins de macro/route.ts), cette variante couvre tout CALENDAR_COUNTRIES
+// en fetchant chaque page /{slug}/calendar en parallèle (même pattern que le
+// cas spécial Suisse ci-dessus, généralisé). Utilisée par le calendrier économique
+// pour se rapprocher de la couverture de tradingeconomics.com/calendar.
+
+function parseCalendarHTMLWide(html: string): WideCalendarEvent[] {
+  const events: WideCalendarEvent[] = [];
+  const now = new Date();
+
+  const rowPattern = /<tr\s+data-url="[^"]*"\s+data-id="(\d+)"\s+data-country="([^"]+)"\s+data-category="([^"]+)"\s+data-event="([^"]+)"[^>]*>([\s\S]*?)(?=<tr\s+data-url=|<\/tbody>)/g;
+
+  let match: RegExpExecArray | null;
+  while ((match = rowPattern.exec(html)) !== null) {
+    const [, id, country, category, eventAttr, body] = match;
+
+    const ccy  = TE_NAME_TO_CURRENCY[country.toLowerCase()];
+    const code = TE_NAME_TO_CODE[country.toLowerCase()];
+    if (!ccy || !code) continue; // pays hors CALENDAR_COUNTRIES
+
+    const dateMatch = body.match(/class=' (\d{4}-\d{2}-\d{2})'/);
+    if (!dateMatch) continue;
+    const dateStr = dateMatch[1];
+
+    const timeMatch = body.match(/calendar-date-(\d)[^"]*"[^>]*>\s*([\d:]+\s*[AP]M)\s*/i);
+    const importance = timeMatch ? parseInt(timeMatch[1]) : 1;
+    const timeStr     = timeMatch ? timeMatch[2].trim() : "00:00 AM";
+    const time24      = to24h(timeStr);
+    const isoDate     = `${dateStr}T${time24}:00Z`;
+    const evDate      = new Date(isoDate);
+
+    const titleMatch = body.match(/<a\s+class='calendar-event'[^>]*>([^<]+)<\/a>/);
+    const title = titleMatch ? decodeHTMLEntities(titleMatch[1]) : decodeHTMLEntities(eventAttr);
+
+    const refMatch = body.match(/class="calendar-reference"\s*>([^<]*)</);
+    const ref = refMatch ? refMatch[1].trim() : "";
+
+    const actual    = extractText(body, "actual");
+    const previous  = extractText(body, "previous");
+    const consensus = extractText(body, "consensus");
+    const forecast  = extractText(body, "forecast");
+
+    events.push({
+      id:          `te_${id}`,
+      date:        isoDate,
+      currency:    ccy,
+      countryCode: code,
+      category:    teCategory(category, eventAttr),
+      title:       ref ? `${title} ${ref}` : title,
+      impact:      teImpact(importance),
+      actual,
+      forecast:    consensus ?? forecast,
+      previous,
+      isPublished: actual !== null || evDate < now,
+    });
+  }
+
+  return events;
+}
+
+// Variante mono-pays : évite de fetcher les ~45 pages de fetchTECalendarWide
+// quand on n'a besoin que d'un seul pays (ex. new-zealand, absent du G20 donc
+// absent de fetchTECalendarHTML — cf. centralBankGovernance.ts RBNZ).
+export async function fetchTECalendarForCountry(teSlug: string, fromDate?: string, toDate?: string): Promise<WideCalendarEvent[]> {
+  const qs = fromDate && toDate ? `?startDate=${fromDate}&endDate=${toDate}` : "";
+  const html = await fetchOneTEPage(`https://tradingeconomics.com/${teSlug}/calendar${qs}`);
+  if (!html) return [];
+  return parseCalendarHTMLWide(html);
+}
+
+export async function fetchTECalendarWide(fromDate?: string, toDate?: string): Promise<WideCalendarEvent[]> {
+  const qs = fromDate && toDate ? `?startDate=${fromDate}&endDate=${toDate}` : "";
+  const pages = await Promise.all(
+    CALENDAR_COUNTRIES.map(c => fetchOneTEPage(`https://tradingeconomics.com/${c.teSlug}/calendar${qs}`))
+  );
+
+  const allEvents: WideCalendarEvent[] = [];
+  const seen = new Set<string>();
+  for (const html of pages) {
+    if (!html) continue;
+    for (const ev of parseCalendarHTMLWide(html)) {
+      if (seen.has(ev.id)) continue;
+      seen.add(ev.id);
+      allEvents.push(ev);
+    }
+  }
+
+  allEvents.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  return allEvents;
 }
 
 // ── Paid API (when TRADING_ECONOMICS_API_KEY is set) ─────────────────────────

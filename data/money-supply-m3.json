@@ -1,0 +1,65 @@
+[
+  {
+    "updated_at": "2026-07-08",
+    "note": "Masse monétaire M3 (niveau, devise locale) par zone — scrapé automatiquement depuis tradingeconomics.com (meta description des pages /money-supply-m3). USD : proxy M2 (Fed n'a plus publié M3 depuis 2006). Mis à jour par .github/workflows/fetch-money-supply.yml (hebdomadaire).",
+    "series": {
+      "USD": {
+        "value": 22804.5,
+        "unit": "USD Bn",
+        "period": "2026-04",
+        "source": "https://tradingeconomics.com/united-states/money-supply-m2",
+        "isProxy": true,
+        "proxyLabel": "M2 (M3 non publié par la Fed depuis 2006)"
+      },
+      "EUR": {
+        "value": 17552244,
+        "unit": "EUR Mn",
+        "period": "2026-05",
+        "source": "https://tradingeconomics.com/euro-area/money-supply-m3",
+        "isProxy": false
+      },
+      "GBP": {
+        "value": 3811591,
+        "unit": "GBP Mn",
+        "period": "2026-05",
+        "source": "https://tradingeconomics.com/united-kingdom/money-supply-m3",
+        "isProxy": false
+      },
+      "JPY": {
+        "value": 1642404.5,
+        "unit": "JPY Bn",
+        "period": "2026-05",
+        "source": "https://tradingeconomics.com/japan/money-supply-m3",
+        "isProxy": false
+      },
+      "CHF": {
+        "value": 1228273,
+        "unit": "CHF Mn",
+        "period": "2026-05",
+        "source": "https://tradingeconomics.com/switzerland/money-supply-m3",
+        "isProxy": false
+      },
+      "CAD": {
+        "value": 4020356,
+        "unit": "CAD Mn",
+        "period": "2026-04",
+        "source": "https://tradingeconomics.com/canada/money-supply-m3",
+        "isProxy": false
+      },
+      "AUD": {
+        "value": 3447.08,
+        "unit": "AUD Bn",
+        "period": "2026-05",
+        "source": "https://tradingeconomics.com/australia/money-supply-m3",
+        "isProxy": false
+      },
+      "NZD": {
+        "value": 451046,
+        "unit": "NZD Mn",
+        "period": "2026-05",
+        "source": "https://tradingeconomics.com/new-zealand/money-supply-m3",
+        "isProxy": false
+      }
+    }
+  }
+]
