@@ -20,9 +20,6 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fr">
-      <head>
-        <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
-      </head>
       <body className="min-h-screen bg-[#090e1a]">
         {children}
         <Script id="sw-register" strategy="afterInteractive">
