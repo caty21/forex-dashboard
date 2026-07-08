@@ -400,6 +400,18 @@ function buildILFallback(ccy, il) {
 const CCYS = ["USD","EUR","GBP","JPY","CAD","AUD","NZD","CHF"];
 const results = {};
 
+// Charge les données déjà en place AVANT tout fetch — sert de filet de sécurité
+// plus bas : investing.com renvoie parfois 403 spécifiquement aux IPs GitHub
+// Actions (bloc IP anti-bot, confirmé en direct — pas un problème de parsing),
+// et ce blocage est intermittent. Sans ce filet, un seul run bloqué écrasait
+// la vraie courbe multi-réunions USD par le fallback InvestingLive (un unique
+// point "year-end"), et cette dégradation restait visible jusqu'au prochain
+// run réussi. On préfère désormais garder la dernière bonne donnée connue.
+let existingData = {};
+try {
+  existingData = JSON.parse(readFileSync("data/rate-probabilities.json", "utf8")).data ?? {};
+} catch {}
+
 // 0 — Sources officielles → écrasent les ancres si data/rate_decisions.json a dérivé
 console.log("\n=== Fed (official) ===");
 const fedRate = await fetchFedRate();
@@ -411,10 +423,19 @@ if (snbRate !== null) FALLBACK_RATES.CHF = snbRate;
 
 // 1 — Investing.com Fed Rate Monitor → USD uniquement (seule CB avec cet outil ;
 // les autres slugs *-rate-monitor n'existent pas sur investing.com → 404 attendus)
+// Retry (403/erreur réseau ponctuels) — n'aide pas contre un vrai bloc IP
+// persistant sur tout le run, mais couvre les échecs vraiment transitoires.
 const IC_SUPPORTED = ["USD"];
 console.log("\n=== Investing.com Rate Monitors ===");
 for (const ccy of IC_SUPPORTED) {
-  const data = await fetchInvestingCom(ccy);
+  let data = null;
+  for (let attempt = 1; attempt <= 3 && !data; attempt++) {
+    if (attempt > 1) {
+      console.log(`[IC/${ccy}] retry ${attempt}/3…`);
+      await new Promise(r => setTimeout(r, 2000 * attempt));
+    }
+    data = await fetchInvestingCom(ccy);
+  }
   if (data) results[ccy] = data;
   await new Promise(r => setTimeout(r, 600));
 }
@@ -429,6 +450,17 @@ if (missing.length) {
       results[ccy] = buildILFallback(ccy, ilData[ccy]);
       console.log(`[IL] ${ccy} ✓ (${ilData[ccy].bpsYearEnd}bps year-end)`);
     }
+  }
+}
+
+// 3 — Filet de sécurité : si le résultat du jour n'a qu'1 réunion (fallback IL
+// dégradé) alors qu'on avait déjà une vraie courbe multi-réunions, on la garde.
+for (const ccy of CCYS) {
+  const newRows = results[ccy]?.today?.rows?.length ?? 0;
+  const oldRows = existingData[ccy]?.today?.rows?.length ?? 0;
+  if (newRows <= 1 && oldRows > 1) {
+    console.log(`[preserve] ${ccy}: nouveau fetch dégradé (${newRows} réunion) → conserve l'ancienne courbe (${oldRows} réunions)`);
+    results[ccy] = existingData[ccy];
   }
 }
 
