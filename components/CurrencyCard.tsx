@@ -16,6 +16,7 @@ import { biasLabel, calcMacroScore } from "@/lib/scoring";
 import { saveCache, loadCache, formatCacheDate } from "@/lib/localCache";
 import type { Currency, BiasPhase, RateExpectation, MacroSection } from "@/lib/types";
 import type { CBRatePath, ILWeeklyDelta } from "@/lib/rateprobability";
+import type { AtlantaFedMpt } from "@/lib/atlantaFedMpt";
 import type { SentimentEntry, CotEntry } from "@/lib/types";
 import type { CalendarEvent } from "@/app/api/calendar/route";
 import NarrativeButton from "./NarrativeButton";
@@ -48,6 +49,7 @@ interface MacroData {
   indicators: Record<string, Ind | null>;
   forecasts?: MacroForecasts | null;
   moneySupplyM3?: MoneySupplyM3 | null;
+  atlantaFedMpt?: AtlantaFedMpt | null;
   fetchedAt: string;
 }
 
@@ -67,8 +69,8 @@ interface Props {
   onCardTabChange?: (id: "overview" | "mispricing" | "focus") => void;
   syncSignauxSlide?: "ois" | "cot" | "sent";
   onSignauxSlideChange?: (id: "ois" | "cot" | "sent") => void;
-  syncOisChartTab?: "curve" | "probas" | "meetings";
-  onOisChartTabChange?: (id: "curve" | "probas" | "meetings") => void;
+  syncOisChartTab?: "curve" | "probas" | "meetings" | "atlanta";
+  onOisChartTabChange?: (id: "curve" | "probas" | "meetings" | "atlanta") => void;
   isLoading?: boolean;
 }
 
@@ -504,14 +506,15 @@ const STIR_INSTRUMENT: Partial<Record<string, { instrument: string; exchange: st
   NZD: { instrument: "OIS NZD (swaps)", exchange: "ASX OTC / Bloomberg NDOIS1M", convention: "maturité exacte / réunion", note: "Pas de futures standardisés. RBNZ publie les probas dans ses MPS." },
 };
 
-function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange }: {
+function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange, atlantaMpt }: {
   ratePath: CBRatePath;
-  syncChartTab?: "curve" | "probas" | "meetings";
-  onChartTabChange?: (id: "curve" | "probas" | "meetings") => void;
+  syncChartTab?: "curve" | "probas" | "meetings" | "atlanta";
+  onChartTabChange?: (id: "curve" | "probas" | "meetings" | "atlanta") => void;
+  atlantaMpt?: AtlantaFedMpt | null;
 }) {
-  const [localChartTab, setLocalChartTab] = useState<"curve" | "probas" | "meetings">("curve");
+  const [localChartTab, setLocalChartTab] = useState<"curve" | "probas" | "meetings" | "atlanta">("curve");
   const chartTab = syncChartTab ?? localChartTab;
-  const setChartTab = (id: "curve" | "probas" | "meetings") => {
+  const setChartTab = (id: "curve" | "probas" | "meetings" | "atlanta") => {
     setLocalChartTab(id);
     onChartTabChange?.(id);
   };
@@ -623,6 +626,7 @@ function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange }: {
             { id: "curve"    as const, label: "Courbe" },
             { id: "probas"   as const, label: "Probabilités" },
             { id: "meetings" as const, label: "Réunions" },
+            ...(ratePath.currency === "USD" && atlantaMpt ? [{ id: "atlanta" as const, label: "Atlanta Fed" }] : []),
           ]).map(t => (
             <button
               key={t.id}
@@ -811,8 +815,76 @@ function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange }: {
                 );
               })}
             </div>
+            {ratePath.currency === "USD" && (
+              <p className="mt-1.5 text-[7px] text-slate-700 leading-snug">
+                Probabilités = somme des % associés à chaque fourchette de taux au-dessus/en-dessous de la fourchette actuelle · Investing.com Fed Rate Monitor, calculées à partir des 30-day Fed Fund Futures (CME).
+              </p>
+            )}
           </div>
         )}
+
+        {/* Atlanta Fed MPT — méthodologie alternative (options sur futures SOFR) */}
+        {chartTab === "atlanta" && atlantaMpt && (() => {
+          const front = atlantaMpt.windows[0];
+          if (!front) return null;
+          const holdPct = front.probHikePct !== null && front.probCutPct !== null
+            ? Math.max(0, +(100 - front.probHikePct - front.probCutPct).toFixed(1))
+            : null;
+          return (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[7px] text-slate-600 uppercase tracking-wider">Fenêtre SOFR 3M — {front.windowStartIso}</span>
+                <span className="text-[7px] text-slate-700">au {atlantaMpt.asOf}</span>
+              </div>
+
+              <div className="flex h-[6px] rounded-full overflow-hidden bg-slate-700/20 mb-1.5">
+                {front.probCutPct !== null && front.probCutPct > 0 && (
+                  <div className="h-full bg-sky-500/60" style={{ width: `${front.probCutPct}%` }} title={`Cut ${front.probCutPct}%`} />
+                )}
+                {holdPct !== null && holdPct > 0 && (
+                  <div className="h-full bg-slate-500/40" style={{ width: `${holdPct}%` }} title={`Hold ${holdPct}%`} />
+                )}
+                {front.probHikePct !== null && front.probHikePct > 0 && (
+                  <div className="h-full bg-red-500/60" style={{ width: `${front.probHikePct}%` }} title={`Hike ${front.probHikePct}%`} />
+                )}
+              </div>
+              <div className="flex items-center gap-3 text-[9px] mb-2">
+                <span className="text-sky-400 font-semibold">Cut {front.probCutPct?.toFixed(1) ?? "—"}%</span>
+                <span className="text-slate-400 font-semibold">Hold {holdPct?.toFixed(1) ?? "—"}%</span>
+                <span className="text-red-400 font-semibold">Hike {front.probHikePct?.toFixed(1) ?? "—"}%</span>
+              </div>
+
+              {front.rate25 !== null && front.rate75 !== null && (
+                <div className="text-[9px] text-slate-500 mb-2">
+                  Taux SOFR composé implicite : <span className="text-slate-200 font-mono font-semibold">{(front.rate25 / 100).toFixed(2)}%</span> – <span className="text-slate-200 font-mono font-semibold">{(front.rate75 / 100).toFixed(2)}%</span>
+                  <span className="text-slate-600"> (25e–75e percentile{front.rateMode !== null ? `, mode ${(front.rateMode / 100).toFixed(2)}%` : ""})</span>
+                </div>
+              )}
+
+              <span className="text-[7px] text-slate-600 uppercase tracking-wider">Distribution complète (fenêtre)</span>
+              <div className="space-y-[2px] mt-1">
+                {front.distribution.map(b => {
+                  const m = b.rangeLabel.match(/(\d+)bps\s*-\s*(\d+)bps/);
+                  const label = m ? `${(parseInt(m[1]) / 100).toFixed(2)}-${(parseInt(m[2]) / 100).toFixed(2)}%` : b.rangeLabel;
+                  const isAnchor = b.rangeLabel === front.anchorRange;
+                  return (
+                    <div key={b.rangeLabel} className={`flex items-center gap-1.5 px-1 py-[2px] rounded ${isAnchor ? "bg-amber-500/8" : ""}`}>
+                      <span className={`text-[8px] w-[70px] shrink-0 font-mono tabular-nums ${isAnchor ? "text-amber-300 font-bold" : "text-slate-500"}`}>{label}</span>
+                      <div className="flex-1 bg-slate-700/20 rounded-full h-[4px] overflow-hidden">
+                        <div className="h-full rounded-full bg-amber-500/50" style={{ width: `${b.probPct}%` }} />
+                      </div>
+                      <span className="text-[8px] text-slate-400 w-[32px] text-right tabular-nums shrink-0">{b.probPct.toFixed(1)}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <p className="mt-1.5 text-[7px] text-slate-700 leading-snug">
+                Distribution déduite des options sur futures SOFR 3 mois (CME), taux SOFR composé sur la fenêtre — méthodologie Atlanta Fed (Market Probability Tracker), alternative aux 30-day Fed Fund Futures. Mise à jour quotidienne.
+              </p>
+            </div>
+          );
+        })()}
 
       </div>
 
@@ -1809,6 +1881,7 @@ export default function CurrencyCard({
                                 ratePath={ratePath}
                                 syncChartTab={syncOisChartTab}
                                 onChartTabChange={onOisChartTabChange}
+                                atlantaMpt={data?.atlantaFedMpt}
                               />
                             )}
                             {/* OIS — état indisponible */}

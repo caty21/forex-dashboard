@@ -48,7 +48,7 @@ export default function Dashboard() {
   const [globalMacroSlide,   setGlobalMacroSlide]   = useState<"mon"|"infl"|"cro"|"empl">("mon");
   const [globalCardTab,      setGlobalCardTab]      = useState<"overview"|"mispricing"|"focus">("overview");
   const [globalSignauxSlide, setGlobalSignauxSlide] = useState<"ois"|"cot"|"sent">("ois");
-  const [globalOisChartTab,  setGlobalOisChartTab]  = useState<"curve"|"probas"|"meetings">("curve");
+  const [globalOisChartTab,  setGlobalOisChartTab]  = useState<"curve"|"probas"|"meetings"|"atlanta">("curve");
   const [macroSyncEnabled,   setMacroSyncEnabled]   = useState(false);
 
   // ── Sentiment multi-paires Myfxbook → {CCY: {longPct, shortPct, pair}} ──────
