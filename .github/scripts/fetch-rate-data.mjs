@@ -303,6 +303,140 @@ function parseRateMonitorTable(ccy, html) {
   return { today: { midpoint: currentRate, rows } };
 }
 
+// ── 1bis. Investing.com futures strips (EUR/GBP) ──────────────────────────────
+// Investing.com n'a de Rate Monitor (probabilité pré-calculée par réunion) que
+// pour la Fed (voir note en tête de fichier — ecb/boe-rate-monitor → 404). Mais
+// Investing.com sert bien les prix (delayed) des futures Euribor 3M (Eurex) et
+// Three-Month SONIA (ICE) — la référence que les praticiens utilisent pour lire
+// les anticipations BCE/BoE en l'absence d'un outil équivalent au Fed Rate
+// Monitor. Contrairement à ce dernier, il n'y a PAS de distribution de
+// probabilité publiée par contrat : on déduit nous-mêmes une probabilité
+// approximative (même convention bps/25 déjà utilisée pour le fallback
+// InvestingLive plus bas), en mappant chaque échéance de future sur le
+// calendrier réel de réunions (réunion → échéance la plus proche ≥ sa date).
+// Au-delà de la dernière échéance réellement cotée, on prolonge à plat sur une
+// fenêtre de grâce (FUTURES_GRACE_DAYS) ; au-delà, on s'arrête — pas de réunion
+// affichée plutôt qu'une valeur inventée.
+//
+// Résolution intrinsèquement plus grossière que l'USD : Euribor cote ~mensuel
+// (contrats vus : Jul/Aug/Sep/Oct 26), SONIA cote trimestriel (Jun/Sep 26
+// seulement, 2 contrats dispo sur investing.com) — donc plusieurs réunions
+// rapprochées peuvent partager la même valeur implicite.
+//
+// Calendriers dupliqués depuis lib/rateprobability.ts (ce script est un .mjs
+// autonome sans accès aux imports TS de l'app) — à garder synchronisés, même
+// cadence de maintenance qu'indiqué là-bas (~1x/an, à la publication de
+// chaque banque centrale).
+const ECB_MEETINGS = [
+  "2026-07-23", "2026-09-10", "2026-10-29", "2026-12-17",
+  "2027-02-04", "2027-03-18", "2027-04-29", "2027-06-10",
+  "2027-07-22", "2027-09-09", "2027-10-28", "2027-12-16",
+];
+const BOE_MEETINGS = [
+  "2026-07-30", "2026-09-17", "2026-11-05", "2026-12-17",
+  "2027-02-04", "2027-03-18", "2027-04-29", "2027-06-17",
+  "2027-07-29", "2027-09-16", "2027-11-04", "2027-12-16",
+];
+
+const FUTURES_STRIP_CONFIG = {
+  EUR: { overviewUrl: "https://www.investing.com/rates-bonds/euribor-futures",          prefix: "FEU3c", meetings: ECB_MEETINGS },
+  GBP: { overviewUrl: "https://www.investing.com/rates-bonds/three-month-sonia-futures", prefix: "SON3c", meetings: BOE_MEETINGS },
+};
+const FUTURES_GRACE_DAYS = 60;
+
+// La page overview liste les contrats liés dans un tableau "relative-table" —
+// chaque ligne est un <a href="...?cid=NNNN" title="FEU3c1">. On (re)découvre
+// cette liste à chaque run plutôt que de figer des cid en dur : les contrats
+// expirent (mensuel/trimestriel) et le cid pertinent change avec le temps.
+async function fetchInvestingComContractList(overviewUrl, prefix) {
+  try {
+    const res = await fetch(overviewUrl, { headers: CHROME_HEADERS });
+    if (!res.ok) { console.error(`[futures] ${overviewUrl} → ${res.status}`); return []; }
+    const html = await res.text();
+    if (/just a moment|cf-browser-verification|enable javascript/i.test(html)) {
+      console.error(`[futures] Cloudflare challenge on ${overviewUrl}`);
+      return [];
+    }
+    const re = /<a href="([^"]+)"\s+class="[^"]*"\s+title="([A-Za-z0-9]+)">/g;
+    const seen = new Map();
+    let m;
+    while ((m = re.exec(html)) !== null) {
+      const [, href, label] = m;
+      if (!label.startsWith(prefix) || seen.has(label)) continue;
+      seen.set(label, href);
+    }
+    return [...seen.entries()]
+      .map(([label, url]) => ({ label, url, n: parseInt(label.slice(prefix.length), 10) }))
+      .filter(c => Number.isFinite(c.n))
+      .sort((a, b) => a.n - b.n);
+  } catch (e) {
+    console.error(`[futures] ${overviewUrl} error: ${e.message}`);
+    return [];
+  }
+}
+
+// Chaque page contrat (?cid=NNNN) rend son propre prix + échéance server-side
+// (vérifié : pas besoin d'exécuter le JS client). Convention Eurex/ICE "100 −
+// taux", identique à Eurodollar/Fed Funds.
+async function fetchContractQuote(url) {
+  try {
+    const res = await fetch(url, { headers: CHROME_HEADERS });
+    if (!res.ok) return null;
+    const html = await res.text();
+    const settlement = html.match(/data-test="settlement_date"[^>]*>(\d{2})\/(\d{2})\/(\d{4})</);
+    const price = html.match(/data-test="instrument-price-last"[^>]*>([\d.]+)</);
+    if (!settlement || !price) return null;
+    const [, mm, dd, yyyy] = settlement;
+    return { dateIso: `${yyyy}-${mm}-${dd}`, price: parseFloat(price[1]) };
+  } catch (e) {
+    console.error(`[futures] contract fetch error: ${e.message}`);
+    return null;
+  }
+}
+
+async function fetchFuturesStrip(ccy) {
+  const cfg = FUTURES_STRIP_CONFIG[ccy];
+  if (!cfg) return null;
+
+  const contracts = await fetchInvestingComContractList(cfg.overviewUrl, cfg.prefix);
+  if (contracts.length < 2) { console.warn(`[futures/${ccy}] only ${contracts.length} contract(s) listed`); return null; }
+
+  const points = [];
+  for (const c of contracts) {
+    const q = await fetchContractQuote(c.url);
+    if (q) points.push(q);
+    await new Promise(r => setTimeout(r, 400));
+  }
+  if (points.length < 2) { console.warn(`[futures/${ccy}] only ${points.length} contract(s) priced`); return null; }
+  points.sort((a, b) => a.dateIso.localeCompare(b.dateIso));
+
+  const currentRate = FALLBACK_RATES[ccy] ?? 0;
+  const nowIso = new Date().toISOString().slice(0, 10);
+  const graceIso = new Date(new Date(points.at(-1).dateIso).getTime() + FUTURES_GRACE_DAYS * 86400000)
+    .toISOString().slice(0, 10);
+
+  const rows = [];
+  for (const meetingIso of cfg.meetings) {
+    if (meetingIso < nowIso) continue;
+    if (meetingIso > graceIso) break; // hors horizon réel couvert par les futures : on s'arrête plutôt que d'inventer
+    const point = points.find(p => p.dateIso >= meetingIso) ?? points.at(-1);
+    const impliedRate = parseFloat((100 - point.price).toFixed(4));
+    const cumulBps = parseFloat(((impliedRate - currentRate) * 100).toFixed(2));
+    rows.push({
+      meeting: new Date(meetingIso + "T12:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      meeting_iso: meetingIso,
+      implied_rate_post_meeting: impliedRate,
+      prob_move_pct: Math.min(100, Math.round(Math.abs(cumulBps) / 25 * 100)),
+      prob_is_cut: cumulBps < 0,
+      change_bps: cumulBps,
+      num_moves: parseFloat((cumulBps / 25).toFixed(3)),
+    });
+  }
+  if (!rows.length) return null;
+  console.log(`[futures/${ccy}] ✓ ${points.length} contrats réels (${points.map(p => p.dateIso).join(", ")}) → ${rows.length} réunions`);
+  return { today: { midpoint: currentRate, rows } };
+}
+
 // ── 2. InvestingLive fallback (Giuseppe Dellamotta, hebdomadaire) ─────────────
 
 const IL_CB_MAP = {
@@ -435,6 +569,22 @@ for (const ccy of IC_SUPPORTED) {
       await new Promise(r => setTimeout(r, 2000 * attempt));
     }
     data = await fetchInvestingCom(ccy);
+  }
+  if (data) results[ccy] = data;
+  await new Promise(r => setTimeout(r, 600));
+}
+
+// 1bis — Investing.com futures strips (Euribor 3M / SONIA 3M) → EUR/GBP
+// (voir doc détaillée plus haut, section "1bis. Investing.com futures strips")
+console.log("\n=== Investing.com Futures Strips (EUR/GBP) ===");
+for (const ccy of Object.keys(FUTURES_STRIP_CONFIG)) {
+  let data = null;
+  for (let attempt = 1; attempt <= 3 && !data; attempt++) {
+    if (attempt > 1) {
+      console.log(`[futures/${ccy}] retry ${attempt}/3…`);
+      await new Promise(r => setTimeout(r, 2000 * attempt));
+    }
+    data = await fetchFuturesStrip(ccy);
   }
   if (data) results[ccy] = data;
   await new Promise(r => setTimeout(r, 600));

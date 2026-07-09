@@ -7,110 +7,110 @@
           {
             "meeting": "Jul 29",
             "meeting_iso": "2026-07-29",
-            "implied_rate_post_meeting": 3.833,
-            "prob_move_pct": 33,
+            "implied_rate_post_meeting": 3.8165,
+            "prob_move_pct": 27,
             "prob_is_cut": false,
-            "change_bps": 8.300000000000018,
-            "num_moves": 0.33200000000000074
+            "change_bps": 6.65,
+            "num_moves": 0.266
           },
           {
             "meeting": "Sep 16",
             "meeting_iso": "2026-09-16",
-            "implied_rate_post_meeting": 3.9648,
-            "prob_move_pct": 68,
+            "implied_rate_post_meeting": 3.9441,
+            "prob_move_pct": 64,
             "prob_is_cut": false,
-            "change_bps": 21.47999999999999,
-            "num_moves": 0.8591999999999996
+            "change_bps": 19.410000000000018,
+            "num_moves": 0.7764000000000008
           },
           {
             "meeting": "Oct 28",
             "meeting_iso": "2026-10-28",
-            "implied_rate_post_meeting": 4.028,
-            "prob_move_pct": 76,
+            "implied_rate_post_meeting": 4.0013,
+            "prob_move_pct": 72,
             "prob_is_cut": false,
-            "change_bps": 27.799999999999958,
-            "num_moves": 1.1119999999999983
+            "change_bps": 25.129999999999963,
+            "num_moves": 1.0051999999999985
           },
           {
             "meeting": "Dec 9",
             "meeting_iso": "2026-12-09",
-            "implied_rate_post_meeting": 4.1216,
-            "prob_move_pct": 85,
+            "implied_rate_post_meeting": 4.0998,
+            "prob_move_pct": 83,
             "prob_is_cut": false,
-            "change_bps": 37.16,
-            "num_moves": 1.4864
+            "change_bps": 34.98000000000001,
+            "num_moves": 1.3992000000000004
           },
           {
             "meeting": "Jan 27",
             "meeting_iso": "2027-01-27",
-            "implied_rate_post_meeting": 4.1638,
-            "prob_move_pct": 88,
+            "implied_rate_post_meeting": 4.1415,
+            "prob_move_pct": 86,
             "prob_is_cut": false,
-            "change_bps": 41.38000000000002,
-            "num_moves": 1.6552000000000007
+            "change_bps": 39.14999999999998,
+            "num_moves": 1.5659999999999992
           },
           {
             "meeting": "Mar 17",
             "meeting_iso": "2027-03-17",
-            "implied_rate_post_meeting": 4.2123,
-            "prob_move_pct": 90,
+            "implied_rate_post_meeting": 4.1949,
+            "prob_move_pct": 89,
             "prob_is_cut": false,
-            "change_bps": 46.22999999999999,
-            "num_moves": 1.8491999999999995
+            "change_bps": 44.48999999999997,
+            "num_moves": 1.7795999999999987
           },
           {
             "meeting": "Apr 28",
             "meeting_iso": "2027-04-28",
-            "implied_rate_post_meeting": 4.2278,
-            "prob_move_pct": 91,
+            "implied_rate_post_meeting": 4.207,
+            "prob_move_pct": 89,
             "prob_is_cut": false,
-            "change_bps": 47.78000000000002,
-            "num_moves": 1.911200000000001
+            "change_bps": 45.69999999999999,
+            "num_moves": 1.8279999999999996
           },
           {
             "meeting": "Jun 9",
             "meeting_iso": "2027-06-09",
-            "implied_rate_post_meeting": 4.2172,
-            "prob_move_pct": 90,
+            "implied_rate_post_meeting": 4.1903,
+            "prob_move_pct": 88,
             "prob_is_cut": false,
-            "change_bps": 46.720000000000006,
-            "num_moves": 1.8688000000000002
+            "change_bps": 44.02999999999997,
+            "num_moves": 1.761199999999999
           },
           {
             "meeting": "Jul 28",
             "meeting_iso": "2027-07-28",
-            "implied_rate_post_meeting": 4.1827,
-            "prob_move_pct": 85,
+            "implied_rate_post_meeting": 4.1616,
+            "prob_move_pct": 84,
             "prob_is_cut": false,
-            "change_bps": 43.26999999999997,
-            "num_moves": 1.7307999999999988
+            "change_bps": 41.16,
+            "num_moves": 1.6463999999999999
           },
           {
             "meeting": "Sep 15",
             "meeting_iso": "2027-09-15",
-            "implied_rate_post_meeting": 4.128,
-            "prob_move_pct": 79,
+            "implied_rate_post_meeting": 4.142,
+            "prob_move_pct": 82,
             "prob_is_cut": false,
-            "change_bps": 37.80000000000001,
-            "num_moves": 1.5120000000000005
+            "change_bps": 39.20000000000003,
+            "num_moves": 1.5680000000000012
           },
           {
             "meeting": "Oct 27",
             "meeting_iso": "2027-10-27",
-            "implied_rate_post_meeting": 4.0686,
-            "prob_move_pct": 72,
+            "implied_rate_post_meeting": 4.1072,
+            "prob_move_pct": 77,
             "prob_is_cut": false,
-            "change_bps": 31.86,
-            "num_moves": 1.2744
+            "change_bps": 35.71999999999997,
+            "num_moves": 1.4287999999999987
           },
           {
             "meeting": "Dec 8",
             "meeting_iso": "2027-12-08",
-            "implied_rate_post_meeting": 4.0492,
-            "prob_move_pct": 70,
+            "implied_rate_post_meeting": 4.0853,
+            "prob_move_pct": 75,
             "prob_is_cut": false,
-            "change_bps": 29.91999999999999,
-            "num_moves": 1.1967999999999996
+            "change_bps": 33.530000000000015,
+            "num_moves": 1.3412000000000006
           }
         ]
       }
@@ -120,13 +120,40 @@
         "midpoint": 2.4,
         "rows": [
           {
-            "meeting": "Dec",
-            "meeting_iso": "2026-12-31",
-            "implied_rate_post_meeting": 2.6399999999999997,
+            "meeting": "Jul 23",
+            "meeting_iso": "2026-07-23",
+            "implied_rate_post_meeting": 2.47,
             "prob_move_pct": 28,
             "prob_is_cut": false,
-            "change_bps": 24,
-            "num_moves": 0.96
+            "change_bps": 7,
+            "num_moves": 0.28
+          },
+          {
+            "meeting": "Sep 10",
+            "meeting_iso": "2026-09-10",
+            "implied_rate_post_meeting": 2.56,
+            "prob_move_pct": 64,
+            "prob_is_cut": false,
+            "change_bps": 16,
+            "num_moves": 0.64
+          },
+          {
+            "meeting": "Oct 29",
+            "meeting_iso": "2026-10-29",
+            "implied_rate_post_meeting": 2.61,
+            "prob_move_pct": 84,
+            "prob_is_cut": false,
+            "change_bps": 21,
+            "num_moves": 0.84
+          },
+          {
+            "meeting": "Dec 17",
+            "meeting_iso": "2026-12-17",
+            "implied_rate_post_meeting": 2.61,
+            "prob_move_pct": 84,
+            "prob_is_cut": false,
+            "change_bps": 21,
+            "num_moves": 0.84
           }
         ]
       }
@@ -136,10 +163,46 @@
         "midpoint": 3.75,
         "rows": [
           {
-            "meeting": "Dec",
-            "meeting_iso": "2026-12-31",
+            "meeting": "Jul 30",
+            "meeting_iso": "2026-07-30",
+            "implied_rate_post_meeting": 3.77,
+            "prob_move_pct": 8,
+            "prob_is_cut": false,
+            "change_bps": 2,
+            "num_moves": 0.08
+          },
+          {
+            "meeting": "Sep 17",
+            "meeting_iso": "2026-09-17",
             "implied_rate_post_meeting": 3.93,
-            "prob_move_pct": 7,
+            "prob_move_pct": 72,
+            "prob_is_cut": false,
+            "change_bps": 18,
+            "num_moves": 0.72
+          },
+          {
+            "meeting": "Nov 5",
+            "meeting_iso": "2026-11-05",
+            "implied_rate_post_meeting": 3.93,
+            "prob_move_pct": 72,
+            "prob_is_cut": false,
+            "change_bps": 18,
+            "num_moves": 0.72
+          },
+          {
+            "meeting": "Dec 17",
+            "meeting_iso": "2026-12-17",
+            "implied_rate_post_meeting": 3.93,
+            "prob_move_pct": 72,
+            "prob_is_cut": false,
+            "change_bps": 18,
+            "num_moves": 0.72
+          },
+          {
+            "meeting": "Feb 4",
+            "meeting_iso": "2027-02-04",
+            "implied_rate_post_meeting": 3.93,
+            "prob_move_pct": 72,
             "prob_is_cut": false,
             "change_bps": 18,
             "num_moves": 0.72
@@ -228,7 +291,7 @@
       }
     }
   },
-  "fetchedAt": "2026-07-09T08:20:31.516Z",
+  "fetchedAt": "2026-07-09T09:45:09.636Z",
   "snapshots": [
     {
       "data": {

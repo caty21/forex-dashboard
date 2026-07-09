@@ -6,7 +6,6 @@ export const dynamic = "force-dynamic";
 import cpiOverridesRaw   from "@/data/cpi_overrides.json";
 import rateDecisionsRaw  from "@/data/rate_decisions.json";
 import moneySupplyM3Raw  from "@/data/money-supply-m3.json";
-import { getAtlantaFedMpt } from "@/lib/atlantaFedMpt";
 import { fetchFFThisWeek, fetchFFEvents } from "@/lib/forexfactory";
 import type { FFEvent } from "@/lib/forexfactory";
 import { fetchTECoreInflation, fetchTEMoMInflation, fetchTEInflationYoY, fetchTECoreCPIMoM, fetchTECoreConsumerPricesIndex, fetchTEPPIMoM, fetchTECoreInflationPages, fetchTEInflationYoYPages, fetchTEAUDCommodityYoY, fetchTEGDPGrowthRate, fetchTEUnemploymentRate, fetchTESTIRRate, fetchTEEmploymentChange } from "@/lib/tecpi";
@@ -1427,7 +1426,6 @@ export async function GET(req: NextRequest) {
   const data = {
     currency, indicators,
     moneySupplyM3: getMoneySupplyM3(currency),
-    atlantaFedMpt: currency === "USD" ? getAtlantaFedMpt() : null,
     forecasts: {
       // CPI — TE calendar forecast (priorité) puis ForexFactory
       cpi:                    parseTeF(teCpiForecast?.cpiYoY)     ?? ffForecasts.cpi ?? null,
