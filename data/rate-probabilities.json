@@ -122,20 +122,20 @@
           {
             "meeting": "Jul 23",
             "meeting_iso": "2026-07-23",
-            "implied_rate_post_meeting": 2.47,
-            "prob_move_pct": 28,
+            "implied_rate_post_meeting": 2.48,
+            "prob_move_pct": 32,
             "prob_is_cut": false,
-            "change_bps": 7,
-            "num_moves": 0.28
+            "change_bps": 8,
+            "num_moves": 0.32
           },
           {
             "meeting": "Sep 10",
             "meeting_iso": "2026-09-10",
-            "implied_rate_post_meeting": 2.56,
-            "prob_move_pct": 64,
+            "implied_rate_post_meeting": 2.57,
+            "prob_move_pct": 68,
             "prob_is_cut": false,
-            "change_bps": 16,
-            "num_moves": 0.64
+            "change_bps": 17,
+            "num_moves": 0.68
           },
           {
             "meeting": "Oct 29",
@@ -291,7 +291,7 @@
       }
     }
   },
-  "fetchedAt": "2026-07-09T09:45:09.636Z",
+  "fetchedAt": "2026-07-09T09:56:32.338Z",
   "snapshots": [
     {
       "data": {
