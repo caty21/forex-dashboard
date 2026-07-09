@@ -27,13 +27,36 @@ import { execFileSync } from "child_process";
 
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
 
-function curlGet(url) {
+function curlGetOnce(url) {
   return execFileSync("curl", [
-    "-s", "-L", "--max-time", "30",
+    "-sS", "-L", "--fail", "--max-time", "30",
     "-A", UA,
     "-H", "Accept-Language: en-US,en;q=0.9",
     url,
   ], { maxBuffer: 1024 * 1024 * 50 }); // Buffer (binaire OK pour le PDF)
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Le blocage Cloudflare sur les IPs des runners GitHub Actions est
+// intermittent (constaté ailleurs dans ce repo pour investing.com) : quelques
+// tentatives supplémentaires suffisent parfois à passer. --fail est
+// indispensable ici : sans lui, curl sort avec le code 0 même sur un 403 (il
+// affiche juste la page d'erreur Cloudflare sur stdout), donc le try/catch
+// ci-dessous ne déclenchait jamais de retry — l'échec n'était détecté que
+// plus loin, hors de cette fonction, par la validation de contenu.
+async function curlGet(url, attempts = 3) {
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    try { return curlGetOnce(url); }
+    catch (e) {
+      lastErr = e;
+      if (i < attempts - 1) await sleep(2000 * (i + 1));
+    }
+  }
+  throw lastErr;
 }
 
 const MONTHS = {
@@ -42,7 +65,7 @@ const MONTHS = {
 };
 
 async function findLatestMpsPageUrl() {
-  const xml = curlGet("https://www.rbnz.govt.nz/sitemap.xml").toString("utf8");
+  const xml = (await curlGet("https://www.rbnz.govt.nz/sitemap.xml")).toString("utf8");
   if (!xml.includes("<urlset")) throw new Error("sitemap.xml : réponse inattendue (bloqué ?)");
 
   const re = /<loc>(https:\/\/www\.rbnz\.govt\.nz\/monetary-policy\/monetary-policy-statement\/monetary-policy-statement-filtered-listing-page\/(\d{4})\/([a-z]+)-\d+\/monetary-policy-statement-[a-z]+-\d{4})<\/loc>/g;
@@ -61,7 +84,7 @@ async function findLatestMpsPageUrl() {
 }
 
 async function findPdfUrl(pageUrl) {
-  const html = curlGet(pageUrl).toString("utf8");
+  const html = (await curlGet(pageUrl)).toString("utf8");
   const m = html.match(/href="(https:\/\/www\.rbnz\.govt\.nz\/-\/media\/[^"]+monetary-policy-statement-[^"]+\.pdf)"/i)
         ?? html.match(/href="(\/-\/media\/[^"]+monetary-policy-statement-[^"]+\.pdf)"/i);
   if (!m) throw new Error("Lien PDF introuvable sur la page MPS");
@@ -69,7 +92,7 @@ async function findPdfUrl(pageUrl) {
 }
 
 async function fetchPdfText(pdfUrl) {
-  const buf = curlGet(pdfUrl);
+  const buf = await curlGet(pdfUrl);
   if (buf.length < 1000 || buf.subarray(0, 4).toString("latin1") !== "%PDF") {
     throw new Error(`PDF invalide (${buf.length} bytes, bloqué ?)`);
   }
