@@ -1275,36 +1275,61 @@ export default function CurrencyCard({
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [calEvents, currency]);
 
-  // ── Categories with a real publication in the last 7 days for this currency
-  // Uses the calendar event date (not lastUpdated scraping timestamp).
-  const recentCalCategories = useMemo(() => {
+  // ── Indicators with a real publication in the last 3 calendar days for this currency
+  // Uses the calendar event date (not lastUpdated scraping/correction timestamp), and
+  // matches the *specific* indicator (not just its broad category) so that e.g. a PPI
+  // release doesn't light up "NEW" on CPI YoY/Core just because they share the
+  // "inflation" category — badge must reflect an actual calendar release, not a sibling
+  // indicator's release or a data-correction rewrite of an already-published value.
+  //
+  // Sub-classification regexes mirror fetchTEInflationForecasts (lib/tradingeconomics.ts)
+  // so a title is bucketed the same way across the codebase.
+  function matchIndicatorKey(e: CalendarEvent): string | null {
+    const t = (e.rawTitle || e.title).toLowerCase();
+    switch (e.category) {
+      case "inflation":
+        if (/ppi.*mom|producer.*price.*mom/i.test(t)) return "ppiMoM";
+        if (/core.*mom|core.*inflation.*mom|core.*rate.*mom/i.test(t)) return "cpiCoreMoM";
+        if (/core.*inflation.*yoy|core.*cpi.*yoy|core.*rate.*yoy/i.test(t)) return "cpiCore";
+        if (/^(?!.*core).*(inflation.*mom|cpi.*mom|rate.*mom)/i.test(t)) return "cpiMoM";
+        if (/^(?!.*core).*(inflation.*yoy|cpi.*yoy|inflation\s+rate.*yoy)/i.test(t)) return "cpiYoY";
+        return null;
+      case "pmi":
+        if (/composite/i.test(t)) return "pmiComposite";
+        if (/manufactur|mfg|procure\.ch/i.test(t)) return "pmiMfg";
+        if (/services?/i.test(t)) return "pmiServices";
+        return null;
+      case "employment":
+        if (/unemployment\s+rate|jobless\s+rate/i.test(t)) return "unemployment";
+        return "employment";
+      case "gdp": return "gdp";
+      case "retail_sales": return "retailSales";
+      case "policy_rate": return "policyRate";
+      default: return null;
+    }
+  }
+
+  const recentIndicatorKeys = useMemo(() => {
     if (!calEvents?.length) return new Set<string>();
-    const cutoff = Date.now() - 7 * 24 * 3600 * 1000;
-    const cats = new Set<string>();
+    const now = Date.now();
+    const cutoff = now - 3 * 24 * 3600 * 1000;
+    const keys = new Set<string>();
     for (const e of calEvents) {
       if (
         e.currency === currency &&
         e.isPublished &&
         e.actual !== null && e.actual !== "" &&
-        new Date(e.date).getTime() >= cutoff
+        new Date(e.date).getTime() >= cutoff &&
+        new Date(e.date).getTime() <= now
       ) {
-        cats.add(e.category);
+        const key = matchIndicatorKey(e);
+        if (key) keys.add(key);
       }
     }
-    return cats;
+    return keys;
   }, [calEvents, currency]);
 
-  // Maps indicator key → EventCategory (matches calendar route types)
-  const IND_CAT: Record<string, string> = {
-    cpiYoY: "inflation", cpiCore: "inflation", cpiMoM: "inflation",
-    cpiCoreMoM: "inflation", ppiMoM: "inflation",
-    pmiMfg: "pmi", pmiServices: "pmi", pmiComposite: "pmi",
-    unemployment: "employment", employment: "employment",
-    gdp: "gdp",
-    retailSales: "retail_sales",
-    policyRate: "policy_rate",
-  };
-  const indIsNew = (key: string) => recentCalCategories.has(IND_CAT[key] ?? "__none__");
+  const indIsNew = (key: string) => recentIndicatorKeys.has(key);
 
   // ── 5-dimension signal summary (header dots) ──────────────────────────────────
   const oisSignalDir: SignalDir = (() => {
