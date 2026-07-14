@@ -213,6 +213,7 @@
     "JPY": {
       "today": {
         "midpoint": 1,
+        "source": "InvestingLive — estimation hebdomadaire analyste (pas de futures/OIS coté public pour cette devise)",
         "rows": [
           {
             "meeting": "Dec",
@@ -229,6 +230,7 @@
     "CAD": {
       "today": {
         "midpoint": 2.25,
+        "source": "InvestingLive — estimation hebdomadaire analyste (pas de futures/OIS coté public pour cette devise)",
         "rows": [
           {
             "meeting": "Dec",
@@ -245,6 +247,7 @@
     "AUD": {
       "today": {
         "midpoint": 4.35,
+        "source": "InvestingLive — estimation hebdomadaire analyste (pas de futures/OIS coté public pour cette devise)",
         "rows": [
           {
             "meeting": "Dec",
@@ -261,6 +264,7 @@
     "NZD": {
       "today": {
         "midpoint": 2.5,
+        "source": "InvestingLive — estimation hebdomadaire analyste (pas de futures/OIS coté public pour cette devise)",
         "rows": [
           {
             "meeting": "Dec",
@@ -277,6 +281,7 @@
     "CHF": {
       "today": {
         "midpoint": 0,
+        "source": "InvestingLive — estimation hebdomadaire analyste (pas de futures/OIS coté public pour cette devise)",
         "rows": [
           {
             "meeting": "Dec",
@@ -291,7 +296,7 @@
       }
     }
   },
-  "fetchedAt": "2026-07-14T20:51:57.144Z",
+  "fetchedAt": "2026-07-14T21:49:48.162Z",
   "snapshots": [
     {
       "data": {
