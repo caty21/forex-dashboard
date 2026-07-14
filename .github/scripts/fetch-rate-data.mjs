@@ -516,6 +516,7 @@ function buildILFallback(ccy, il) {
   return {
     today: {
       midpoint: rate,
+      source: "InvestingLive — estimation hebdomadaire analyste (pas de futures/OIS coté public pour cette devise)",
       rows: [{
         meeting:                  "Dec",
         meeting_iso:              yearEnd,
@@ -570,7 +571,10 @@ for (const ccy of IC_SUPPORTED) {
     }
     data = await fetchInvestingCom(ccy);
   }
-  if (data) results[ccy] = data;
+  if (data) {
+    data.today.source = "Investing.com Fed Rate Monitor (CME 30-Day Fed Funds Futures)";
+    results[ccy] = data;
+  }
   await new Promise(r => setTimeout(r, 600));
 }
 
@@ -586,7 +590,12 @@ for (const ccy of Object.keys(FUTURES_STRIP_CONFIG)) {
     }
     data = await fetchFuturesStrip(ccy);
   }
-  if (data) results[ccy] = data;
+  if (data) {
+    data.today.source = ccy === "EUR"
+      ? "Investing.com — Euribor 3M Futures (Eurex)"
+      : "Investing.com — Three-Month SONIA Futures (ICE)";
+    results[ccy] = data;
+  }
   await new Promise(r => setTimeout(r, 600));
 }
 

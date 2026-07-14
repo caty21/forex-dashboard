@@ -222,8 +222,12 @@ export default function Dashboard() {
       }
 
       // ── Probabilités de taux (rateprobability.com OIS) ───────────────────
-      if (rateProbRes.status === "fulfilled" && rateProbRes.value?.data) {
+      if (rateProbRes.status === "fulfilled" && rateProbRes.value?.data && Object.keys(rateProbRes.value.data).length > 0) {
         setRateProbabilities(rateProbRes.value.data as RateProbData);
+        saveCache("rateProbabilities", rateProbRes.value.data);
+      } else {
+        const cached = loadCache<RateProbData>("rateProbabilities");
+        if (cached) setRateProbabilities(cached.data);
       }
 
       setLastRefresh(new Date());

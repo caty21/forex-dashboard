@@ -72,6 +72,7 @@ export interface CBRatePath {
   prevMeetings?:  RateProbMeeting[];       // réunions semaine précédente (snapshot RP)
   prevWeekDate?:  string;                  // date du snapshot semaine précédente
   history?:       Array<{ date: string; meetings: RateProbMeeting[] }>; // snapshots hebdo accumulés
+  instrumentSource?: string;               // instrument réellement utilisé pour produire ces données (ground truth, écrit par le pipeline de fetch)
 }
 
 export type RateProbData = Partial<Record<Currency, CBRatePath>>;
@@ -217,6 +218,7 @@ function buildOfficialCalendarPath(
     meetings,
     peakMeeting:    peakMeeting.probMovePct > 0 ? peakMeeting : null,
     yearEndImplied: meetings.at(-1)?.impliedRate ?? null,
+    instrumentSource: "InvestingLive — estimation hebdomadaire analyste (pas de futures/OIS coté public pour cette devise) + calendrier officiel de réunions",
   };
 }
 
@@ -288,7 +290,8 @@ function parseCBBody(ccy: Currency, body: Record<string, unknown>): CBRatePath |
   const currentYear = new Date().getFullYear();
   const meetsThisYear = meetings.filter(m => m.dateIso <= `${currentYear}-12-31`);
   const yearEndImplied = meetsThisYear.length > 0 ? meetsThisYear.at(-1)!.impliedRate : meetings[0].impliedRate;
-  return { currency: ccy, asOf, currentRate, meetings, peakMeeting, yearEndImplied };
+  const instrumentSource = typeof today["source"] === "string" ? today["source"] as string : undefined;
+  return { currency: ccy, asOf, currentRate, meetings, peakMeeting, yearEndImplied, instrumentSource };
 }
 
 // ── Fetch toutes les CB — depuis le cache GitHub Actions + enrichissement IL ───

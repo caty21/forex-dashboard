@@ -358,29 +358,41 @@ const TE_COUNTRY: Record<string, string> = {
   USD:"united-states", EUR:"euro-area", GBP:"united-kingdom", JPY:"japan",
   CHF:"switzerland",   CAD:"canada",    AUD:"australia",      NZD:"new-zealand",
 };
-const IC_SLUG: Record<string, string> = {
-  USD:"fed-rate-monitor",  EUR:"ecb-rate-monitor",  GBP:"boe-rate-monitor",
-  JPY:"boj-rate-monitor",  CAD:"boc-rate-monitor",  AUD:"rba-rate-monitor",
-  NZD:"rbnz-rate-monitor", CHF:"snb-rate-monitor",
-};
 const CB_NAME: Record<string, string> = {
   USD:"Fed (FOMC)", EUR:"BCE", GBP:"BoE MPC", JPY:"BoJ",
   CHF:"SNB",        CAD:"BoC", AUD:"RBA",      NZD:"RBNZ",
 };
 
+// Instrument réellement interrogé par le pipeline de fetch pour chaque devise
+// (voir .github/scripts/fetch-rate-data.mjs) — à garder synchronisé avec les
+// labels "source" écrits là-bas. USD seul a un Rate Monitor Investing.com ;
+// EUR/GBP utilisent des futures 3M en proxy ; les 5 autres devises n'ont aucune
+// source de marché publique gratuite et retombent sur l'estimation hebdomadaire
+// InvestingLive (pas un vrai OIS/futures coté).
+const OIS_SOURCE_INFO: Record<string, { label: string; url: string; note: string }> = {
+  USD: { label: "Investing.com — Fed Rate Monitor", url: "https://www.investing.com/central-banks/fed-rate-monitor", note: "Dérivé des CME 30-Day Fed Funds Futures · probabilités par réunion" },
+  EUR: { label: "Investing.com — Euribor 3M Futures (Eurex)", url: "https://www.investing.com/rates-bonds/euribor-futures", note: "Pas de Rate Monitor BCE dédié · résolution mensuelle" },
+  GBP: { label: "Investing.com — Three-Month SONIA Futures (ICE)", url: "https://www.investing.com/rates-bonds/three-month-sonia-futures", note: "Pas de Rate Monitor BoE dédié · résolution trimestrielle" },
+};
+
 function SourcesPopup({ currency, onClose }: { currency: string; onClose: () => void }) {
   const country = TE_COUNTRY[currency] ?? currency.toLowerCase();
-  const icSlug  = IC_SLUG[currency];
   const cbName  = CB_NAME[currency] ?? currency;
+  const oisSource = OIS_SOURCE_INFO[currency];
 
   const sections: Array<{ title: string; icon: string; sources: Array<{ label: string; url: string; note?: string }> }> = [
     {
       title: "OIS · Futures (onglet Signaux)",
       icon: "📡",
       sources: [
-        ...(currency === "USD" ? [{ label: "CME FedWatch — contrats SOFR", url: "https://www.cmegroup.com/markets/interest-rates/cme-fedwatch-tool.html", note: "Probabilités Fed par réunion · source primaire USD" }] : []),
-        ...(icSlug ? [{ label: `Investing.com — ${cbName} Rate Monitor`, url: `https://www.investing.com/central-banks/${icSlug}`, note: "OIS implicites par réunion" }] : []),
-        { label: "InvestingLive — Giuseppe Dellamotta", url: "https://investinglive.com", note: "Articles hebdo : variation bps fin d'an (fallback)" },
+        ...(oisSource ? [oisSource] : []),
+        {
+          label: "InvestingLive — Giuseppe Dellamotta",
+          url: "https://investinglive.com",
+          note: oisSource
+            ? "Articles hebdo : variation bps fin d'an (fallback si Investing.com échoue)"
+            : "Seule source publique gratuite pour cette devise · pas de futures/OIS coté · estimation hebdomadaire",
+        },
       ],
     },
     {
@@ -852,6 +864,17 @@ function OISEnhancedBlock({ ratePath, syncChartTab, onChartTabChange }: {
           </div>
         )}
         {(() => {
+          // instrumentSource = ce que le pipeline a réellement interrogé pour produire CES
+          // données (ground truth, écrit par .github/scripts/fetch-rate-data.mjs). Fallback
+          // sur la table statique STIR_INSTRUMENT uniquement pour du cache ancien qui n'a pas
+          // encore ce champ (avant migration).
+          if (ratePath.instrumentSource) {
+            return (
+              <div className="text-[7px] text-slate-700">
+                Instrument utilisé : <span className="text-slate-600">{ratePath.instrumentSource}</span>
+              </div>
+            );
+          }
           const stir = STIR_INSTRUMENT[ratePath.currency];
           if (!stir) return null;
           return (

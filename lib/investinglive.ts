@@ -59,15 +59,19 @@ async function tryUrl(daysAgo: number): Promise<ArticleRef | null> {
     `https://investinglive.com/news/how-have-interest-rate-expectations-changed-after-this-weeks-event-${yyyymmdd}/`,
   ];
   const hits = await Promise.all(candidates.map(async (url) => {
+    const controller = new AbortController();
+    const timeout    = setTimeout(() => controller.abort(), 8000);
     try {
       const res = await fetch(url, {
         method:  "GET",
         headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36" },
         cache:   "no-store",
+        signal:  controller.signal,
       });
       res.body?.cancel().catch(() => {});
       return res.ok ? url : null;
     } catch { return null; }
+    finally  { clearTimeout(timeout); }
   }));
   const found = hits.find((u): u is string => u !== null);
   return found ? { url: found, dateStr, daysAgo } : null;
@@ -106,6 +110,8 @@ async function findArticleRefs(): Promise<{ current: ArticleRef | null; previous
 // ── Article fetch + parse ─────────────────────────────────────────────────────
 
 async function fetchAndParse(ref: ArticleRef): Promise<ILExpectationsMap> {
+  const controller = new AbortController();
+  const timeout    = setTimeout(() => controller.abort(), 8000);
   try {
     const res = await fetch(ref.url, {
       headers: {
@@ -113,7 +119,8 @@ async function fetchAndParse(ref: ArticleRef): Promise<ILExpectationsMap> {
         "Accept":          "text/html,application/xhtml+xml",
         "Accept-Language": "en-US,en;q=0.9",
       },
-      next: { revalidate: 21600 },
+      next:   { revalidate: 21600 },
+      signal: controller.signal,
     });
     if (!res.ok) return {};
 
@@ -136,6 +143,8 @@ async function fetchAndParse(ref: ArticleRef): Promise<ILExpectationsMap> {
   } catch (err) {
     console.error("[IL] fetch error:", err);
     return {};
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
