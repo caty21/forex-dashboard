@@ -209,94 +209,9 @@
           }
         ]
       }
-    },
-    "JPY": {
-      "today": {
-        "midpoint": 1,
-        "source": "InvestingLive — estimation hebdomadaire analyste (pas de futures/OIS coté public pour cette devise)",
-        "rows": [
-          {
-            "meeting": "Dec",
-            "meeting_iso": "2026-12-31",
-            "implied_rate_post_meeting": 1.2,
-            "prob_move_pct": 1,
-            "prob_is_cut": false,
-            "change_bps": 20,
-            "num_moves": 0.8
-          }
-        ]
-      }
-    },
-    "CAD": {
-      "today": {
-        "midpoint": 2.25,
-        "source": "InvestingLive — estimation hebdomadaire analyste (pas de futures/OIS coté public pour cette devise)",
-        "rows": [
-          {
-            "meeting": "Dec",
-            "meeting_iso": "2026-12-31",
-            "implied_rate_post_meeting": 2.33,
-            "prob_move_pct": 9,
-            "prob_is_cut": false,
-            "change_bps": 8,
-            "num_moves": 0.32
-          }
-        ]
-      }
-    },
-    "AUD": {
-      "today": {
-        "midpoint": 4.35,
-        "source": "InvestingLive — estimation hebdomadaire analyste (pas de futures/OIS coté public pour cette devise)",
-        "rows": [
-          {
-            "meeting": "Dec",
-            "meeting_iso": "2026-12-31",
-            "implied_rate_post_meeting": 4.449999999999999,
-            "prob_move_pct": 15,
-            "prob_is_cut": false,
-            "change_bps": 10,
-            "num_moves": 0.4
-          }
-        ]
-      }
-    },
-    "NZD": {
-      "today": {
-        "midpoint": 2.5,
-        "source": "InvestingLive — estimation hebdomadaire analyste (pas de futures/OIS coté public pour cette devise)",
-        "rows": [
-          {
-            "meeting": "Dec",
-            "meeting_iso": "2026-12-31",
-            "implied_rate_post_meeting": 3.12,
-            "prob_move_pct": 82,
-            "prob_is_cut": false,
-            "change_bps": 62,
-            "num_moves": 2.48
-          }
-        ]
-      }
-    },
-    "CHF": {
-      "today": {
-        "midpoint": 0,
-        "source": "InvestingLive — estimation hebdomadaire analyste (pas de futures/OIS coté public pour cette devise)",
-        "rows": [
-          {
-            "meeting": "Dec",
-            "meeting_iso": "2026-12-31",
-            "implied_rate_post_meeting": 0.05,
-            "prob_move_pct": 4,
-            "prob_is_cut": false,
-            "change_bps": 5,
-            "num_moves": 0.2
-          }
-        ]
-      }
     }
   },
-  "fetchedAt": "2026-07-17T23:44:15.415Z",
+  "fetchedAt": "2026-07-18T01:43:10.581Z",
   "snapshots": [
     {
       "data": {
