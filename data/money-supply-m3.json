@@ -1,6 +1,6 @@
 [
   {
-    "updated_at": "2026-07-20",
+    "updated_at": "2026-07-27",
     "note": "Masse monétaire M3 (niveau, devise locale) par zone — scrapé automatiquement depuis tradingeconomics.com (meta description des pages /money-supply-m3). USD : proxy M2 (Fed n'a plus publié M3 depuis 2006). Mis à jour par .github/workflows/fetch-money-supply.yml (hebdomadaire).",
     "series": {
       "USD": {
@@ -12,9 +12,9 @@
         "proxyLabel": "M2 (M3 non publié par la Fed depuis 2006)"
       },
       "EUR": {
-        "value": 17552244,
+        "value": 17610863,
         "unit": "EUR Mn",
-        "period": "2026-05",
+        "period": "2026-06",
         "source": "https://tradingeconomics.com/euro-area/money-supply-m3",
         "isProxy": false
       },
@@ -33,16 +33,16 @@
         "isProxy": false
       },
       "CHF": {
-        "value": 1228273,
+        "value": 1227049,
         "unit": "CHF Mn",
-        "period": "2026-05",
+        "period": "2026-06",
         "source": "https://tradingeconomics.com/switzerland/money-supply-m3",
         "isProxy": false
       },
       "CAD": {
-        "value": 4020356,
+        "value": 4066015,
         "unit": "CAD Mn",
-        "period": "2026-04",
+        "period": "2026-05",
         "source": "https://tradingeconomics.com/canada/money-supply-m3",
         "isProxy": false
       },
