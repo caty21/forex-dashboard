@@ -1,12 +1,12 @@
 [
   {
-    "updated_at": "2026-07-27",
+    "updated_at": "2026-08-03",
     "note": "Masse monétaire M3 (niveau, devise locale) par zone — scrapé automatiquement depuis tradingeconomics.com (meta description des pages /money-supply-m3). USD : proxy M2 (Fed n'a plus publié M3 depuis 2006). Mis à jour par .github/workflows/fetch-money-supply.yml (hebdomadaire).",
     "series": {
       "USD": {
-        "value": 22804.5,
+        "value": 23155.2,
         "unit": "USD Bn",
-        "period": "2026-04",
+        "period": "2026-06",
         "source": "https://tradingeconomics.com/united-states/money-supply-m2",
         "isProxy": true,
         "proxyLabel": "M2 (M3 non publié par la Fed depuis 2006)"
@@ -19,9 +19,9 @@
         "isProxy": false
       },
       "GBP": {
-        "value": 3811591,
+        "value": 3870622,
         "unit": "GBP Mn",
-        "period": "2026-05",
+        "period": "2026-06",
         "source": "https://tradingeconomics.com/united-kingdom/money-supply-m3",
         "isProxy": false
       },
@@ -47,16 +47,16 @@
         "isProxy": false
       },
       "AUD": {
-        "value": 3447.08,
+        "value": 3481.28,
         "unit": "AUD Bn",
-        "period": "2026-05",
+        "period": "2026-06",
         "source": "https://tradingeconomics.com/australia/money-supply-m3",
         "isProxy": false
       },
       "NZD": {
-        "value": 451046,
+        "value": 454697,
         "unit": "NZD Mn",
-        "period": "2026-05",
+        "period": "2026-06",
         "source": "https://tradingeconomics.com/new-zealand/money-supply-m3",
         "isProxy": false
       }
