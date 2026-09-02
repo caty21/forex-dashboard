@@ -1,6 +1,6 @@
 [
   {
-    "updated_at": "2026-07-08",
+    "updated_at": "2026-09-02",
     "note": "Taux directeurs officiels CB. current/prev = taux annoncés (pas interbancaires). EUR = MRO (DFR+15bps) pour cohérence avec investing.com/TE. prev = taux avant la DERNIÈRE décision (= current si dernière réunion = statu quo). Fichier maintenu automatiquement par .github/workflows/update-rate-decisions.yml (hourly) : quand le taux scrapé sur Trading Economics diffère de 'current', l'ancien 'current' glisse vers 'prev' sans perte de donnée, et 'source' est réécrit pour tracer le changement. Ne plus éditer 'current'/'prev' à la main sauf correction ponctuelle.",
     "decisions": {
       "USD": {
@@ -39,9 +39,9 @@
         "source": "RBA — statu quo confirmé 16 juin 2026, décision unanime à 4.35%. Trading Economics"
       },
       "NZD": {
-        "current": 2.5,
-        "prev": 2.25,
-        "source": "RBNZ — hausse de 25bps (2.25%→2.50%) le 8 juillet 2026, première hausse en 3 ans après 3 statu quo consécutifs à 2.25%. Trading Economics"
+        "current": 2.75,
+        "prev": 2.5,
+        "source": "RBNZ — changement détecté automatiquement le 2026-09-02 via Trading Economics (new-zealand/interest-rate) : 2.5% → 2.75%."
       }
     }
   }
