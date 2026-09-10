@@ -1,6 +1,6 @@
 [
   {
-    "updated_at": "2026-09-02",
+    "updated_at": "2026-09-10",
     "note": "Taux directeurs officiels CB. current/prev = taux annoncés (pas interbancaires). EUR = MRO (DFR+15bps) pour cohérence avec investing.com/TE. prev = taux avant la DERNIÈRE décision (= current si dernière réunion = statu quo). Fichier maintenu automatiquement par .github/workflows/update-rate-decisions.yml (hourly) : quand le taux scrapé sur Trading Economics diffère de 'current', l'ancien 'current' glisse vers 'prev' sans perte de donnée, et 'source' est réécrit pour tracer le changement. Ne plus éditer 'current'/'prev' à la main sauf correction ponctuelle.",
     "decisions": {
       "USD": {
@@ -9,9 +9,9 @@
         "source": "Fed funds target upper bound — inchangé 3.50-3.75% (upper=3.75%), 4e réunion consécutive de statu quo, dernière décision 17 juin 2026 (Trading Economics)"
       },
       "EUR": {
-        "current": 2.4,
-        "prev": 2.15,
-        "source": "ECB — hausse de 25bps de tous les taux directeurs (DFR 2.00%→2.25%, MRO 2.15%→2.40%, MLF 2.40%→2.65%) effective 17 juin 2026, en réponse au choc d'inflation lié au conflit Moyen-Orient (communiqué officiel : https://www.ecb.europa.eu/press/pr/date/2026/html/ecb.mp260611~4d41bd5e83.en.html, publié 11 juin 2026). MRO retenu ici pour cohérence avec investing.com/TE."
+        "current": 2.65,
+        "prev": 2.4,
+        "source": "BCE — changement détecté automatiquement le 2026-09-10 via Trading Economics (euro-area/interest-rate) : 2.4% → 2.65%."
       },
       "GBP": {
         "current": 3.75,
