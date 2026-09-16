@@ -1,12 +1,12 @@
 [
   {
-    "updated_at": "2026-09-10",
+    "updated_at": "2026-09-16",
     "note": "Taux directeurs officiels CB. current/prev = taux annoncés (pas interbancaires). EUR = MRO (DFR+15bps) pour cohérence avec investing.com/TE. prev = taux avant la DERNIÈRE décision (= current si dernière réunion = statu quo). Fichier maintenu automatiquement par .github/workflows/update-rate-decisions.yml (hourly) : quand le taux scrapé sur Trading Economics diffère de 'current', l'ancien 'current' glisse vers 'prev' sans perte de donnée, et 'source' est réécrit pour tracer le changement. Ne plus éditer 'current'/'prev' à la main sauf correction ponctuelle.",
     "decisions": {
       "USD": {
-        "current": 3.75,
+        "current": 4,
         "prev": 3.75,
-        "source": "Fed funds target upper bound — inchangé 3.50-3.75% (upper=3.75%), 4e réunion consécutive de statu quo, dernière décision 17 juin 2026 (Trading Economics)"
+        "source": "Fed (FOMC) — changement détecté automatiquement le 2026-09-16 via Trading Economics (united-states/interest-rate) : 3.75% → 4%."
       },
       "EUR": {
         "current": 2.65,
