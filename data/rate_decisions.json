@@ -1,6 +1,6 @@
 [
   {
-    "updated_at": "2026-09-18",
+    "updated_at": "2026-09-29",
     "note": "Taux directeurs officiels CB. current/prev = taux annoncés (pas interbancaires). EUR = MRO (DFR+15bps) pour cohérence avec investing.com/TE. prev = taux avant la DERNIÈRE décision (= current si dernière réunion = statu quo). Fichier maintenu automatiquement par .github/workflows/update-rate-decisions.yml (hourly) : quand le taux scrapé sur Trading Economics diffère de 'current', l'ancien 'current' glisse vers 'prev' sans perte de donnée, et 'source' est réécrit pour tracer le changement. Ne plus éditer 'current'/'prev' à la main sauf correction ponctuelle.",
     "decisions": {
       "USD": {
@@ -34,9 +34,9 @@
         "source": "BoC — statu quo confirmé 10 juin 2026, 5e réunion consécutive à 2.25%. Trading Economics"
       },
       "AUD": {
-        "current": 4.35,
+        "current": 4.6,
         "prev": 4.35,
-        "source": "RBA — statu quo confirmé 16 juin 2026, décision unanime à 4.35%. Trading Economics"
+        "source": "RBA — changement détecté automatiquement le 2026-09-29 via Trading Economics (australia/interest-rate) : 4.35% → 4.6%."
       },
       "NZD": {
         "current": 2.75,
