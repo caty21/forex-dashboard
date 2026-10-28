@@ -1,6 +1,6 @@
 [
   {
-    "updated_at": "2026-09-29",
+    "updated_at": "2026-10-28",
     "note": "Taux directeurs officiels CB. current/prev = taux annoncés (pas interbancaires). EUR = MRO (DFR+15bps) pour cohérence avec investing.com/TE. prev = taux avant la DERNIÈRE décision (= current si dernière réunion = statu quo). Fichier maintenu automatiquement par .github/workflows/update-rate-decisions.yml (hourly) : quand le taux scrapé sur Trading Economics diffère de 'current', l'ancien 'current' glisse vers 'prev' sans perte de donnée, et 'source' est réécrit pour tracer le changement. Ne plus éditer 'current'/'prev' à la main sauf correction ponctuelle.",
     "decisions": {
       "USD": {
@@ -29,9 +29,9 @@
         "source": "SNB officiel — inchangé à 0% ; confirmé statu quo le 18 juin 2026. Trading Economics"
       },
       "CAD": {
-        "current": 2.25,
+        "current": 2.5,
         "prev": 2.25,
-        "source": "BoC — statu quo confirmé 10 juin 2026, 5e réunion consécutive à 2.25%. Trading Economics"
+        "source": "BoC — changement détecté automatiquement le 2026-10-28 via Trading Economics (canada/interest-rate) : 2.25% → 2.5%."
       },
       "AUD": {
         "current": 4.6,
