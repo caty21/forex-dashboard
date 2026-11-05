@@ -1,6 +1,6 @@
 [
   {
-    "updated_at": "2026-11-03",
+    "updated_at": "2026-11-05",
     "note": "Taux directeurs officiels CB. current/prev = taux annoncés (pas interbancaires). EUR = MRO (DFR+15bps) pour cohérence avec investing.com/TE. prev = taux avant la DERNIÈRE décision (= current si dernière réunion = statu quo). Fichier maintenu automatiquement par .github/workflows/update-rate-decisions.yml (hourly) : quand le taux scrapé sur Trading Economics diffère de 'current', l'ancien 'current' glisse vers 'prev' sans perte de donnée, et 'source' est réécrit pour tracer le changement. Ne plus éditer 'current'/'prev' à la main sauf correction ponctuelle.",
     "decisions": {
       "USD": {
@@ -14,9 +14,9 @@
         "source": "BCE — changement détecté automatiquement le 2026-09-10 via Trading Economics (euro-area/interest-rate) : 2.4% → 2.65%."
       },
       "GBP": {
-        "current": 3.75,
+        "current": 4,
         "prev": 3.75,
-        "source": "BoE Official Bank Rate — statu quo confirmé 18 juin 2026 (vote MPC 7-2, 2 membres pour +25bps à 4.00%). Trading Economics"
+        "source": "BoE MPC — changement détecté automatiquement le 2026-11-05 via Trading Economics (united-kingdom/interest-rate) : 3.75% → 4%."
       },
       "JPY": {
         "current": 1.25,
